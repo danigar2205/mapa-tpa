@@ -1,3 +1,7 @@
+import os
+# Desactivar extensión C de Protobuf para evitar 'Metaclasses with custom tp_new' en Python 3.11+
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+
 from flask import Flask, render_template, jsonify
 import requests
 import urllib3
@@ -7,11 +11,12 @@ import ssl
 from requests.adapters import HTTPAdapter
 from urllib3.poolmanager import PoolManager
 
+# Desactivar avisos de certificados SSL no válidos/caducados
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
 
-# Adaptador SSL para forzar compatibilidad con servidores GTFS en Linux/Render
+# Adaptador SSL permisivo para servidores GTFS antiguos o con certificados caducados
 class LegacySSLAdapter(HTTPAdapter):
     def init_poolmanager(self, connections, maxsize, block=False, **kwargs):
         ctx = ssl.create_default_context()
@@ -107,7 +112,7 @@ def obtener_estimaciones_tripupdates():
 
     for url in TRIPUPDATES_ENDPOINTS:
         try:
-            res = session.get(url, headers=headers, timeout=8)
+            res = session.get(url, headers=headers, timeout=8, verify=False)
             if res.status_code != 200 or not res.content:
                 continue
 
@@ -185,7 +190,7 @@ def get_t05_buses():
 
     for url in VEHICLES_ENDPOINTS:
         try:
-            res = session.get(url, headers=headers, timeout=8)
+            res = session.get(url, headers=headers, timeout=8, verify=False)
             print(f"[API CHECK] {url} -> Status: {res.status_code}, Bytes: {len(res.content)}")
             if res.status_code != 200 or not res.content:
                 continue
