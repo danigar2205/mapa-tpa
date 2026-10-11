@@ -35,7 +35,6 @@
       z-index: 1;
     }
 
-    /* Tarjeta superior flotante */
     .header-card {
       position: absolute;
       top: 16px;
@@ -112,18 +111,9 @@
     }
 
     @keyframes pulse-green {
-      0% {
-        transform: scale(0.95);
-        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
-      }
-      70% {
-        transform: scale(1);
-        box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
-      }
-      100% {
-        transform: scale(0.95);
-        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
-      }
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
     }
 
     .info-grid {
@@ -186,7 +176,6 @@
       transform: translateY(-1px);
     }
 
-    /* Marcadores estilo radar */
     .bus-marker-container {
       position: relative;
       width: 44px;
@@ -206,10 +195,7 @@
     }
 
     @keyframes bus-ping {
-      75%, 100% {
-        transform: scale(1.6);
-        opacity: 0;
-      }
+      75%, 100% { transform: scale(1.6); opacity: 0; }
     }
 
     .bus-marker-icon {
@@ -226,6 +212,20 @@
       box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
       font-size: 16px;
     }
+
+    .occ-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      margin-top: 6px;
+    }
+    .occ-green { background: #dcfce7; color: #15803d; }
+    .occ-yellow { background: #fef9c3; color: #a16207; }
+    .occ-orange { background: #ffedd5; color: #c2410c; }
+    .occ-red { background: #fee2e2; color: #b91c1c; }
+    .occ-gray { background: #f1f5f9; color: #64748b; }
   </style>
 </head>
 <body>
@@ -266,7 +266,6 @@
 
   <div id="map"></div>
 
-  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     const map = L.map('map', { zoomControl: false }).setView([41.6563, -0.8773], 13);
@@ -310,16 +309,31 @@
             const coche = bus.coche || bus.id || "S/N";
             const matricula = bus.matricula || "";
             const idUnico = bus.id || coche;
+            const ocupacion = bus.ocupacion || "Sin datos";
+            const occColor = bus.ocupacion_color || "gray";
+            const retraso = bus.retraso || "En hora";
+            const proximaParada = bus.proxima_parada || "En trayecto";
+            const destino = bus.destino || "En trayecto";
 
             idsVivos.add(idUnico);
             puntosLatLng.push([lat, lon]);
             detallesCoches.push(matricula ? `${coche} (${matricula})` : `${coche}`);
 
             const popupContent = `
-              <div style="text-align: center; font-family: sans-serif; padding: 4px;">
+              <div style="text-align: center; font-family: sans-serif; padding: 6px; min-width: 190px;">
                 <b style="font-size: 1.1rem; color: #2563eb;">Línea T05</b><br>
                 <span style="font-size: 0.95rem; font-weight: bold; color: #1e293b;">Nº Coche: ${coche}</span><br>
-                ${matricula ? `<span style="font-size: 0.8rem; color: #64748b;">Matrícula: ${matricula}</span>` : ''}
+                ${matricula ? `<span style="font-size: 0.8rem; color: #64748b;">Matrícula: ${matricula}</span><br>` : ''}
+                
+                <div style="margin: 8px 0; padding: 6px 8px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 0.78rem; text-align: left;">
+                  <div style="margin-bottom: 3px;"><i class="fa-solid fa-route" style="color: #2563eb; width: 16px;"></i> <b>Destino:</b> ${destino}</div>
+                  <div style="margin-bottom: 3px;"><i class="fa-solid fa-clock" style="color: #2563eb; width: 16px;"></i> <b>Estado:</b> ${retraso}</div>
+                  <div><i class="fa-solid fa-location-dot" style="color: #ef4444; width: 16px;"></i> <b>Próxima:</b> ${proximaParada}</div>
+                </div>
+
+                <div class="occ-badge occ-${occColor}">
+                  <i class="fa-solid fa-users" style="margin-right: 4px;"></i>${ocupacion}
+                </div>
               </div>
             `;
 
@@ -332,7 +346,6 @@
             }
           });
 
-          // Eliminar coches retirados
           Object.keys(marcadoresBuses).forEach(id => {
             if (!idsVivos.has(id)) {
               map.removeLayer(marcadoresBuses[id]);
