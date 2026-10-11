@@ -11,7 +11,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
 
-# Adaptador SSL para permitir servidores GTFS antiguos en Linux/Render
+# Adaptador SSL para forzar compatibilidad con servidores GTFS en Linux/Render
 class LegacySSLAdapter(HTTPAdapter):
     def init_poolmanager(self, connections, maxsize, block=False, **kwargs):
         ctx = ssl.create_default_context()
@@ -46,43 +46,23 @@ ROUTES_T05 = [
     "61b2122d-39cc-44e6-89f0-3057b6528c54"   # T05-20 (Zaragoza -> Fraga)
 ]
 
-# PARADAS SENTIDO FRAGA (Zaragoza -> Fraga) - ÍNDICES BASE 0
 PARADAS_A_FRAGA = [
-    "Zaragoza. Estación Intermodal",               # Seq 0
-    "Lugarico de Cerdán",                          # Seq 1
-    "La Puebla Alfindén",                          # Seq 2
-    "Alfajarín. Avenida Europa 127",               # Seq 3
-    "Nuez de Ebro. Avenida Zaragoza, 1",           # Seq 4
-    "Condado (El)",                                # Seq 5
-    "Villafranca de Ebro. Avenida Zaragoza Nº 1",  # Seq 6
-    "Osera de Ebro. C/ San Martín S/N",            # Seq 7
-    "Pina de Ebro. Plaza de España",               # Seq 8
-    "Venta de Santa Lucía",                        # Seq 9
-    "Bujaraloz. Rte español (original)",           # Seq 10
-    "Peñalba",                                     # Seq 11
-    "Candasnos. C/Zaragoza Nº83",                  # Seq 12
-    "Fraga. Estación"                              # Seq 13
+    "Zaragoza. Estación Intermodal", "Lugarico de Cerdán", "La Puebla Alfindén",
+    "Alfajarín. Avenida Europa 127", "Nuez de Ebro. Avenida Zaragoza, 1",
+    "Condado (El)", "Villafranca de Ebro. Avenida Zaragoza Nº 1",
+    "Osera de Ebro. C/ San Martín S/N", "Pina de Ebro. Plaza de España",
+    "Venta de Santa Lucía", "Bujaraloz. Rte español (original)", "Peñalba",
+    "Candasnos. C/Zaragoza Nº83", "Fraga. Estación"
 ]
 
-# PARADAS SENTIDO ZARAGOZA (Fraga -> Zaragoza) - ÍNDICES BASE 0
 PARADAS_A_ZARAGOZA = [
-    "Fraga. Estación",                              # Seq 0
-    "Candasnos. C/Zaragoza Nº83",                  # Seq 1
-    "Peñalba",                                     # Seq 2
-    "Bujaraloz. Rte español (original)",           # Seq 3
-    "Venta de Santa Lucía",                        # Seq 4
-    "Pina de Ebro. Plaza de España",               # Seq 5
-    "Osera de Ebro. C/ San Martín S/N",            # Seq 6
-    "Villafranca de Ebro. Avenida Zaragoza Nº 1",  # Seq 7
-    "Condado (El)",                                # Seq 8
-    "Nuez de Ebro. Avenida Zaragoza, 1",           # Seq 9
-    "Alfajarín. Avenida Europa 127",               # Seq 10
-    "La Puebla Alfindén",                          # Seq 11
-    "Lugarico de Cerdán",                          # Seq 12
-    "Zaragoza. Estación Intermodal"               # Seq 13
+    "Fraga. Estación", "Candasnos. C/Zaragoza Nº83", "Peñalba",
+    "Bujaraloz. Rte español (original)", "Venta de Santa Lucía",
+    "Pina de Ebro. Plaza de España", "Osera de Ebro. C/ San Martín S/N",
+    "Villafranca de Ebro. Avenida Zaragoza Nº 1", "Condado (El)",
+    "Nuez de Ebro. Avenida Zaragoza, 1", "Alfajarín. Avenida Europa 127",
+    "La Puebla Alfindén", "Lugarico de Cerdán", "Zaragoza. Estación Intermodal"
 ]
-
-NOMBRES_PARADAS = {}
 
 TRADUCCION_OCUPACION = {
     'EMPTY': ('Vacío', 'green'),
@@ -104,21 +84,14 @@ def resolver_sentido(direction_id, route_id):
     return True
 
 def obtener_nombre_parada(stop_sequence, stop_id, route_id, direction_id=None):
-    if stop_id and stop_id in NOMBRES_PARADAS:
-        return NOMBRES_PARADAS[stop_id]
-
     es_sentido_fraga = resolver_sentido(direction_id, route_id)
     lista = PARADAS_A_FRAGA if es_sentido_fraga else PARADAS_A_ZARAGOZA
-
-    if stop_sequence is not None and stop_sequence >= 0:
-        idx = stop_sequence
-        if 0 <= idx < len(lista):
-            return lista[idx]
-
+    if stop_sequence is not None and 0 <= stop_sequence < len(lista):
+        return lista[stop_sequence]
     return f"Parada nº {stop_sequence}" if stop_sequence is not None else "Próxima parada"
 
 def procesar_ocupacion(raw_status):
-    if raw_status is None or raw_status == '':
+    if not raw_status:
         return 'Sin datos', 'gray'
     status_str = str(raw_status).strip().upper()
     enum_map = {
@@ -126,14 +99,10 @@ def procesar_ocupacion(raw_status):
         '3': 'STANDING_ROOM_ONLY', '4': 'CRUSHED_STANDING_ROOM_ONLY',
         '5': 'FULL', '6': 'NOT_ACCEPTING_PASSENGERS'
     }
-    status_str = enum_map.get(status_str, status_str)
-    return TRADUCCION_OCUPACION.get(status_str, ('Sin datos', 'gray'))
+    return TRADUCCION_OCUPACION.get(enum_map.get(status_str, status_str), ('Sin datos', 'gray'))
 
 def obtener_estimaciones_tripupdates():
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': '*/*'
-    }
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Accept': '*/*'}
     estimaciones = {}
 
     for url in TRIPUPDATES_ENDPOINTS:
@@ -147,70 +116,60 @@ def obtener_estimaciones_tripupdates():
                 try: content = gzip.decompress(content)
                 except Exception: pass
 
-            try:
-                from google.transit import gtfs_realtime_pb2
-                feed = gtfs_realtime_pb2.FeedMessage()
-                feed.ParseFromString(content)
+            from google.transit import gtfs_realtime_pb2
+            feed = gtfs_realtime_pb2.FeedMessage()
+            feed.ParseFromString(content)
 
-                ahora = time.time()
-                for entity in feed.entity:
-                    if entity.HasField('trip_update'):
-                        tu = entity.trip_update
-                        r_id = str(tu.trip.route_id) if tu.HasField('trip') else ""
-                        trip_id = str(tu.trip.trip_id) if tu.HasField('trip') else ""
-                        v_id = str(tu.vehicle.id) if (tu.HasField('vehicle') and tu.vehicle.id) else ""
-                        coche_label = str(tu.vehicle.label) if (tu.HasField('vehicle') and tu.vehicle.label) else ""
-                        direction_id = tu.trip.direction_id if (tu.HasField('trip') and tu.trip.HasField('direction_id')) else None
+            ahora = time.time()
+            for entity in feed.entity:
+                if entity.HasField('trip_update'):
+                    tu = entity.trip_update
+                    r_id = str(tu.trip.route_id) if tu.HasField('trip') else ""
+                    trip_id = str(tu.trip.trip_id) if tu.HasField('trip') else ""
+                    v_id = str(tu.vehicle.id) if (tu.HasField('vehicle') and tu.vehicle.id) else ""
+                    coche_label = str(tu.vehicle.label) if (tu.HasField('vehicle') and tu.vehicle.label) else ""
+                    direction_id = tu.trip.direction_id if (tu.HasField('trip') and tu.trip.HasField('direction_id')) else None
 
-                        es_t05 = any(rid in r_id for rid in ROUTES_T05) or "T05" in r_id or coche_label in ["13443", "13444"]
+                    if any(rid in r_id for rid in ROUTES_T05) or "T05" in r_id or coche_label in ["13443", "13444"]:
+                        delay_sec = tu.delay if tu.HasField('delay') else 0
+                        proxima_parada = "En trayecto"
+                        es_fraga = resolver_sentido(direction_id, r_id)
+                        destino = "Fraga" if es_fraga else "Zaragoza"
 
-                        if es_t05:
-                            delay_sec = tu.delay if tu.HasField('delay') else 0
-                            proxima_parada = "En trayecto"
-                            es_fraga = resolver_sentido(direction_id, r_id)
-                            destino = "Fraga" if es_fraga else "Zaragoza"
+                        for stu in tu.stop_time_update:
+                            arr_time = stu.arrival.time if stu.HasField('arrival') else (stu.departure.time if stu.HasField('departure') else 0)
+                            if arr_time > ahora or arr_time == 0:
+                                minutos = max(0, int((arr_time - ahora) / 60)) if arr_time > 0 else None
+                                stop_seq = stu.stop_sequence if stu.HasField('stop_sequence') else None
+                                stop_id = str(stu.stop_id) if stu.HasField('stop_id') else ""
 
-                            for stu in tu.stop_time_update:
-                                arr_time = stu.arrival.time if stu.HasField('arrival') else (stu.departure.time if stu.HasField('departure') else 0)
-                                if arr_time > ahora or arr_time == 0:
-                                    minutos = max(0, int((arr_time - ahora) / 60)) if arr_time > 0 else None
-                                    stop_seq = stu.stop_sequence if stu.HasField('stop_sequence') else None
-                                    stop_id = str(stu.stop_id) if stu.HasField('stop_id') else ""
+                                nombre_parada = obtener_nombre_parada(stop_seq, stop_id, r_id, direction_id)
+                                proxima_parada = f"{nombre_parada}" + (f" ({minutos} min)" if minutos is not None else "")
 
-                                    nombre_parada = obtener_nombre_parada(stop_seq, stop_id, r_id, direction_id)
-                                    proxima_parada = f"{nombre_parada}" + (f" ({minutos} min)" if minutos is not None else "")
+                                if stu.HasField('arrival') and stu.arrival.HasField('delay'):
+                                    delay_sec = stu.arrival.delay
+                                elif stu.HasField('departure') and stu.departure.HasField('delay'):
+                                    delay_sec = stu.departure.delay
+                                break
 
-                                    if stu.HasField('arrival') and stu.arrival.HasField('delay'):
-                                        delay_sec = stu.arrival.delay
-                                    elif stu.HasField('departure') and stu.departure.HasField('delay'):
-                                        delay_sec = stu.departure.delay
-                                    break
+                        if abs(delay_sec) < 30:
+                            texto_retraso = "En hora"
+                        elif delay_sec > 0:
+                            delay_min = round(delay_sec / 60.0, 1)
+                            texto_retraso = f"+{int(delay_min) if delay_min.is_integer() else delay_min} min retraso"
+                        else:
+                            delay_min = abs(round(delay_sec / 60.0, 1))
+                            texto_retraso = f"-{int(delay_min) if delay_min.is_integer() else delay_min} min adelanto"
 
-                            if abs(delay_sec) < 30:
-                                texto_retraso = "En hora"
-                            elif delay_sec > 0:
-                                delay_min = round(delay_sec / 60.0, 1)
-                                texto_retraso = f"+{int(delay_min) if delay_min.is_integer() else delay_min} min retraso"
-                            else:
-                                delay_min = abs(round(delay_sec / 60.0, 1))
-                                texto_retraso = f"-{int(delay_min) if delay_min.is_integer() else delay_min} min adelanto"
+                        info = {'retraso': texto_retraso, 'proxima_parada': proxima_parada, 'destino': destino}
+                        if v_id: estimaciones[v_id] = info
+                        if coche_label: estimaciones[coche_label] = info
+                        if trip_id: estimaciones[trip_id] = info
 
-                            info = {
-                                'retraso': texto_retraso,
-                                'proxima_parada': proxima_parada,
-                                'destino': destino
-                            }
-
-                            if v_id: estimaciones[v_id] = info
-                            if coche_label: estimaciones[coche_label] = info
-                            if trip_id: estimaciones[trip_id] = info
-
-                if estimaciones:
-                    return estimaciones
-            except Exception as e:
-                print(f"[TRIPUPDATES Error Parseo]: {e}")
+            if estimaciones:
+                return estimaciones
         except Exception as e:
-            print(f"[TRIPUPDATES Error Conexión {url}]: {e}")
+            print(f"[TRIPUPDATES ERROR {url}]: {e}")
 
     return estimaciones
 
@@ -220,17 +179,15 @@ def index():
 
 @app.route('/api/buses/t05')
 def get_t05_buses():
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': '*/*'
-    }
+    print("-> Consultando API de autobuses...")
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Accept': '*/*'}
     estimaciones = obtener_estimaciones_tripupdates()
 
     for url in VEHICLES_ENDPOINTS:
         try:
             res = session.get(url, headers=headers, timeout=8)
+            print(f"[API CHECK] {url} -> Status: {res.status_code}, Bytes: {len(res.content)}")
             if res.status_code != 200 or not res.content:
-                print(f"[VEHICLES] HTTP Status: {res.status_code} desde {url}")
                 continue
 
             content = res.content
@@ -239,57 +196,58 @@ def get_t05_buses():
                 except Exception: pass
 
             buses = []
+            from google.transit import gtfs_realtime_pb2
+            feed = gtfs_realtime_pb2.FeedMessage()
+            feed.ParseFromString(content)
 
-            try:
-                from google.transit import gtfs_realtime_pb2
-                feed = gtfs_realtime_pb2.FeedMessage()
-                feed.ParseFromString(content)
+            total_entidades = len(feed.entity)
+            coincidencias = 0
 
-                for entity in feed.entity:
-                    if entity.HasField('vehicle'):
-                        v = entity.vehicle
-                        r_id = str(v.trip.route_id) if v.HasField('trip') else ""
-                        trip_id = str(v.trip.trip_id) if v.HasField('trip') else ""
-                        coche_num = str(v.vehicle.label) if (v.HasField('vehicle') and v.vehicle.label) else ""
-                        matricula = str(v.vehicle.license_plate) if (v.HasField('vehicle') and hasattr(v.vehicle, 'license_plate')) else ""
-                        v_id = str(v.vehicle.id) if (v.HasField('vehicle') and v.vehicle.id) else coche_num
+            for entity in feed.entity:
+                if entity.HasField('vehicle'):
+                    v = entity.vehicle
+                    r_id = str(v.trip.route_id) if v.HasField('trip') else ""
+                    trip_id = str(v.trip.trip_id) if v.HasField('trip') else ""
+                    coche_num = str(v.vehicle.label) if (v.HasField('vehicle') and v.vehicle.label) else ""
+                    matricula = str(v.vehicle.license_plate) if (v.HasField('vehicle') and hasattr(v.vehicle, 'license_plate')) else ""
+                    v_id = str(v.vehicle.id) if (v.HasField('vehicle') and v.vehicle.id) else coche_num
 
-                        es_t05 = any(rid in r_id for rid in ROUTES_T05) or "T05" in r_id or coche_num in ["13443", "13444"] or matricula in ["2560MSV", "2563MSV"]
+                    es_t05 = any(rid in r_id for rid in ROUTES_T05) or "T05" in r_id or coche_num in ["13443", "13444"] or matricula in ["2560MSV", "2563MSV"]
 
-                        if es_t05:
-                            lat = v.position.latitude if v.HasField('position') else None
-                            lon = v.position.longitude if v.HasField('position') else None
-                            raw_occ = v.occupancy_status if hasattr(v, 'occupancy_status') else None
-                            occ_texto, occ_color = procesar_ocupacion(raw_occ)
+                    if es_t05:
+                        coincidencias += 1
+                        lat = v.position.latitude if v.HasField('position') else None
+                        lon = v.position.longitude if v.HasField('position') else None
+                        raw_occ = v.occupancy_status if hasattr(v, 'occupancy_status') else None
+                        occ_texto, occ_color = procesar_ocupacion(raw_occ)
 
-                            info_est = (
-                                estimaciones.get(v_id) or 
-                                estimaciones.get(coche_num) or 
-                                estimaciones.get(trip_id) or 
-                                {'retraso': 'En hora', 'proxima_parada': 'En trayecto', 'destino': 'Desconocido'}
-                            )
+                        info_est = (
+                            estimaciones.get(v_id) or 
+                            estimaciones.get(coche_num) or 
+                            estimaciones.get(trip_id) or 
+                            {'retraso': 'En hora', 'proxima_parada': 'En trayecto', 'destino': 'Desconocido'}
+                        )
 
-                            if lat and lon:
-                                buses.append({
-                                    'id': v_id or coche_num or "13443",
-                                    'coche': coche_num or "13443",
-                                    'matricula': matricula or "2560MSV",
-                                    'lat': float(lat),
-                                    'lon': float(lon),
-                                    'ocupacion': occ_texto,
-                                    'ocupacion_color': occ_color,
-                                    'retraso': info_est.get('retraso', 'En hora'),
-                                    'proxima_parada': info_est.get('proxima_parada', 'En trayecto'),
-                                    'destino': info_est.get('destino', 'En trayecto')
-                                })
+                        if lat and lon:
+                            buses.append({
+                                'id': v_id or coche_num or "13443",
+                                'coche': coche_num or "13443",
+                                'matricula': matricula or "2560MSV",
+                                'lat': float(lat),
+                                'lon': float(lon),
+                                'ocupacion': occ_texto,
+                                'ocupacion_color': occ_color,
+                                'retraso': info_est.get('retraso', 'En hora'),
+                                'proxima_parada': info_est.get('proxima_parada', 'En trayecto'),
+                                'destino': info_est.get('destino', 'En trayecto')
+                            })
 
-                if buses:
-                    return jsonify(buses)
-            except Exception as e:
-                print(f"[VEHICLES Error Parseo]: {e}")
+            print(f"[RESULTADO] Total buses en feed: {total_entidades} | Coincidencias T05: {coincidencias}")
+            if buses:
+                return jsonify(buses)
 
         except Exception as e:
-            print(f"[VEHICLES Error Conexión {url}]: {e}")
+            print(f"[API ERROR {url}]: {e}")
 
     return jsonify([])
 
