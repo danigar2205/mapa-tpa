@@ -1,393 +1,296 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Línea T05 - Tiempo Real</title>
-  
-  <!-- Fuentes e Iconos -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Seguimiento de Autobuses</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #121212;
+        }
 
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Plus Jakarta Sans', sans-serif;
-    }
+        /* Pantalla de inicio de menú */
+        #pantalla-inicio {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #1a1a1a;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #ffffff;
+            text-align: center;
+        }
 
-    body, html {
-      height: 100%;
-      width: 100%;
-      overflow: hidden;
-      background-color: #0f172a;
-    }
+        .header-menu {
+            margin-bottom: 30px;
+        }
 
-    #map {
-      height: 100vh;
-      width: 100vw;
-      z-index: 1;
-    }
+        .header-menu h1 {
+            font-size: 26px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 8px;
+        }
 
-    .header-card {
-      position: absolute;
-      top: 16px;
-      left: 16px;
-      right: 16px;
-      max-width: 440px;
-      margin: 0 auto;
-      z-index: 1000;
-      background: rgba(15, 23, 42, 0.92);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px;
-      padding: 16px 20px;
-      color: #ffffff;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
-    }
+        .header-menu p {
+            font-size: 14px;
+            color: #aaaaaa;
+        }
 
-    .header-title {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 12px;
-    }
+        .contenedor-botones {
+            width: 100%;
+            max-width: 380px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
 
-    .line-badge {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
+        .btn-linea {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 16px 20px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+            transition: all 0.2s ease;
+        }
 
-    .badge-tag {
-      background: linear-gradient(135deg, #2563eb, #1d4ed8);
-      color: white;
-      font-weight: 800;
-      font-size: 1.2rem;
-      padding: 6px 16px;
-      border-radius: 10px;
-      letter-spacing: 0.5px;
-      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
-    }
+        .btn-linea:active {
+            transform: scale(0.97);
+            background-color: #0056b3;
+        }
 
-    .badge-text h1 {
-      font-size: 1rem;
-      font-weight: 700;
-      color: #f8fafc;
-    }
+        .btn-linea .subtexto {
+            font-size: 12px;
+            font-weight: normal;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 3px 8px;
+            border-radius: 6px;
+        }
 
-    .badge-text p {
-      font-size: 0.78rem;
-      color: #94a3b8;
-    }
+        .btn-deshabilitado {
+            background-color: #2a2a2a;
+            color: #666666;
+            cursor: not-allowed;
+            box-shadow: none;
+            border: 1px solid #333333;
+        }
 
-    .live-status {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(34, 197, 94, 0.15);
-      border: 1px solid rgba(34, 197, 94, 0.3);
-      padding: 4px 10px;
-      border-radius: 20px;
-      font-size: 0.75rem;
-      color: #4ade80;
-      font-weight: 600;
-    }
+        .btn-deshabilitado .subtexto {
+            background: rgba(255, 255, 255, 0.05);
+            color: #666666;
+        }
 
-    .pulse-dot {
-      width: 8px;
-      height: 8px;
-      background-color: #22c55e;
-      border-radius: 50%;
-      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
-      animation: pulse-green 1.8s infinite;
-    }
+        /* Barra superior sobre el mapa */
+        #barra-top {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            height: 50px;
+            background: rgba(26, 26, 26, 0.95);
+            backdrop-filter: blur(5px);
+            border-radius: 10px;
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 15px;
+            color: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
 
-    @keyframes pulse-green {
-      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
-      70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
-      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
-    }
+        .btn-cambiar {
+            background: #333333;
+            color: #ffffff;
+            border: 1px solid #444444;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            font-weight: 600;
+        }
 
-    .info-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      background: rgba(255, 255, 255, 0.05);
-      padding: 10px 14px;
-      border-radius: 10px;
-      margin-top: 10px;
-    }
+        .btn-cambiar:active {
+            background: #555555;
+        }
 
-    .info-item {
-      display: flex;
-      flex-direction: column;
-    }
+        /* Mapa */
+        #map {
+            width: 100%;
+            height: 100%;
+        }
 
-    .info-label {
-      font-size: 0.68rem;
-      color: #64748b;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      font-weight: 700;
-    }
-
-    .info-value {
-      font-size: 0.88rem;
-      font-weight: 700;
-      color: #38bdf8;
-      margin-top: 2px;
-      word-break: break-word;
-    }
-
-    .footer-actions {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 12px;
-      font-size: 0.75rem;
-      color: #64748b;
-    }
-
-    .btn-recenter {
-      background: #2563eb;
-      color: white;
-      border: none;
-      padding: 8px 14px;
-      border-radius: 8px;
-      font-weight: 600;
-      font-size: 0.8rem;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.2s ease;
-    }
-
-    .btn-recenter:hover {
-      background: #1d4ed8;
-      transform: translateY(-1px);
-    }
-
-    .bus-marker-container {
-      position: relative;
-      width: 44px;
-      height: 44px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .bus-marker-pulse {
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      background: rgba(37, 99, 235, 0.4);
-      border-radius: 50%;
-      animation: bus-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
-    }
-
-    @keyframes bus-ping {
-      75%, 100% { transform: scale(1.6); opacity: 0; }
-    }
-
-    .bus-marker-icon {
-      position: relative;
-      width: 36px;
-      height: 36px;
-      background: linear-gradient(135deg, #2563eb, #1d4ed8);
-      border: 3px solid #ffffff;
-      border-radius: 50%;
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
-      font-size: 16px;
-    }
-
-    .occ-badge {
-      display: inline-block;
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 0.78rem;
-      font-weight: 700;
-      margin-top: 6px;
-    }
-    .occ-green { background: #dcfce7; color: #15803d; }
-    .occ-yellow { background: #fef9c3; color: #a16207; }
-    .occ-orange { background: #ffedd5; color: #c2410c; }
-    .occ-red { background: #fee2e2; color: #b91c1c; }
-    .occ-gray { background: #f1f5f9; color: #64748b; }
-  </style>
+        /* Estilo emergente de autobus */
+        .popup-bus {
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .popup-bus strong {
+            color: #007bff;
+        }
+    </style>
 </head>
 <body>
 
-  <div class="header-card">
-    <div class="header-title">
-      <div class="line-badge">
-        <span class="badge-tag">T05</span>
-        <div class="badge-text">
-          <h1 id="vehicle-title">Buscando buses...</h1>
-          <p>Localización en tiempo real</p>
+    <!-- Menú Principal de Entrada -->
+    <div id="pantalla-inicio">
+        <div class="header-menu">
+            <h1>🚌 Autobuses en Directo</h1>
+            <p>Selecciona una línea para ver su ubicación en tiempo real</p>
         </div>
-      </div>
-      <div class="live-status">
-        <div class="pulse-dot"></div>
-        <span>EN VIVO</span>
-      </div>
-    </div>
 
-    <div class="info-grid">
-      <div class="info-item">
-        <span class="info-label">Coches Activos</span>
-        <span class="info-value" id="bus-info">Conectando...</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">Última actualización</span>
-        <span class="info-value" id="last-updated" style="color: #e2e8f0;">--:--:--</span>
-      </div>
-    </div>
+        <div class="contenedor-botones">
+            <!-- Línea activa T05 -->
+            <button class="btn-linea" onclick="iniciarMapa('T05')">
+                <span>Línea T05</span>
+                <span class="subtexto">Zaragoza - Fraga</span>
+            </button>
 
-    <div class="footer-actions">
-      <span id="coords-text">Mapas OpenStreetMap</span>
-      <button class="btn-recenter" onclick="centrarEnBus()">
-        <i class="fa-solid fa-crosshairs"></i> Encuadrar
-      </button>
-    </div>
-  </div>
-
-  <div id="map"></div>
-
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
-    const map = L.map('map', { zoomControl: false }).setView([41.6563, -0.8773], 13);
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors',
-      maxZoom: 19
-    }).addTo(map);
-
-    const busIcon = L.divIcon({
-      className: 'custom-bus-icon',
-      html: `
-        <div class="bus-marker-container">
-          <div class="bus-marker-pulse"></div>
-          <div class="bus-marker-icon">
-            <i class="fa-solid fa-bus"></i>
-          </div>
+            <!-- Líneas preparadas para el futuro (desactivadas temporalmente) -->
+            <button class="btn-linea btn-deshabilitado" disabled>
+                <span>Línea T01</span>
+                <span class="subtexto">Próximamente</span>
+            </button>
+            <button class="btn-linea btn-deshabilitado" disabled>
+                <span>Línea T02</span>
+                <span class="subtexto">Próximamente</span>
+            </button>
         </div>
-      `,
-      iconSize: [44, 44],
-      iconAnchor: [22, 22]
-    });
+    </div>
 
-    const marcadoresBuses = {};
-    let primeraCarga = true;
+    <!-- Barra Superior cuando el mapa está activo -->
+    <div id="barra-top">
+        <span id="titulo-linea" style="font-weight: bold;">Línea T05</span>
+        <button class="btn-cambiar" onclick="volverAlMenu()">← Menú</button>
+    </div>
 
-    async function actualizarBus() {
-      try {
-        const respuesta = await fetch('/api/buses/t05');
-        const datos = await respuesta.json();
+    <!-- Contenedor del Mapa -->
+    <div id="map"></div>
 
-        if (Array.isArray(datos) && datos.length > 0) {
-          const idsVivos = new Set();
-          const detallesCoches = [];
-          const puntosLatLng = [];
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-          datos.forEach((bus) => {
-            const lat = bus.lat;
-            const lon = bus.lon;
-            const coche = bus.coche || bus.id || "S/N";
-            const matricula = bus.matricula || "";
-            const idUnico = bus.id || coche;
-            const ocupacion = bus.ocupacion || "Sin datos";
-            const occColor = bus.ocupacion_color || "gray";
-            const retraso = bus.retraso || "En hora";
-            const proximaParada = bus.proxima_parada || "En trayecto";
-            const destino = bus.destino || "En trayecto";
+    <script>
+        let map = null;
+        let busMarkers = {};
+        let lineaActiva = null;
+        let intervaloRefresco = null;
 
-            idsVivos.add(idUnico);
-            puntosLatLng.push([lat, lon]);
-            detallesCoches.push(matricula ? `${coche} (${matricula})` : `${coche}`);
+        // Inicialización del Mapa de Leaflet
+        function initMap() {
+            if (map) return;
+            map = L.map('map', { zoomControl: false }).setView([41.52, -0.35], 9);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
 
-            const popupContent = `
-              <div style="text-align: center; font-family: sans-serif; padding: 6px; min-width: 190px;">
-                <b style="font-size: 1.1rem; color: #2563eb;">Línea T05</b><br>
-                <span style="font-size: 0.95rem; font-weight: bold; color: #1e293b;">Nº Coche: ${coche}</span><br>
-                ${matricula ? `<span style="font-size: 0.8rem; color: #64748b;">Matrícula: ${matricula}</span><br>` : ''}
-                
-                <div style="margin: 8px 0; padding: 6px 8px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 0.78rem; text-align: left;">
-                  <div style="margin-bottom: 3px;"><i class="fa-solid fa-route" style="color: #2563eb; width: 16px;"></i> <b>Destino:</b> ${destino}</div>
-                  <div style="margin-bottom: 3px;"><i class="fa-solid fa-clock" style="color: #2563eb; width: 16px;"></i> <b>Estado:</b> ${retraso}</div>
-                  <div><i class="fa-solid fa-location-dot" style="color: #ef4444; width: 16px;"></i> <b>Próxima:</b> ${proximaParada}</div>
-                </div>
-
-                <div class="occ-badge occ-${occColor}">
-                  <i class="fa-solid fa-users" style="margin-right: 4px;"></i>${ocupacion}
-                </div>
-              </div>
-            `;
-
-            if (marcadoresBuses[idUnico]) {
-              marcadoresBuses[idUnico].setLatLng([lat, lon]);
-              marcadoresBuses[idUnico].getPopup().setContent(popupContent);
-            } else {
-              marcadoresBuses[idUnico] = L.marker([lat, lon], { icon: busIcon }).addTo(map);
-              marcadoresBuses[idUnico].bindPopup(popupContent);
-            }
-          });
-
-          Object.keys(marcadoresBuses).forEach(id => {
-            if (!idsVivos.has(id)) {
-              map.removeLayer(marcadoresBuses[id]);
-              delete marcadoresBuses[id];
-            }
-          });
-
-          const ahora = new Date();
-          document.getElementById('vehicle-title').innerText = `${datos.length} coche(s) en servicio`;
-          document.getElementById('bus-info').innerText = detallesCoches.join(' | ');
-          document.getElementById('last-updated').innerText = ahora.toLocaleTimeString();
-
-          if (primeraCarga && puntosLatLng.length > 0) {
-            if (puntosLatLng.length === 1) {
-              map.setView(puntosLatLng[0], 15);
-            } else {
-              const bounds = L.latLngBounds(puntosLatLng);
-              map.fitBounds(bounds, { padding: [50, 50] });
-            }
-            primeraCarga = false;
-          }
-        } else {
-          document.getElementById('vehicle-title').innerText = "Sin servicio";
-          document.getElementById('bus-info').innerText = "Sin señal de bus";
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
         }
-      } catch (error) {
-        console.error('Error cargando datos:', error);
-      }
-    }
 
-    function centrarEnBus() {
-      const marcadores = Object.values(marcadoresBuses);
-      if (marcadores.length === 1) {
-        map.flyTo(marcadores[0].getLatLng(), 16, { duration: 1.2 });
-      } else if (marcadores.length > 1) {
-        const grupo = L.featureGroup(marcadores);
-        map.flyToBounds(grupo.getBounds(), { padding: [60, 60], duration: 1.2 });
-      }
-    }
+        // Selección de Línea
+        function iniciarMapa(linea) {
+            lineaActiva = linea;
+            document.getElementById('pantalla-inicio').style.display = 'none';
+            document.getElementById('barra-top').style.display = 'flex';
+            document.getElementById('titulo-linea').innerText = 'Línea ' + linea;
 
-    actualizarBus();
-    setInterval(actualizarBus, 5000);
-  </script>
+            initMap();
+            cargarBuses();
+
+            // Refresco cada 10 segundos
+            if (intervaloRefresco) clearInterval(intervaloRefresco);
+            intervaloRefresco = setInterval(cargarBuses, 10000);
+        }
+
+        // Volver al Menú Principal
+        function volverAlMenu() {
+            if (intervaloRefresco) clearInterval(intervaloRefresco);
+            lineaActiva = null;
+
+            // Limpiar marcadores del mapa
+            for (let id in busMarkers) {
+                map.removeLayer(busMarkers[id]);
+            }
+            busMarkers = {};
+
+            document.getElementById('barra-top').style.display = 'none';
+            document.getElementById('pantalla-inicio').style.display = 'flex';
+        }
+
+        // Cargar datos desde la API
+        function cargarBuses() {
+            if (!lineaActiva) return;
+
+            fetch('/api/buses/' + lineaActiva)
+                .then(res => res.json())
+                .then(buses => {
+                    let idsActuales = [];
+
+                    buses.forEach(bus => {
+                        idsActuales.push(bus.id);
+                        let pos = [bus.lat, bus.lon];
+
+                        let popupContent = `
+                            <div class="popup-bus">
+                                <strong>Coche:</strong> ${bus.coche} (${bus.matricula})<br>
+                                <strong>Destino:</strong> ${bus.destino}<br>
+                                <strong>Próxima parada:</strong> ${bus.proxima_parada}<br>
+                                <strong>Estado:</strong> ${bus.retraso}<br>
+                                <strong>Ocupación:</strong> <span style="color:${bus.ocupacion_color}">${bus.ocupacion}</span>
+                            </div>
+                        `;
+
+                        if (busMarkers[bus.id]) {
+                            // Actualizar ubicación
+                            busMarkers[bus.id].setLatLng(pos);
+                            busMarkers[bus.id].getPopup().setContent(popupContent);
+                        } else {
+                            // Crear marcador
+                            let marker = L.marker(pos).addTo(map);
+                            marker.bindPopup(popupContent);
+                            busMarkers[bus.id] = marker;
+                        }
+                    });
+
+                    // Eliminar marcadores que ya no estén activos
+                    for (let id in busMarkers) {
+                        if (!idsActuales.includes(id)) {
+                            map.removeLayer(busMarkers[id]);
+                            delete busMarkers[id];
+                        }
+                    }
+                })
+                .catch(err => console.error("Error cargando autobuses:", err));
+        }
+    </script>
 </body>
 </html>
