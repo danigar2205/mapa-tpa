@@ -1,650 +1,261 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Seguimiento de Autobuses - Tiempo Real</title>
-  
-  <!-- Fuentes e Iconos -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Plus Jakarta Sans', sans-serif;
-    }
-
-    body, html {
-      height: 100%;
-      width: 100%;
-      overflow: hidden;
-      background-color: #0f172a;
-    }
-
-    /* Pantalla de Selección de Menú */
-    #pantalla-inicio {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: radial-gradient(circle at top, #1e293b, #0f172a);
-      z-index: 9999;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      color: #ffffff;
-    }
-
-    .menu-card {
-      background: rgba(15, 23, 42, 0.85);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 24px;
-      padding: 32px 24px;
-      width: 100%;
-      max-width: 420px;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-      text-align: center;
-    }
-
-    .menu-header i {
-      font-size: 2.5rem;
-      color: #38bdf8;
-      margin-bottom: 12px;
-    }
-
-    .menu-header h1 {
-      font-size: 1.5rem;
-      font-weight: 800;
-      color: #f8fafc;
-      margin-bottom: 6px;
-    }
-
-    .menu-header p {
-      font-size: 0.85rem;
-      color: #94a3b8;
-      margin-bottom: 24px;
-    }
-
-    .lista-botones {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      max-height: 55vh;
-      overflow-y: auto;
-      padding-right: 8px;
-    }
-
-    /* Diseño de la barra de scroll del menú */
-    .lista-botones::-webkit-scrollbar {
-      width: 6px;
-    }
-    .lista-botones::-webkit-scrollbar-track {
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 4px;
-    }
-    .lista-botones::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 4px;
-    }
-
-    /* Nuevo diseño de los botones (Etiqueta + Texto) */
-    .btn-menu {
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
-      gap: 16px;
-      background: linear-gradient(135deg, #2563eb, #1d4ed8);
-      color: white;
-      border: none;
-      border-radius: 14px;
-      padding: 12px 16px;
-      cursor: pointer;
-      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
-      transition: all 0.2s ease;
-      text-align: left;
-    }
-
-    .btn-menu:hover:not(.btn-deshabilitado) {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
-    }
-
-    .btn-menu:active:not(.btn-deshabilitado) {
-      transform: translateY(0);
-    }
-
-    .btn-title {
-      font-weight: 800;
-      font-size: 1.05rem;
-      background: rgba(255, 255, 255, 0.2);
-      padding: 8px 12px;
-      border-radius: 10px;
-      flex-shrink: 0; /* Evita que la etiqueta de T01 se aplaste */
-    }
-
-    .btn-subtitle {
-      font-size: 0.85rem;
-      font-weight: 600;
-      line-height: 1.3;
-    }
-
-    /* Botones deshabilitados (Gris apagado) */
-    .btn-deshabilitado {
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      cursor: not-allowed;
-      box-shadow: none;
-    }
-
-    .btn-deshabilitado .btn-title {
-      background: rgba(255, 255, 255, 0.06);
-      color: #64748b;
-    }
-
-    .btn-deshabilitado .btn-subtitle {
-      color: #64748b;
-    }
-
-    /* Interfaz del Mapa Original */
-    #map {
-      height: 100vh;
-      width: 100vw;
-      z-index: 1;
-    }
-
-    .header-card {
-      position: absolute;
-      top: 16px;
-      left: 16px;
-      right: 16px;
-      max-width: 440px;
-      margin: 0 auto;
-      z-index: 1000;
-      background: rgba(15, 23, 42, 0.92);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px;
-      padding: 16px 20px;
-      color: #ffffff;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
-    }
-
-    .header-title {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 12px;
-    }
-
-    .line-badge {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .badge-tag {
-      background: linear-gradient(135deg, #2563eb, #1d4ed8);
-      color: white;
-      font-weight: 800;
-      font-size: 1.2rem;
-      padding: 6px 16px;
-      border-radius: 10px;
-      letter-spacing: 0.5px;
-      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
-    }
-
-    .badge-text h1 {
-      font-size: 1rem;
-      font-weight: 700;
-      color: #f8fafc;
-    }
-
-    .badge-text p {
-      font-size: 0.78rem;
-      color: #94a3b8;
-    }
-
-    .live-status {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(34, 197, 94, 0.15);
-      border: 1px solid rgba(34, 197, 94, 0.3);
-      padding: 4px 10px;
-      border-radius: 20px;
-      font-size: 0.75rem;
-      color: #4ade80;
-      font-weight: 600;
-    }
-
-    .pulse-dot {
-      width: 8px;
-      height: 8px;
-      background-color: #22c55e;
-      border-radius: 50%;
-      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
-      animation: pulse-green 1.8s infinite;
-    }
-
-    @keyframes pulse-green {
-      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
-      70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
-      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
-    }
-
-    .info-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      background: rgba(255, 255, 255, 0.05);
-      padding: 10px 14px;
-      border-radius: 10px;
-      margin-top: 10px;
-    }
-
-    .info-item {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .info-label {
-      font-size: 0.68rem;
-      color: #64748b;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      font-weight: 700;
-    }
-
-    .info-value {
-      font-size: 0.88rem;
-      font-weight: 700;
-      color: #38bdf8;
-      margin-top: 2px;
-      word-break: break-word;
-    }
-
-    .footer-actions {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 12px;
-      font-size: 0.75rem;
-      color: #64748b;
-    }
-
-    .btn-action {
-      background: #2563eb;
-      color: white;
-      border: none;
-      padding: 8px 12px;
-      border-radius: 8px;
-      font-weight: 600;
-      font-size: 0.8rem;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.2s ease;
-    }
-
-    .btn-action:hover {
-      background: #1d4ed8;
-      transform: translateY(-1px);
-    }
-
-    .btn-menu-back {
-      background: rgba(255, 255, 255, 0.1);
-      color: #e2e8f0;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-    }
-
-    .btn-menu-back:hover {
-      background: rgba(255, 255, 255, 0.2);
-    }
-
-    /* Marcador de Autobús Animado */
-    .bus-marker-container {
-      position: relative;
-      width: 44px;
-      height: 44px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .bus-marker-pulse {
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      background: rgba(37, 99, 235, 0.4);
-      border-radius: 50%;
-      animation: bus-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
-    }
-
-    @keyframes bus-ping {
-      75%, 100% { transform: scale(1.6); opacity: 0; }
-    }
-
-    .bus-marker-icon {
-      position: relative;
-      width: 36px;
-      height: 36px;
-      background: linear-gradient(135deg, #2563eb, #1d4ed8);
-      border: 3px solid #ffffff;
-      border-radius: 50%;
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
-      font-size: 16px;
-    }
-
-    /* Badges de Ocupación */
-    .occ-badge {
-      display: inline-block;
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 0.78rem;
-      font-weight: 700;
-      margin-top: 6px;
-    }
-    .occ-green { background: #dcfce7; color: #15803d; }
-    .occ-yellow { background: #fef9c3; color: #a16207; }
-    .occ-orange { background: #ffedd5; color: #c2410c; }
-    .occ-red { background: #fee2e2; color: #b91c1c; }
-    .occ-gray { background: #f1f5f9; color: #64748b; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Información de Líneas GTFS - T05</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background-color: #eef2f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .main-card {
+            max-width: 650px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        .header {
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            font-size: 22px;
+            color: #1e293b;
+            margin: 0 0 10px 0;
+        }
+        .badge-tag {
+            display: inline-block;
+            background-color: #10b981;
+            color: white;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+        .route-id-text {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 5px;
+            font-family: monospace;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 6px;
+        }
+        select {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            background-color: #f8fafc;
+            font-size: 14px;
+            color: #0f172a;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        select:focus {
+            border-color: #10b981;
+        }
+        .headsign-banner {
+            background-color: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            border-left: 6px solid #10b981;
+            padding: 14px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .headsign-banner label {
+            color: #065f46;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .headsign-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #047857;
+            margin: 4px 0 0 0;
+        }
+        .timeline-container {
+            margin-top: 25px;
+        }
+        .timeline-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 15px;
+        }
+        .stops-list {
+            list-style: none;
+            padding-left: 20px;
+            position: relative;
+            margin: 0;
+        }
+        .stops-list::before {
+            content: '';
+            position: absolute;
+            top: 10px;
+            bottom: 10px;
+            left: 7px;
+            width: 4px;
+            background-color: #10b981;
+            border-radius: 2px;
+        }
+        .stops-list li {
+            position: relative;
+            padding: 8px 0 8px 20px;
+            font-size: 14px;
+            color: #334155;
+        }
+        .stops-list li::before {
+            content: '';
+            position: absolute;
+            left: -18px;
+            top: 12px;
+            width: 12px;
+            height: 12px;
+            background-color: #ffffff;
+            border: 3px solid #10b981;
+            border-radius: 50%;
+        }
+        .stops-list li:first-child {
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .stops-list li:last-child {
+            font-weight: 700;
+            color: #0f172a;
+        }
+    </style>
 </head>
 <body>
 
-  <!-- Pantalla de Inicio / Selección de Línea -->
-  <div id="pantalla-inicio">
-    <div class="menu-card">
-      <div class="menu-header">
-        <i class="fa-solid fa-bus-simple"></i>
-        <h1>Líneas en Tiempo Real</h1>
-        <p>Selecciona una línea para abrir el mapa</p>
-      </div>
-
-      <div class="lista-botones">
-        <button class="btn-menu btn-deshabilitado" disabled>
-          <span class="btn-title">T01</span>
-          <span class="btn-subtitle">Jacetania y Alto Gállego - Zaragoza</span>
-        </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
-          <span class="btn-title">T02</span>
-          <span class="btn-subtitle">Sobrarbe y Ribagorza - Barbastro</span>
-        </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
-          <span class="btn-title">T03</span>
-          <span class="btn-subtitle">Fraga - Huesca por Monzón</span>
-        </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
-          <span class="btn-title">T04</span>
-          <span class="btn-subtitle">Monegros - Huesca y Zaragoza</span>
-        </button>
-        
-        <!-- Línea Activa -->
-        <button class="btn-menu" onclick="iniciarMapa('T05')">
-          <span class="btn-title">T05</span>
-          <span class="btn-subtitle">Fraga - Zaragoza (Eje del Ebro)</span>
-        </button>
-        
-        <button class="btn-menu btn-deshabilitado" disabled>
-          <span class="btn-title">T06</span>
-          <span class="btn-subtitle">Bajo Aragón - Zaragoza</span>
-        </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
-          <span class="btn-title">T07</span>
-          <span class="btn-subtitle">Bajo Aragón y Cuencas Mineras - Teruel</span>
-        </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
-          <span class="btn-title">T08</span>
-          <span class="btn-subtitle">Maestrazgo - Teruel</span>
-        </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
-          <span class="btn-title">T09</span>
-          <span class="btn-subtitle">Gúdar-Javalambre - Teruel</span>
-        </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
-          <span class="btn-title">T10</span>
-          <span class="btn-subtitle">Serranía de Albarracín - Teruel</span>
-        </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
-          <span class="btn-title">T11</span>
-          <span class="btn-subtitle">Teruel - Zaragoza por Calamocha</span>
-        </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
-          <span class="btn-title">T12</span>
-          <span class="btn-subtitle">Campo de Belchite - Zaragoza</span>
-        </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
-          <span class="btn-title">T13</span>
-          <span class="btn-subtitle">Calatayud y Aranda - Zaragoza</span>
-        </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
-          <span class="btn-title">T14</span>
-          <span class="btn-subtitle">Moncayo y Campo de Borja - Zaragoza</span>
-        </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
-          <span class="btn-title">T15</span>
-          <span class="btn-subtitle">Cinco Villas - Zaragoza</span>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Tarjeta Flotante sobre el Mapa -->
-  <div class="header-card" id="header-card" style="display: none;">
-    <div class="header-title">
-      <div class="line-badge">
-        <span class="badge-tag" id="badge-linea-tag">T05</span>
-        <div class="badge-text">
-          <h1 id="vehicle-title">Buscando buses...</h1>
-          <p>Localización en tiempo real</p>
-        </div>
-      </div>
-      <div class="live-status">
-        <div class="pulse-dot"></div>
-        <span>EN VIVO</span>
-      </div>
+<div class="main-card">
+    <div class="header">
+        <span id="routeBadge" class="badge-tag">T05-20</span>
+        <h1 id="routeLongName">Castejón de Monegros - Zaragoza por Pueblos</h1>
+        <div id="routeIdDisplay" class="route-id-text">ID: 61b2122d-39cc-44e6-89f0-3057b6528c54</div>
     </div>
 
-    <div class="info-grid">
-      <div class="info-item">
-        <span class="info-label">Coches Activos</span>
-        <span class="info-value" id="bus-info">Conectando...</span>
-      </div>
-      <div class="info-item">
-        <span class="info-label">Última actualización</span>
-        <span class="info-value" id="last-updated" style="color: #e2e8f0;">--:--:--</span>
-      </div>
+    <div class="form-group">
+        <label for="routeSelect">Seleccionar Línea:</label>
+        <select id="routeSelect" onchange="onRouteChanged()">
+            <!-- Opciones dinámicas -->
+        </select>
     </div>
 
-    <div class="footer-actions">
-      <button class="btn-action btn-menu-back" onclick="volverAlMenu()">
-        <i class="fa-solid fa-bars"></i> Menú
-      </button>
-      <button class="btn-action" onclick="centrarEnBus()">
-        <i class="fa-solid fa-crosshairs"></i> Encuadrar
-      </button>
+    <div class="form-group">
+        <label for="dirSelect">Sentido del Trayecto:</label>
+        <select id="dirSelect" onchange="updateTripInfo()">
+            <option value="1">Zaragoza ➔ Destino (Castejón / Fraga)</option>
+            <option value="0">Origen ➔ Zaragoza</option>
+        </select>
     </div>
-  </div>
 
-  <!-- Mapa -->
-  <div id="map"></div>
+    <!-- Muestra el Destino real (trip_headsign) -->
+    <div class="headsign-banner">
+        <label>Destino en Pantalla del Autobús</label>
+        <div id="headsignDisplay" class="headsign-title">Cargando...</div>
+    </div>
 
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
-    let map = null;
-    let marcadoresBuses = {};
-    let primeraCarga = true;
-    let lineaActiva = null;
-    let intervaloTimer = null;
+    <div class="timeline-container">
+        <div class="timeline-title">Paradas del Recorrido</div>
+        <ul id="stopsContainer" class="stops-list">
+            <!-- Paradas dinámicas -->
+        </ul>
+    </div>
+</div>
 
-    const busIcon = L.divIcon({
-      className: 'custom-bus-icon',
-      html: `
-        <div class="bus-marker-container">
-          <div class="bus-marker-pulse"></div>
-          <div class="bus-marker-icon">
-            <i class="fa-solid fa-bus"></i>
-          </div>
-        </div>
-      `,
-      iconSize: [44, 44],
-      iconAnchor: [22, 22]
+<script>
+    const CASTEJON_ID = "61b2122d-39cc-44e6-89f0-3057b6528c54";
+
+    document.addEventListener("DOMContentLoaded", () => {
+        initRoutes();
     });
 
-    function initMap() {
-      if (map) return;
-      map = L.map('map', { zoomControl: false }).setView([41.6563, -0.8773], 13);
-      L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors',
-        maxZoom: 19
-      }).addTo(map);
-    }
-
-    function iniciarMapa(linea) {
-      lineaActiva = linea;
-      document.getElementById('badge-linea-tag').innerText = linea;
-      document.getElementById('pantalla-inicio').style.display = 'none';
-      document.getElementById('header-card').style.display = 'block';
-
-      initMap();
-      primeraCarga = true;
-      actualizarBus();
-
-      if (intervaloTimer) clearInterval(intervaloTimer);
-      intervaloTimer = setInterval(actualizarBus, 5000);
-    }
-
-    function volverAlMenu() {
-      if (intervaloTimer) clearInterval(intervaloTimer);
-      lineaActiva = null;
-
-      Object.keys(marcadoresBuses).forEach(id => {
-        map.removeLayer(marcadoresBuses[id]);
-      });
-      marcadoresBuses = {};
-
-      document.getElementById('header-card').style.display = 'none';
-      document.getElementById('pantalla-inicio').style.display = 'flex';
-    }
-
-    async function actualizarBus() {
-      if (!lineaActiva) return;
-
-      try {
-        const respuesta = await fetch('/api/buses/' + lineaActiva.toLowerCase());
-        const datos = await respuesta.json();
-
-        if (Array.isArray(datos) && datos.length > 0) {
-          const idsVivos = new Set();
-          const detallesCoches = [];
-          const puntosLatLng = [];
-
-          datos.forEach((bus) => {
-            const lat = bus.lat;
-            const lon = bus.lon;
-            const coche = bus.coche || bus.id || "S/N";
-            const matricula = bus.matricula || "";
-            const idUnico = bus.id || coche;
-            const ocupacion = bus.ocupacion || "Sin datos";
-            const occColor = bus.ocupacion_color || "gray";
-            const retraso = bus.retraso || "En hora";
-            const proximaParada = bus.proxima_parada || "En trayecto";
-            const destino = bus.destino || "En trayecto";
-
-            idsVivos.add(idUnico);
-            puntosLatLng.push([lat, lon]);
-            detallesCoches.push(matricula ? `${coche} (${matricula})` : `${coche}`);
-
-            const popupContent = `
-              <div style="text-align: center; font-family: sans-serif; padding: 6px; min-width: 180px;">
-                <b style="font-size: 1.1rem; color: #2563eb;">Línea ${lineaActiva}</b><br>
-                <span style="font-size: 0.95rem; font-weight: bold; color: #1e293b;">Nº Coche: ${coche}</span><br>
-                ${matricula ? `<span style="font-size: 0.8rem; color: #64748b;">Matrícula: ${matricula}</span><br>` : ''}
+    async function initRoutes() {
+        try {
+            const response = await fetch("/api/routes");
+            const routes = await response.json();
+            const select = document.getElementById("routeSelect");
+            
+            select.innerHTML = "";
+            routes.forEach(route => {
+                const opt = document.createElement("option");
+                opt.value = route.route_id;
+                opt.textContent = `[${route.short_name}] ${route.long_name}`;
                 
-                <div style="margin: 8px 0; padding: 6px 8px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 0.78rem; text-align: left;">
-                  <div style="margin-bottom: 3px;"><i class="fa-solid fa-route" style="color: #8b5cf6; width: 16px;"></i> <b>Destino:</b> ${destino}</div>
-                  <div style="margin-bottom: 3px;"><i class="fa-solid fa-clock" style="color: #2563eb; width: 16px;"></i> <b>Estado:</b> ${retraso}</div>
-                  <div><i class="fa-solid fa-location-dot" style="color: #ef4444; width: 16px;"></i> <b>Próxima:</b> ${proximaParada}</div>
-                </div>
+                // Selecciona por defecto la línea de Castejón
+                if (route.route_id === CASTEJON_ID) {
+                    opt.selected = true;
+                }
+                select.appendChild(opt);
+            });
 
-                <div class="occ-badge occ-${occColor}">
-                  <i class="fa-solid fa-users" style="margin-right: 4px;"></i>${ocupacion}
-                </div>
-              </div>
-            `;
-
-            if (marcadoresBuses[idUnico]) {
-              marcadoresBuses[idUnico].setLatLng([lat, lon]);
-              marcadoresBuses[idUnico].getPopup().setContent(popupContent);
-            } else {
-              marcadoresBuses[idUnico] = L.marker([lat, lon], { icon: busIcon }).addTo(map);
-              marcadoresBuses[idUnico].bindPopup(popupContent);
-            }
-          });
-
-          // Eliminar marcadores que ya no estén activos
-          Object.keys(marcadoresBuses).forEach(id => {
-            if (!idsVivos.has(id)) {
-              map.removeLayer(marcadoresBuses[id]);
-              delete marcadoresBuses[id];
-            }
-          });
-
-          const ahora = new Date();
-          document.getElementById('vehicle-title').innerText = `${datos.length} coche(s) en servicio`;
-          document.getElementById('bus-info').innerText = detallesCoches.join(' | ');
-          document.getElementById('last-updated').innerText = ahora.toLocaleTimeString();
-
-          if (primeraCarga && puntosLatLng.length > 0) {
-            if (puntosLatLng.length === 1) {
-              map.setView(puntosLatLng[0], 15);
-            } else {
-              const bounds = L.latLngBounds(puntosLatLng);
-              map.fitBounds(bounds, { padding: [50, 50] });
-            }
-            primeraCarga = false;
-          }
-        } else {
-          document.getElementById('vehicle-title').innerText = "Sin servicio";
-          document.getElementById('bus-info').innerText = "Sin señal de bus";
+            onRouteChanged();
+        } catch (error) {
+            console.error("Error al cargar rutas:", error);
         }
-      } catch (error) {
-        console.error('Error cargando datos:', error);
-      }
     }
 
-    function centrarEnBus() {
-      const marcadores = Object.values(marcadoresBuses);
-      if (marcadores.length === 1) {
-        map.flyTo(marcadores[0].getLatLng(), 16, { duration: 1.2 });
-      } else if (marcadores.length > 1) {
-        const grupo = L.featureGroup(marcadores);
-        map.flyToBounds(grupo.getBounds(), { padding: [60, 60], duration: 1.2 });
-      }
+    function onRouteChanged() {
+        const routeId = document.getElementById("routeSelect").value;
+        document.getElementById("routeIdDisplay").textContent = "ID: " + routeId;
+        
+        if (routeId === CASTEJON_ID) {
+            document.getElementById("routeBadge").textContent = "T05-20";
+            document.getElementById("routeLongName").textContent = "Castejón de Monegros - Zaragoza por Pueblos";
+        } else {
+            document.getElementById("routeBadge").textContent = "T05-01";
+            document.getElementById("routeLongName").textContent = "Zaragoza - Fraga por el Eje del Ebro";
+        }
+
+        updateTripInfo();
     }
-  </script>
+
+    async function updateTripInfo() {
+        const routeId = document.getElementById("routeSelect").value;
+        const dirId = document.getElementById("dirSelect").value;
+
+        try {
+            const response = await fetch(`/api/trip/active/${routeId}/${dirId}`);
+            if (!response.ok) return;
+
+            const data = await response.json();
+
+            // MUESTRA EL DESTINO REAL DEL CARTELERO (trip_headsign)
+            document.getElementById("headsignDisplay").textContent = data.trip_headsign;
+
+            // RENDERIZA LAS PARADAS
+            const container = document.getElementById("stopsContainer");
+            container.innerHTML = "";
+
+            data.stops.forEach((stopName) => {
+                const li = document.createElement("li");
+                li.textContent = stopName;
+                container.appendChild(li);
+            });
+
+        } catch (error) {
+            console.error("Error al obtener información del trayecto:", error);
+        }
+    }
+</script>
+
 </body>
 </html>
