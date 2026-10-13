@@ -1,5 +1,5 @@
 import os
-# Desactivar extensión C de Protobuf para evitar 'Metaclasses with custom tp_new' en Python 3.11+
+# Desactivar extensión C de Protobuf para compatibilidad con Python 3.11+
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
 from flask import Flask, render_template, jsonify
@@ -11,19 +11,19 @@ import ssl
 from requests.adapters import HTTPAdapter
 from urllib3.poolmanager import PoolManager
 
-# Desactivar avisos de certificados SSL no válidos/caducados
+# Desactivar avisos de certificados SSL
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
 
-# Adaptador SSL permisivo para servidores GTFS antiguos o con certificados caducados
+# Adaptador SSL permisivo
 class LegacySSLAdapter(HTTPAdapter):
     def init_poolmanager(self, connections, maxsize, block=False, **kwargs):
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
         try:
-            ctx.options |= 0x4  # Permitir OP_LEGACY_SERVER_CONNECT
+            ctx.options |= 0x4
         except AttributeError:
             pass
         self.poolmanager = PoolManager(
@@ -106,7 +106,7 @@ def procesar_ocupacion(raw_status):
     }
     return TRADUCCION_OCUPACION.get(enum_map.get(status_str, status_str), ('Sin datos', 'gray'))
 
-def obtener_estimaciones_tripupdates():
+def obtener_estimaciones_tripupdates(linea_objetivo):
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Accept': '*/*'}
     estimaciones = {}
 
@@ -135,7 +135,9 @@ def obtener_estimaciones_tripupdates():
                     coche_label = str(tu.vehicle.label) if (tu.HasField('vehicle') and tu.vehicle.label) else ""
                     direction_id = tu.trip.direction_id if (tu.HasField('trip') and tu.trip.HasField('direction_id')) else None
 
-                    if any(rid in r_id for rid in ROUTES_T05) or "T05" in r_id or coche_label in ["13443", "13444"]:
+                    es_linea_bus = (linea_objetivo in r_id.upper()) or (linea_objetivo == "T05" and (any(rid in r_id for rid in ROUTES_T05) or coche_label in ["13443", "13444"]))
+
+                    if es_linea_bus:
                         delay_sec = tu.delay if tu.HasField('delay') else 0
                         proxima_parada = "En trayecto"
                         es_fraga = resolver_sentido(direction_id, r_id)
@@ -148,7 +150,11 @@ def obtener_estimaciones_tripupdates():
                                 stop_seq = stu.stop_sequence if stu.HasField('stop_sequence') else None
                                 stop_id = str(stu.stop_id) if stu.HasField('stop_id') else ""
 
-                                nombre_parada = obtener_nombre_parada(stop_seq, stop_id, r_id, direction_id)
+                                if linea_objetivo == "T05":
+                                    nombre_parada = obtener_nombre_parada(stop_seq, stop_id, r_id, direction_id)
+                                else:
+                                    nombre_parada = f"Parada {stop_seq}" if stop_seq is not None else "Próxima parada"
+
                                 proxima_parada = f"{nombre_parada}" + (f" ({minutos} min)" if minutos is not None else "")
 
                                 if stu.HasField('arrival') and stu.arrival.HasField('delay'):
@@ -182,16 +188,16 @@ def obtener_estimaciones_tripupdates():
 def index():
     return render_template('index.html')
 
-@app.route('/api/buses/t05')
-def get_t05_buses():
-    print("-> Consultando API de autobuses...")
+@app.route('/api/buses/<linea>')
+def get_buses(linea):
+    linea_objetivo = linea.upper()
+    print(f"-> Consultando API de autobuses para línea {linea_objetivo}...")
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Accept': '*/*'}
-    estimaciones = obtener_estimaciones_tripupdates()
+    estimaciones = obtener_estimaciones_tripupdates(linea_objetivo)
 
     for url in VEHICLES_ENDPOINTS:
         try:
             res = session.get(url, headers=headers, timeout=8, verify=False)
-            print(f"[API CHECK] {url} -> Status: {res.status_code}, Bytes: {len(res.content)}")
             if res.status_code != 200 or not res.content:
                 continue
 
@@ -205,9 +211,6 @@ def get_t05_buses():
             feed = gtfs_realtime_pb2.FeedMessage()
             feed.ParseFromString(content)
 
-            total_entidades = len(feed.entity)
-            coincidencias = 0
-
             for entity in feed.entity:
                 if entity.HasField('vehicle'):
                     v = entity.vehicle
@@ -217,10 +220,9 @@ def get_t05_buses():
                     matricula = str(v.vehicle.license_plate) if (v.HasField('vehicle') and hasattr(v.vehicle, 'license_plate')) else ""
                     v_id = str(v.vehicle.id) if (v.HasField('vehicle') and v.vehicle.id) else coche_num
 
-                    es_t05 = any(rid in r_id for rid in ROUTES_T05) or "T05" in r_id or coche_num in ["13443", "13444"] or matricula in ["2560MSV", "2563MSV"]
+                    es_linea_bus = (linea_objetivo in r_id.upper()) or (linea_objetivo == "T05" and (any(rid in r_id for rid in ROUTES_T05) or coche_num in ["13443", "13444"] or matricula in ["2560MSV", "2563MSV"]))
 
-                    if es_t05:
-                        coincidencias += 1
+                    if es_linea_bus:
                         lat = v.position.latitude if v.HasField('position') else None
                         lon = v.position.longitude if v.HasField('position') else None
                         raw_occ = v.occupancy_status if hasattr(v, 'occupancy_status') else None
@@ -247,7 +249,6 @@ def get_t05_buses():
                                 'destino': info_est.get('destino', 'En trayecto')
                             })
 
-            print(f"[RESULTADO] Total buses en feed: {total_entidades} | Coincidencias T05: {coincidencias}")
             if buses:
                 return jsonify(buses)
 
