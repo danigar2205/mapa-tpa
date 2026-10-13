@@ -132,11 +132,29 @@
       border-radius: 10px;
       flex-shrink: 0;
     }
+    
+    .btn-menu-content {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+    }
 
     .btn-subtitle {
       font-size: 0.85rem;
       font-weight: 600;
       line-height: 1.3;
+    }
+
+    /* Estilos para el logo del operador en el botón */
+    .btn-operador-logo {
+      height: 24px;
+      max-width: 80px;
+      object-fit: contain;
+      margin-left: auto;
+      opacity: 0.9;
+      transition: opacity 0.2s ease;
+      filter: drop-shadow(0px 1px 2px rgba(0,0,0,0.3));
     }
 
     .btn-deshabilitado {
@@ -153,6 +171,11 @@
 
     .btn-deshabilitado .btn-subtitle {
       color: #64748b;
+    }
+    
+    .btn-deshabilitado .btn-operador-logo {
+      opacity: 0.4;
+      filter: grayscale(100%);
     }
 
     #map {
@@ -376,68 +399,139 @@
       </div>
 
       <div class="lista-botones">
+        <!-- T1 Avanza -->
         <button class="btn-menu btn-deshabilitado" disabled>
           <span class="btn-title">T01</span>
-          <span class="btn-subtitle">Jacetania y Alto Gállego - Zaragoza</span>
+          <div class="btn-menu-content">
+            <span class="btn-subtitle">Jacetania y Alto Gállego - Zaragoza</span>
+          </div>
+          <img src="image_150c59.png" alt="Avanza" class="btn-operador-logo">
         </button>
+        
+        <!-- T2 Monbus -->
         <button class="btn-menu btn-deshabilitado" disabled>
           <span class="btn-title">T02</span>
-          <span class="btn-subtitle">Sobrarbe y Ribagorza - Barbastro</span>
+          <div class="btn-menu-content">
+            <span class="btn-subtitle">Sobrarbe y Ribagorza - Barbastro</span>
+          </div>
+          <img src="image_150c19.png" alt="Monbus" class="btn-operador-logo">
         </button>
+        
+        <!-- T3 Avanza -->
         <button class="btn-menu btn-deshabilitado" disabled>
           <span class="btn-title">T03</span>
-          <span class="btn-subtitle">Fraga - Huesca por Monzón</span>
+          <div class="btn-menu-content">
+            <span class="btn-subtitle">Fraga - Huesca por Monzón</span>
+          </div>
+          <img src="image_150c59.png" alt="Avanza" class="btn-operador-logo">
         </button>
+        
+        <!-- T4 Los Monegros Movilidad -->
         <button class="btn-menu btn-deshabilitado" disabled>
           <span class="btn-title">T04</span>
-          <span class="btn-subtitle">Monegros - Huesca y Zaragoza</span>
+          <div class="btn-menu-content">
+            <span class="btn-subtitle">Monegros - Huesca y Zaragoza</span>
+          </div>
+          <span class="btn-operador-logo" style="font-size: 0.65rem; color:#cbd5e1; display:flex; align-items:center;">Monegros Mov.</span>
         </button>
         
-        <!-- Concesión Activa -->
+        <!-- T5 Alsa (Concesión Activa) -->
         <button class="btn-menu" onclick="iniciarMapa('T05')">
           <span class="btn-title">T05</span>
-          <span class="btn-subtitle">Fraga / Castejón - Zaragoza</span>
+          <div class="btn-menu-content">
+            <span class="btn-subtitle">Fraga / Castejón - Zaragoza</span>
+          </div>
+          <img src="image_150d11.png" alt="Alsa" class="btn-operador-logo">
         </button>
         
+        <!-- T6 Hife -->
         <button class="btn-menu btn-deshabilitado" disabled>
           <span class="btn-title">T06</span>
-          <span class="btn-subtitle">Bajo Aragón - Zaragoza</span>
+          <div class="btn-menu-content">
+            <span class="btn-subtitle">Bajo Aragón - Zaragoza</span>
+          </div>
+          <img src="image_150fde.png" alt="Hife" class="btn-operador-logo">
         </button>
+        
+        <!-- T7 Hife -->
         <button class="btn-menu btn-deshabilitado" disabled>
           <span class="btn-title">T07</span>
-          <span class="btn-subtitle">Bajo Aragón y Cuencas Mineras - Teruel</span>
+          <div class="btn-menu-content">
+            <span class="btn-subtitle">Bajo Aragón y Cuencas Mineras - Teruel</span>
+          </div>
+          <img src="image_150fde.png" alt="Hife" class="btn-operador-logo">
         </button>
+        
+        <!-- T8 Aragon sur bus -->
         <button class="btn-menu btn-deshabilitado" disabled>
           <span class="btn-title">T08</span>
-          <span class="btn-subtitle">Maestrazgo - Teruel</span>
+          <div class="btn-menu-content">
+            <span class="btn-subtitle">Maestrazgo - Teruel</span>
+          </div>
+          <img src="image_151059.png" alt="Aragon Sur Bus" class="btn-operador-logo">
         </button>
+        
+        <!-- T9 Monbus -->
         <button class="btn-menu btn-deshabilitado" disabled>
           <span class="btn-title">T09</span>
-          <span class="btn-subtitle">Gúdar-Javalambre - Teruel</span>
+          <div class="btn-menu-content">
+            <span class="btn-subtitle">Gúdar-Javalambre - Teruel</span>
+          </div>
+          <img src="image_150c19.png" alt="Monbus" class="btn-operador-logo">
         </button>
+        
+        <!-- T10 Albarracin Movilidad -->
         <button class="btn-menu btn-deshabilitado" disabled>
           <span class="btn-title">T10</span>
-          <span class="btn-subtitle">Serranía de Albarracín - Teruel</span>
+          <div class="btn-menu-content">
+            <span class="btn-subtitle">Serranía de Albarracín - Teruel</span>
+          </div>
+          <img src="image-removebg-preview (5).png" alt="Albarracin Movilidad" class="btn-operador-logo">
         </button>
+        
+        <!-- T11 Jimenez Movilidad -->
         <button class="btn-menu btn-deshabilitado" disabled>
           <span class="btn-title">T11</span>
-          <span class="btn-subtitle">Teruel - Zaragoza por Calamocha</span>
+          <div class="btn-menu-content">
+            <span class="btn-subtitle">Teruel - Zaragoza por Calamocha</span>
+          </div>
+          <img src="image_15630e.png" alt="Jimenez Movilidad" class="btn-operador-logo">
         </button>
+        
+        <!-- T12 La Veloz -->
         <button class="btn-menu btn-deshabilitado" disabled>
           <span class="btn-title">T12</span>
-          <span class="btn-subtitle">Campo de Belchite - Zaragoza</span>
+          <div class="btn-menu-content">
+            <span class="btn-subtitle">Campo de Belchite - Zaragoza</span>
+          </div>
+          <img src="image-removebg-preview (6).png" alt="La Veloz" class="btn-operador-logo">
         </button>
+        
+        <!-- T13 Monbus -->
         <button class="btn-menu btn-deshabilitado" disabled>
           <span class="btn-title">T13</span>
-          <span class="btn-subtitle">Calatayud y Aranda - Zaragoza</span>
+          <div class="btn-menu-content">
+            <span class="btn-subtitle">Calatayud y Aranda - Zaragoza</span>
+          </div>
+          <img src="image_150c19.png" alt="Monbus" class="btn-operador-logo">
         </button>
+        
+        <!-- T14 Aragón Movilidad -->
         <button class="btn-menu btn-deshabilitado" disabled>
           <span class="btn-title">T14</span>
-          <span class="btn-subtitle">Moncayo y Campo de Borja - Zaragoza</span>
+          <div class="btn-menu-content">
+            <span class="btn-subtitle">Moncayo y Campo de Borja - Zaragoza</span>
+          </div>
+          <img src="image-removebg-preview (7).png" alt="Aragón Movilidad" class="btn-operador-logo">
         </button>
+        
+        <!-- T15 Autobuses cinco villas -->
         <button class="btn-menu btn-deshabilitado" disabled>
           <span class="btn-title">T15</span>
-          <span class="btn-subtitle">Cinco Villas - Zaragoza</span>
+          <div class="btn-menu-content">
+            <span class="btn-subtitle">Cinco Villas - Zaragoza</span>
+          </div>
+          <span class="btn-operador-logo" style="font-size: 0.65rem; color:#cbd5e1; display:flex; align-items:center;">Cinco Villas</span>
         </button>
       </div>
     </div>
