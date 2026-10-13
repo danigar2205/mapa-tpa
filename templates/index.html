@@ -82,6 +82,22 @@
       display: flex;
       flex-direction: column;
       gap: 12px;
+      max-height: 55vh;
+      overflow-y: auto;
+      padding-right: 8px;
+    }
+
+    /* Diseño de la barra de scroll del menú */
+    .lista-botones::-webkit-scrollbar {
+      width: 6px;
+    }
+    .lista-botones::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 4px;
+    }
+    .lista-botones::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
     }
 
     .btn-menu {
@@ -96,6 +112,7 @@
       cursor: pointer;
       box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
       transition: all 0.2s ease;
+      text-align: left;
     }
 
     .btn-menu:hover {
@@ -110,6 +127,7 @@
     .btn-title {
       font-weight: 800;
       font-size: 1.1rem;
+      min-width: 80px;
     }
 
     .btn-subtitle {
@@ -118,19 +136,7 @@
       padding: 4px 10px;
       border-radius: 8px;
       font-weight: 600;
-    }
-
-    .btn-deshabilitado {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      color: #64748b;
-      cursor: not-allowed;
-      box-shadow: none;
-    }
-
-    .btn-deshabilitado .btn-subtitle {
-      background: rgba(255, 255, 255, 0.05);
-      color: #64748b;
+      text-align: right;
     }
 
     /* Interfaz del Mapa Original */
@@ -357,20 +363,65 @@
       </div>
 
       <div class="lista-botones">
-        <!-- Línea Activa -->
+        <button class="btn-menu" onclick="iniciarMapa('T01')">
+          <span class="btn-title">Línea T01</span>
+          <span class="btn-subtitle">Jacetania y Alto Gállego - Zaragoza</span>
+        </button>
+        <button class="btn-menu" onclick="iniciarMapa('T02')">
+          <span class="btn-title">Línea T02</span>
+          <span class="btn-subtitle">Sobrarbe y Ribagorza - Barbastro</span>
+        </button>
+        <button class="btn-menu" onclick="iniciarMapa('T03')">
+          <span class="btn-title">Línea T03</span>
+          <span class="btn-subtitle">Fraga - Huesca por Monzón</span>
+        </button>
+        <button class="btn-menu" onclick="iniciarMapa('T04')">
+          <span class="btn-title">Línea T04</span>
+          <span class="btn-subtitle">Monegros - Huesca y Zaragoza</span>
+        </button>
         <button class="btn-menu" onclick="iniciarMapa('T05')">
           <span class="btn-title">Línea T05</span>
-          <span class="btn-subtitle">Zaragoza - Fraga</span>
+          <span class="btn-subtitle">Fraga - Zaragoza (Eje del Ebro)</span>
         </button>
-
-        <!-- Próximas líneas -->
-        <button class="btn-menu btn-deshabilitado" disabled>
-          <span class="btn-title">Línea T01</span>
-          <span class="btn-subtitle">Próximamente</span>
+        <button class="btn-menu" onclick="iniciarMapa('T06')">
+          <span class="btn-title">Línea T06</span>
+          <span class="btn-subtitle">Bajo Aragón - Zaragoza</span>
         </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
-          <span class="btn-title">Línea T02</span>
-          <span class="btn-subtitle">Próximamente</span>
+        <button class="btn-menu" onclick="iniciarMapa('T07')">
+          <span class="btn-title">Línea T07</span>
+          <span class="btn-subtitle">Bajo Aragón y Cuencas Mineras - Teruel</span>
+        </button>
+        <button class="btn-menu" onclick="iniciarMapa('T08')">
+          <span class="btn-title">Línea T08</span>
+          <span class="btn-subtitle">Maestrazgo - Teruel</span>
+        </button>
+        <button class="btn-menu" onclick="iniciarMapa('T09')">
+          <span class="btn-title">Línea T09</span>
+          <span class="btn-subtitle">Gúdar-Javalambre - Teruel</span>
+        </button>
+        <button class="btn-menu" onclick="iniciarMapa('T10')">
+          <span class="btn-title">Línea T10</span>
+          <span class="btn-subtitle">Serranía de Albarracín - Teruel</span>
+        </button>
+        <button class="btn-menu" onclick="iniciarMapa('T11')">
+          <span class="btn-title">Línea T11</span>
+          <span class="btn-subtitle">Teruel - Zaragoza por Calamocha</span>
+        </button>
+        <button class="btn-menu" onclick="iniciarMapa('T12')">
+          <span class="btn-title">Línea T12</span>
+          <span class="btn-subtitle">Campo de Belchite - Zaragoza</span>
+        </button>
+        <button class="btn-menu" onclick="iniciarMapa('T13')">
+          <span class="btn-title">Línea T13</span>
+          <span class="btn-subtitle">Calatayud y Aranda - Zaragoza</span>
+        </button>
+        <button class="btn-menu" onclick="iniciarMapa('T14')">
+          <span class="btn-title">Línea T14</span>
+          <span class="btn-subtitle">Moncayo y Campo de Borja - Zaragoza</span>
+        </button>
+        <button class="btn-menu" onclick="iniciarMapa('T15')">
+          <span class="btn-title">Línea T15</span>
+          <span class="btn-subtitle">Cinco Villas - Zaragoza</span>
         </button>
       </div>
     </div>
