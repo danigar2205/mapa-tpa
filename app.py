@@ -46,15 +46,9 @@ TRIPUPDATES_ENDPOINTS = [
     "https://sintram.consorciozaragoza.es/api/gtfs-rt/trip-updates"
 ]
 
-# IDs de rutas GTFS pertenecientes a la T05
-ROUTES_T05 = [
-    "d3efc296-1916-41c3-90c2-166ff0e8e4fb",  # T05-01 (Zaragoza - Fraga)
-    "61b2122d-39cc-44e6-89f0-3057b6528c54"   # T05-20 (Castejón de Monegros - Zaragoza por Pueblos)
-]
-
 # --- LISTAS DE PARADAS ---
 
-# T05-01: Zaragoza <-> Fraga
+# T05-01: Fraga
 PARADAS_FRAGA_A_ZARAGOZA = [
     "Fraga. Estación", "Candasnos. C/Zaragoza Nº83", "Peñalba",
     "Bujaraloz. Rte español (original)", "Venta de Santa Lucía",
@@ -73,7 +67,7 @@ PARADAS_ZARAGOZA_A_FRAGA = [
     "Candasnos. C/Zaragoza Nº83", "Fraga. Estación"
 ]
 
-# T05-20: Castejón de Monegros <-> Zaragoza por Pueblos (ID: 61b2122d-39cc-44e6-89f0-3057b6528c54)
+# T05-20: Castejón de Monegros
 PARADAS_CASTEJON_A_ZARAGOZA = [
     "Castejón de Monegros.", "La Almolda. C/ San Antonio", "Bujaraloz. Rte español",
     "Venta de Santa Lucía", "Pina de Ebro. Plaza de España", "Osera de Ebro. C/ San Martín S/N",
@@ -93,6 +87,23 @@ PARADAS_ZARAGOZA_A_CASTEJON = [
     "Castejón de Monegros."
 ]
 
+# --- DICCIONARIO ESTRUCTURADO DE CONCESIONES ---
+CONCESIONES = {
+    "T05": {
+        "d3efc296-1916-41c3-90c2-166ff0e8e4fb": {
+            "nombre": "Zaragoza - Fraga",
+            "dir_0": {"destino": "Zaragoza", "paradas": PARADAS_FRAGA_A_ZARAGOZA},
+            "dir_1": {"destino": "Fraga", "paradas": PARADAS_ZARAGOZA_A_FRAGA}
+        },
+        "61b2122d-39cc-44e6-89f0-3057b6528c54": {
+            "nombre": "Castejón de Monegros - Zaragoza",
+            "dir_0": {"destino": "Zaragoza", "paradas": PARADAS_CASTEJON_A_ZARAGOZA},
+            "dir_1": {"destino": "Castejón de Monegros", "paradas": PARADAS_ZARAGOZA_A_CASTEJON}
+        }
+    }
+    # Para añadir T01, T02, etc., basta con agregar sus claves aquí
+}
+
 TRADUCCION_OCUPACION = {
     'EMPTY': ('Vacío', 'green'),
     'MANY_SEATS_AVAILABLE': ('Asientos libres', 'green'),
@@ -103,40 +114,28 @@ TRADUCCION_OCUPACION = {
     'NOT_ACCEPTING_PASSENGERS': ('No admite pasajeros', 'red')
 }
 
-def resolver_destino_y_parada(route_id, direction_id, stop_sequence):
+def resolver_destino_y_parada(concesion_key, route_id, direction_id, stop_sequence):
     """
-    Diferencia la línea de Castejón (61b2122d) de la de Fraga (d3efc296)
-    y devuelve el destino exacto y la parada actual.
+    Busca de forma dinámica la línea dentro de la concesión activa.
     """
     r_id = str(route_id).lower() if route_id else ""
-    dir_str = str(direction_id) if direction_id is not None else None
+    dir_key = f"dir_{direction_id}" if direction_id in [0, 1, "0", "1"] else "dir_1"
 
-    # LÍNEA DE CASTEJÓN DE MONEGROS (T05-20)
-    if "61b2122d" in r_id:
-        if dir_str == "1":
-            destino = "Castejón de Monegros"
-            paradas = PARADAS_ZARAGOZA_A_CASTEJON
-        elif dir_str == "0":
-            destino = "Zaragoza"
-            paradas = PARADAS_CASTEJON_A_ZARAGOZA
-        else:
-            destino = "Castejón de Monegros"
-            paradas = PARADAS_ZARAGOZA_A_CASTEJON
+    destino = "En trayecto"
+    paradas = []
 
-    # LÍNEA DE FRAGA (T05-01 O GENÉRICA)
-    else:
-        if dir_str == "1":
-            destino = "Fraga"
-            paradas = PARADAS_ZARAGOZA_A_FRAGA
-        elif dir_str == "0":
-            destino = "Zaragoza"
-            paradas = PARADAS_FRAGA_A_ZARAGOZA
-        else:
-            destino = "Fraga"
-            paradas = PARADAS_ZARAGOZA_A_FRAGA
+    concesion_data = CONCESIONES.get(concesion_key, {})
+    
+    # Buscar coincidencia exacta o por subcadena del ID de ruta
+    for rid, info in concesion_data.items():
+        if rid.lower() in r_id or r_id in rid.lower():
+            if dir_key in info:
+                destino = info[dir_key]["destino"]
+                paradas = info[dir_key]["paradas"]
+            break
 
     nombre_parada = "En trayecto"
-    if stop_sequence is not None:
+    if stop_sequence is not None and paradas:
         try:
             seq = int(stop_sequence)
             if 0 <= seq < len(paradas):
@@ -149,10 +148,6 @@ def resolver_destino_y_parada(route_id, direction_id, stop_sequence):
     return destino, nombre_parada
 
 def procesar_ocupacion(raw_status):
-    """
-    Parcheado: Se verifica que raw_status no sea None ni cadena vacía.
-    De esta forma se evita que el valor 0 ('EMPTY') se evalúe sintácticamente como Falso.
-    """
     if raw_status is None or raw_status == "":
         return 'Sin datos', 'gray'
     
@@ -172,6 +167,9 @@ def procesar_ocupacion(raw_status):
 def obtener_estimaciones_tripupdates(linea_objetivo):
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Accept': '*/*'}
     estimaciones = {}
+    
+    # IDs válidos de la concesión actual
+    rutas_validas = list(CONCESIONES.get(linea_objetivo, {}).keys())
 
     for url in TRIPUPDATES_ENDPOINTS:
         try:
@@ -198,14 +196,14 @@ def obtener_estimaciones_tripupdates(linea_objetivo):
                     coche_label = str(tu.vehicle.label) if (tu.HasField('vehicle') and tu.vehicle.label) else ""
                     direction_id = tu.trip.direction_id if (tu.HasField('trip') and tu.trip.HasField('direction_id')) else None
 
-                    es_linea_bus = (linea_objetivo in r_id.upper()) or (linea_objetivo == "T05" and (any(rid in r_id for rid in ROUTES_T05) or coche_label in ["13443", "13444", "13445"]))
+                    # Filtro estricto por concesión activa
+                    es_linea_bus = any(rid in r_id for rid in rutas_validas) or (linea_objetivo in r_id.upper())
 
                     if es_linea_bus:
                         delay_sec = tu.delay if tu.HasField('delay') else 0
                         proxima_parada = "En trayecto"
                         
-                        # Determinar el destino correcto según la línea y dirección
-                        destino, _ = resolver_destino_y_parada(r_id, direction_id, None)
+                        destino, _ = resolver_destino_y_parada(linea_objetivo, r_id, direction_id, None)
 
                         for stu in tu.stop_time_update:
                             arr_time = stu.arrival.time if stu.HasField('arrival') else (stu.departure.time if stu.HasField('departure') else 0)
@@ -213,11 +211,7 @@ def obtener_estimaciones_tripupdates(linea_objetivo):
                                 minutos = max(0, int((arr_time - ahora) / 60)) if arr_time > 0 else None
                                 stop_seq = stu.stop_sequence if stu.HasField('stop_sequence') else None
 
-                                if linea_objetivo == "T05":
-                                    _, nombre_parada = resolver_destino_y_parada(r_id, direction_id, stop_seq)
-                                else:
-                                    nombre_parada = f"Parada {stop_seq}" if stop_seq is not None else "Próxima parada"
-
+                                _, nombre_parada = resolver_destino_y_parada(linea_objetivo, r_id, direction_id, stop_seq)
                                 proxima_parada = f"{nombre_parada}" + (f" ({minutos} min)" if minutos is not None else "")
 
                                 if stu.HasField('arrival') and stu.arrival.HasField('delay'):
@@ -254,9 +248,11 @@ def index():
 @app.route('/api/buses/<linea>')
 def get_buses(linea):
     linea_objetivo = linea.upper()
-    print(f"-> Consultando API de autobuses para línea {linea_objetivo}...")
+    print(f"-> Consultando API de autobuses para la concesión {linea_objetivo}...")
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Accept': '*/*'}
+    
     estimaciones = obtener_estimaciones_tripupdates(linea_objetivo)
+    rutas_validas = list(CONCESIONES.get(linea_objetivo, {}).keys())
 
     for url in VEHICLES_ENDPOINTS:
         try:
@@ -284,13 +280,13 @@ def get_buses(linea):
                     v_id = str(v.vehicle.id) if (v.HasField('vehicle') and v.vehicle.id) else coche_num
                     direction_id = v.trip.direction_id if (v.HasField('trip') and v.trip.HasField('direction_id')) else None
 
-                    es_linea_bus = (linea_objetivo in r_id.upper()) or (linea_objetivo == "T05" and (any(rid in r_id for rid in ROUTES_T05) or coche_num in ["13443", "13444", "13445"] or matricula in ["2560MSV", "2563MSV", "5992MSG"]))
+                    # Garantiza que SOLO se carguen los buses de la concesión pulsada
+                    es_linea_bus = any(rid in r_id for rid in rutas_validas) or (linea_objetivo in r_id.upper())
 
                     if es_linea_bus:
                         lat = v.position.latitude if v.HasField('position') else None
                         lon = v.position.longitude if v.HasField('position') else None
                         
-                        # Detección segura de occupancy_status (evita descartar el entero 0 / EMPTY)
                         if v.HasField('occupancy_status'):
                             raw_occ = v.occupancy_status
                         elif hasattr(v, 'occupancy_status'):
@@ -299,8 +295,7 @@ def get_buses(linea):
                             raw_occ = None
 
                         occ_texto, occ_color = procesar_ocupacion(raw_occ)
-
-                        dest_defecto, _ = resolver_destino_y_parada(r_id, direction_id, None)
+                        dest_defecto, _ = resolver_destino_y_parada(linea_objetivo, r_id, direction_id, None)
 
                         info_est = (
                             estimaciones.get(v_id) or 
@@ -315,9 +310,9 @@ def get_buses(linea):
 
                         if lat and lon:
                             buses.append({
-                                'id': v_id or coche_num or "13445",
-                                'coche': coche_num or "13445",
-                                'matricula': matricula or "5992MSG",
+                                'id': v_id or coche_num,
+                                'coche': coche_num,
+                                'matricula': matricula,
                                 'lat': float(lat),
                                 'lon': float(lon),
                                 'ocupacion': occ_texto,
