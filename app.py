@@ -149,15 +149,25 @@ def resolver_destino_y_parada(route_id, direction_id, stop_sequence):
     return destino, nombre_parada
 
 def procesar_ocupacion(raw_status):
-    if not raw_status:
+    """
+    Parcheado: Se verifica que raw_status no sea None ni cadena vacía.
+    De esta forma se evita que el valor 0 ('EMPTY') se evalúe sintácticamente como Falso.
+    """
+    if raw_status is None or raw_status == "":
         return 'Sin datos', 'gray'
+    
     status_str = str(raw_status).strip().upper()
     enum_map = {
-        '0': 'EMPTY', '1': 'MANY_SEATS_AVAILABLE', '2': 'FEW_SEATS_AVAILABLE',
-        '3': 'STANDING_ROOM_ONLY', '4': 'CRUSHED_STANDING_ROOM_ONLY',
-        '5': 'FULL', '6': 'NOT_ACCEPTING_PASSENGERS'
+        '0': 'EMPTY',
+        '1': 'MANY_SEATS_AVAILABLE',
+        '2': 'FEW_SEATS_AVAILABLE',
+        '3': 'STANDING_ROOM_ONLY',
+        '4': 'CRUSHED_STANDING_ROOM_ONLY',
+        '5': 'FULL',
+        '6': 'NOT_ACCEPTING_PASSENGERS'
     }
-    return TRADUCCION_OCUPACION.get(enum_map.get(status_str, status_str), ('Sin datos', 'gray'))
+    clave = enum_map.get(status_str, status_str)
+    return TRADUCCION_OCUPACION.get(clave, ('Sin datos', 'gray'))
 
 def obtener_estimaciones_tripupdates(linea_objetivo):
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Accept': '*/*'}
@@ -188,7 +198,7 @@ def obtener_estimaciones_tripupdates(linea_objetivo):
                     coche_label = str(tu.vehicle.label) if (tu.HasField('vehicle') and tu.vehicle.label) else ""
                     direction_id = tu.trip.direction_id if (tu.HasField('trip') and tu.trip.HasField('direction_id')) else None
 
-                    es_linea_bus = (linea_objetivo in r_id.upper()) or (linea_objetivo == "T05" and (any(rid in r_id for rid in ROUTES_T05) or coche_label in ["13443", "13444"]))
+                    es_linea_bus = (linea_objetivo in r_id.upper()) or (linea_objetivo == "T05" and (any(rid in r_id for rid in ROUTES_T05) or coche_label in ["13443", "13444", "13445"]))
 
                     if es_linea_bus:
                         delay_sec = tu.delay if tu.HasField('delay') else 0
@@ -274,12 +284,20 @@ def get_buses(linea):
                     v_id = str(v.vehicle.id) if (v.HasField('vehicle') and v.vehicle.id) else coche_num
                     direction_id = v.trip.direction_id if (v.HasField('trip') and v.trip.HasField('direction_id')) else None
 
-                    es_linea_bus = (linea_objetivo in r_id.upper()) or (linea_objetivo == "T05" and (any(rid in r_id for rid in ROUTES_T05) or coche_num in ["13443", "13444"] or matricula in ["2560MSV", "2563MSV"]))
+                    es_linea_bus = (linea_objetivo in r_id.upper()) or (linea_objetivo == "T05" and (any(rid in r_id for rid in ROUTES_T05) or coche_num in ["13443", "13444", "13445"] or matricula in ["2560MSV", "2563MSV", "5992MSG"]))
 
                     if es_linea_bus:
                         lat = v.position.latitude if v.HasField('position') else None
                         lon = v.position.longitude if v.HasField('position') else None
-                        raw_occ = v.occupancy_status if hasattr(v, 'occupancy_status') else None
+                        
+                        # Detección segura de occupancy_status (evita descartar el entero 0 / EMPTY)
+                        if v.HasField('occupancy_status'):
+                            raw_occ = v.occupancy_status
+                        elif hasattr(v, 'occupancy_status'):
+                            raw_occ = getattr(v, 'occupancy_status')
+                        else:
+                            raw_occ = None
+
                         occ_texto, occ_color = procesar_ocupacion(raw_occ)
 
                         dest_defecto, _ = resolver_destino_y_parada(r_id, direction_id, None)
@@ -297,9 +315,9 @@ def get_buses(linea):
 
                         if lat and lon:
                             buses.append({
-                                'id': v_id or coche_num or "13443",
-                                'coche': coche_num or "13443",
-                                'matricula': matricula or "2560MSV",
+                                'id': v_id or coche_num or "13445",
+                                'coche': coche_num or "13445",
+                                'matricula': matricula or "5992MSG",
                                 'lat': float(lat),
                                 'lon': float(lon),
                                 'ocupacion': occ_texto,
