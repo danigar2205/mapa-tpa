@@ -499,6 +499,7 @@
             const occColor = bus.ocupacion_color || "gray";
             const retraso = bus.retraso || "En hora";
             const proximaParada = bus.proxima_parada || "En trayecto";
+            const destino = bus.destino || "En trayecto";
 
             idsVivos.add(idUnico);
             puntosLatLng.push([lat, lon]);
@@ -511,6 +512,7 @@
                 ${matricula ? `<span style="font-size: 0.8rem; color: #64748b;">Matrícula: ${matricula}</span><br>` : ''}
                 
                 <div style="margin: 8px 0; padding: 6px 8px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 0.78rem; text-align: left;">
+                  <div style="margin-bottom: 3px;"><i class="fa-solid fa-route" style="color: #8b5cf6; width: 16px;"></i> <b>Destino:</b> ${destino}</div>
                   <div style="margin-bottom: 3px;"><i class="fa-solid fa-clock" style="color: #2563eb; width: 16px;"></i> <b>Estado:</b> ${retraso}</div>
                   <div><i class="fa-solid fa-location-dot" style="color: #ef4444; width: 16px;"></i> <b>Próxima:</b> ${proximaParada}</div>
                 </div>
