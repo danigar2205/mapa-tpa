@@ -87,7 +87,6 @@
       padding-right: 8px;
     }
 
-    /* Diseño de la barra de scroll del menú */
     .lista-botones::-webkit-scrollbar {
       width: 6px;
     }
@@ -100,7 +99,6 @@
       border-radius: 4px;
     }
 
-    /* Nuevo diseño de los botones (Etiqueta + Texto) */
     .btn-menu {
       display: flex;
       align-items: center;
@@ -141,7 +139,6 @@
       line-height: 1.3;
     }
 
-    /* Botones deshabilitados */
     .btn-deshabilitado {
       background: rgba(255, 255, 255, 0.04);
       border: 1px solid rgba(255, 255, 255, 0.08);
@@ -158,7 +155,6 @@
       color: #64748b;
     }
 
-    /* Interfaz del Mapa Original */
     #map {
       height: 100vh;
       width: 100vw;
@@ -316,7 +312,6 @@
       background: rgba(255, 255, 255, 0.2);
     }
 
-    /* Marcador de Autobús Animado */
     .bus-marker-container {
       position: relative;
       width: 44px;
@@ -354,7 +349,6 @@
       font-size: 16px;
     }
 
-    /* Badges de Ocupación */
     .occ-badge {
       display: inline-block;
       padding: 4px 10px;
@@ -399,7 +393,7 @@
           <span class="btn-subtitle">Monegros - Huesca y Zaragoza</span>
         </button>
         
-        <!-- Línea Activa -->
+        <!-- Concesión Activa -->
         <button class="btn-menu" onclick="iniciarMapa('T05')">
           <span class="btn-title">T05</span>
           <span class="btn-subtitle">Fraga / Castejón - Zaragoza</span>
@@ -580,7 +574,7 @@
 
             const popupContent = `
               <div style="text-align: center; font-family: sans-serif; padding: 6px; min-width: 180px;">
-                <b style="font-size: 1.1rem; color: #2563eb;">Línea ${lineaActiva}</b><br>
+                <b style="font-size: 1.1rem; color: #2563eb;">Concesión ${lineaActiva}</b><br>
                 <span style="font-size: 0.95rem; font-weight: bold; color: #1e293b;">Nº Coche: ${coche}</span><br>
                 ${matricula ? `<span style="font-size: 0.8rem; color: #64748b;">Matrícula: ${matricula}</span><br>` : ''}
                 
@@ -605,7 +599,7 @@
             }
           });
 
-          // Eliminar marcadores que ya no estén activos
+          // Eliminar marcadores inactivos
           Object.keys(marcadoresBuses).forEach(id => {
             if (!idsVivos.has(id)) {
               map.removeLayer(marcadoresBuses[id]);
