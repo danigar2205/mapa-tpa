@@ -29,110 +29,74 @@
       background-color: #0f172a;
     }
 
-    /* Botón Flotante para abrir Menú */
-    .btn-toggle-menu {
-      position: absolute;
-      top: 16px;
-      left: 16px;
-      z-index: 1001;
-      background: #1e293b;
-      color: white;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 12px;
-      width: 48px;
-      height: 48px;
-      font-size: 1.2rem;
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .btn-toggle-menu:hover {
-      background: #334155;
-      transform: scale(1.05);
-    }
-
-    /* Menú Lateral (Sidebar) */
-    .sidebar {
+    /* Pantalla de Selección de Menú */
+    #pantalla-inicio {
       position: fixed;
       top: 0;
-      left: -380px;
-      width: 350px;
+      left: 0;
+      width: 100vw;
       height: 100vh;
-      background: rgba(15, 23, 42, 0.95);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border-right: 1px solid rgba(255, 255, 255, 0.1);
-      z-index: 2000;
-      transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      background: radial-gradient(circle at top, #1e293b, #0f172a);
+      z-index: 9999;
       display: flex;
       flex-direction: column;
-      padding: 24px;
-      color: white;
-      box-shadow: 10px 0 30px rgba(0,0,0,0.5);
-    }
-    .sidebar.open { left: 0; }
-
-    .sidebar-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 24px;
-    }
-    .sidebar-header h2 { font-size: 1.3rem; font-weight: 800; color: #f8fafc; }
-    .btn-close { 
-      background: rgba(255,255,255,0.1); 
-      border: none; 
-      color: #94a3b8; 
-      width: 32px; height: 32px; 
-      border-radius: 8px; 
-      cursor: pointer; 
-      transition: 0.2s;
-    }
-    .btn-close:hover { background: rgba(255,255,255,0.2); color: white; }
-
-    /* Pestañas del Sidebar */
-    .sidebar-tabs {
-      display: flex;
-      background: rgba(255,255,255,0.05);
-      border-radius: 12px;
-      padding: 4px;
-      margin-bottom: 20px;
-    }
-    .tab-btn {
-      flex: 1;
-      padding: 10px;
-      background: transparent;
-      border: none;
-      color: #94a3b8;
-      border-radius: 8px;
-      font-weight: 600;
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
+      padding: 20px;
+      color: #ffffff;
     }
-    .tab-btn.active { background: #2563eb; color: white; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3); }
-    
-    .tab-content { display: none; flex-direction: column; overflow-y: auto; flex: 1; padding-right: 8px; }
-    .tab-content.active { display: flex; }
-    
-    .tab-content::-webkit-scrollbar { width: 6px; }
-    .tab-content::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); border-radius: 4px; }
-    .tab-content::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 4px; }
 
-    .menu-desc { font-size: 0.85rem; color: #94a3b8; margin-bottom: 16px; line-height: 1.4; }
+    .menu-card {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 24px;
+      padding: 32px 24px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      text-align: center;
+    }
 
-    /* Listas de Botones */
+    .menu-header i {
+      font-size: 2.5rem;
+      color: #38bdf8;
+      margin-bottom: 12px;
+    }
+
+    .menu-header h1 {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #f8fafc;
+      margin-bottom: 6px;
+    }
+
+    .menu-header p {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      margin-bottom: 24px;
+    }
+
     .lista-botones {
       display: flex;
       flex-direction: column;
       gap: 10px;
+      max-height: 55vh;
+      overflow-y: auto;
+      padding-right: 8px;
+    }
+
+    .lista-botones::-webkit-scrollbar {
+      width: 6px;
+    }
+    .lista-botones::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 4px;
+    }
+    .lista-botones::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
     }
 
     .btn-menu {
@@ -156,6 +120,10 @@
       box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
     }
 
+    .btn-menu:active:not(.btn-deshabilitado) {
+      transform: translateY(0);
+    }
+
     .btn-title {
       font-weight: 800;
       font-size: 1.05rem;
@@ -177,15 +145,14 @@
       cursor: not-allowed;
       box-shadow: none;
     }
-    .btn-deshabilitado .btn-title { background: rgba(255, 255, 255, 0.06); color: #64748b; }
-    .btn-deshabilitado .btn-subtitle { color: #64748b; }
 
-    .btn-icon-stop {
-      background: rgba(255,255,255,0.2);
-      width: 40px; height: 40px;
-      border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.2rem; flex-shrink: 0;
+    .btn-deshabilitado .btn-title {
+      background: rgba(255, 255, 255, 0.06);
+      color: #64748b;
+    }
+
+    .btn-deshabilitado .btn-subtitle {
+      color: #64748b;
     }
 
     #map {
@@ -194,13 +161,13 @@
       z-index: 1;
     }
 
-    /* Tarjeta Flotante sobre el Mapa */
     .header-card {
       position: absolute;
       top: 16px;
-      left: 80px; /* Separado del botón de menú */
+      left: 16px;
       right: 16px;
       max-width: 440px;
+      margin: 0 auto;
       z-index: 1000;
       background: rgba(15, 23, 42, 0.92);
       backdrop-filter: blur(12px);
@@ -212,29 +179,63 @@
       box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
     }
 
-    .header-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-    .line-badge { display: flex; align-items: center; gap: 12px; }
+    .header-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .line-badge {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
     .badge-tag {
       background: linear-gradient(135deg, #2563eb, #1d4ed8);
-      color: white; font-weight: 800; font-size: 1.2rem;
-      padding: 6px 16px; border-radius: 10px;
+      color: white;
+      font-weight: 800;
+      font-size: 1.2rem;
+      padding: 6px 16px;
+      border-radius: 10px;
+      letter-spacing: 0.5px;
       box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
     }
-    .badge-text h1 { font-size: 1rem; font-weight: 700; color: #f8fafc; }
-    .badge-text p { font-size: 0.78rem; color: #94a3b8; }
+
+    .badge-text h1 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .badge-text p {
+      font-size: 0.78rem;
+      color: #94a3b8;
+    }
 
     .live-status {
-      display: flex; align-items: center; gap: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
       background: rgba(34, 197, 94, 0.15);
       border: 1px solid rgba(34, 197, 94, 0.3);
-      padding: 4px 10px; border-radius: 20px;
-      font-size: 0.75rem; color: #4ade80; font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      color: #4ade80;
+      font-weight: 600;
     }
 
     .pulse-dot {
-      width: 8px; height: 8px; background-color: #22c55e;
-      border-radius: 50%; animation: pulse-green 1.8s infinite;
+      width: 8px;
+      height: 8px;
+      background-color: #22c55e;
+      border-radius: 50%;
+      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+      animation: pulse-green 1.8s infinite;
     }
+
     @keyframes pulse-green {
       0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
       70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
@@ -242,62 +243,119 @@
     }
 
     .info-grid {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
-      background: rgba(255, 255, 255, 0.05); padding: 10px 14px;
-      border-radius: 10px; margin-top: 10px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 10px 14px;
+      border-radius: 10px;
+      margin-top: 10px;
     }
-    .info-item { display: flex; flex-direction: column; }
-    .info-label { font-size: 0.68rem; color: #64748b; text-transform: uppercase; font-weight: 700; }
-    .info-value { font-size: 0.88rem; font-weight: 700; color: #38bdf8; margin-top: 2px; word-break: break-word; }
 
-    .footer-actions { display: flex; justify-content: flex-end; align-items: center; margin-top: 12px; }
+    .info-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .info-label {
+      font-size: 0.68rem;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 700;
+    }
+
+    .info-value {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #38bdf8;
+      margin-top: 2px;
+      word-break: break-word;
+    }
+
+    .footer-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+      font-size: 0.75rem;
+      color: #64748b;
+    }
+
     .btn-action {
-      background: #2563eb; color: white; border: none;
-      padding: 8px 12px; border-radius: 8px;
-      font-weight: 600; font-size: 0.8rem; cursor: pointer;
-      display: flex; align-items: center; gap: 6px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.8rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
       transition: all 0.2s ease;
     }
-    .btn-action:hover { background: #1d4ed8; transform: translateY(-1px); }
 
-    /* Modal Salidas */
-    .modal-overlay {
-      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
-      z-index: 3000; display: flex; align-items: center; justify-content: center;
-      padding: 20px;
+    .btn-action:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
     }
-    .modal-card {
-      background: #1e293b; width: 100%; max-width: 420px;
-      border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); padding: 24px; color: white;
-      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
-    }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 16px; }
-    .modal-header h3 { font-size: 1.1rem; color: #38bdf8; }
-    .modal-header button { background: rgba(255,255,255,0.1); border: none; color: white; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; transition: 0.2s; }
-    .modal-header button:hover { background: rgba(255,255,255,0.2); }
-    .salida-item { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px dashed rgba(255,255,255,0.1); }
-    .salida-item:last-child { border-bottom: none; }
-    .salida-linea { background: #2563eb; padding: 6px 10px; border-radius: 8px; font-weight: 800; font-size: 0.85rem; width: 50px; text-align: center; }
-    .salida-destino { flex: 1; margin: 0 16px; font-size: 0.95rem; font-weight: 600; }
-    .salida-tiempo { color: #4ade80; font-weight: 800; font-size: 1rem; }
 
-    /* Marcador Leaflet */
-    .bus-marker-container { position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; }
-    .bus-marker-pulse { position: absolute; width: 100%; height: 100%; background: rgba(37, 99, 235, 0.4); border-radius: 50%; animation: bus-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite; }
-    @keyframes bus-ping { 75%, 100% { transform: scale(1.6); opacity: 0; } }
+    .btn-menu-back {
+      background: rgba(255, 255, 255, 0.1);
+      color: #e2e8f0;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-menu-back:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .bus-marker-container {
+      position: relative;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .bus-marker-pulse {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: rgba(37, 99, 235, 0.4);
+      border-radius: 50%;
+      animation: bus-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+    }
+
+    @keyframes bus-ping {
+      75%, 100% { transform: scale(1.6); opacity: 0; }
+    }
+
     .bus-marker-icon {
-      position: relative; width: 36px; height: 36px;
+      position: relative;
+      width: 36px;
+      height: 36px;
       background: linear-gradient(135deg, #2563eb, #1d4ed8);
-      border: 3px solid #ffffff; border-radius: 50%;
-      color: white; display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3); font-size: 16px;
+      border: 3px solid #ffffff;
+      border-radius: 50%;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+      font-size: 16px;
     }
 
-    /* Badges Popup (Tu código original) */
     .occ-badge {
-      display: inline-block; padding: 4px 10px; border-radius: 6px;
-      font-size: 0.78rem; font-weight: 700; margin-top: 6px;
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      margin-top: 6px;
     }
     .occ-green { background: #dcfce7; color: #15803d; }
     .occ-yellow { background: #fef9c3; color: #a16207; }
@@ -308,33 +366,15 @@
 </head>
 <body>
 
-  <!-- Mapa -->
-  <div id="map"></div>
+  <!-- Pantalla de Inicio / Selección de Línea -->
+  <div id="pantalla-inicio">
+    <div class="menu-card">
+      <div class="menu-header">
+        <i class="fa-solid fa-bus-simple"></i>
+        <h1>Líneas en Tiempo Real</h1>
+        <p>Selecciona una línea para abrir el mapa</p>
+      </div>
 
-  <!-- Botón Flotante para abrir el menú -->
-  <button class="btn-toggle-menu" onclick="toggleMenu()">
-    <i class="fa-solid fa-bars"></i>
-  </button>
-
-  <!-- Menú Lateral Desplegable -->
-  <div id="sidebar" class="sidebar open">
-    <div class="sidebar-header">
-      <h2>Navegación</h2>
-      <button class="btn-close" onclick="toggleMenu()"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-
-    <!-- Pestañas -->
-    <div class="sidebar-tabs">
-      <button class="tab-btn active" onclick="cambiarPestana('lineas')">
-        <i class="fa-solid fa-bus"></i> Líneas
-      </button>
-      <button class="tab-btn" onclick="cambiarPestana('paradas')">
-        <i class="fa-solid fa-clock"></i> Paradas
-      </button>
-    </div>
-
-    <!-- Contenido: Lista de Líneas -->
-    <div id="tab-lineas" class="tab-content active">
       <div class="lista-botones">
         <button class="btn-menu btn-deshabilitado" disabled>
           <span class="btn-title">T01</span>
@@ -401,25 +441,6 @@
         </button>
       </div>
     </div>
-
-    <!-- Contenido: Panel de Paradas -->
-    <div id="tab-paradas" class="tab-content">
-      <p class="menu-desc">Selecciona una parada para ver las próximas salidas estimadas.</p>
-      <div class="lista-botones">
-        <button class="btn-menu" onclick="abrirPanelSalidas('Fraga - Estación de Autobuses')">
-          <div class="btn-icon-stop"><i class="fa-solid fa-sign-hanging"></i></div>
-          <span class="btn-subtitle">Fraga - Estación de Autobuses</span>
-        </button>
-        <button class="btn-menu" onclick="abrirPanelSalidas('Zaragoza - Intermodal Delicias')">
-          <div class="btn-icon-stop"><i class="fa-solid fa-sign-hanging"></i></div>
-          <span class="btn-subtitle">Zaragoza - Intermodal Delicias</span>
-        </button>
-        <button class="btn-menu" onclick="abrirPanelSalidas('Bujaraloz - Marquesina Centro')">
-          <div class="btn-icon-stop"><i class="fa-solid fa-sign-hanging"></i></div>
-          <span class="btn-subtitle">Bujaraloz - Marquesina Centro</span>
-        </button>
-      </div>
-    </div>
   </div>
 
   <!-- Tarjeta Flotante sobre el Mapa -->
@@ -450,43 +471,17 @@
     </div>
 
     <div class="footer-actions">
+      <button class="btn-action btn-menu-back" onclick="volverAlMenu()">
+        <i class="fa-solid fa-bars"></i> Menú
+      </button>
       <button class="btn-action" onclick="centrarEnBus()">
         <i class="fa-solid fa-crosshairs"></i> Encuadrar
       </button>
     </div>
   </div>
 
-  <!-- Modal / Panel de Salidas (Oculto) -->
-  <div id="modal-salidas" class="modal-overlay" style="display: none;">
-    <div class="modal-card">
-      <div class="modal-header">
-        <div>
-          <h3 id="titulo-parada">Nombre Parada</h3>
-          <span style="font-size: 0.8rem; color: #94a3b8;">Próximas salidas estimadas</span>
-        </div>
-        <button onclick="cerrarPanelSalidas()"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      
-      <div class="modal-body" id="contenido-salidas">
-        <!-- Simulación de datos de salidas -->
-        <div class="salida-item">
-          <span class="salida-linea">T05</span>
-          <span class="salida-destino">Zaragoza</span>
-          <span class="salida-tiempo">10 min</span>
-        </div>
-        <div class="salida-item">
-          <span class="salida-linea">T05</span>
-          <span class="salida-destino">Fraga (Directo)</span>
-          <span class="salida-tiempo">45 min</span>
-        </div>
-        <div class="salida-item">
-          <span class="salida-linea">T05</span>
-          <span class="salida-destino">Peñalba</span>
-          <span class="salida-tiempo">1h 15m</span>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- Mapa -->
+  <div id="map"></div>
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -511,35 +506,6 @@
       iconAnchor: [22, 22]
     });
 
-    // --- Lógica del Menú y Pestañas ---
-    function toggleMenu() {
-      document.getElementById('sidebar').classList.toggle('open');
-    }
-
-    function cambiarPestana(pestana) {
-      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-      
-      if (pestana === 'lineas') {
-        document.querySelectorAll('.tab-btn')[0].classList.add('active');
-        document.getElementById('tab-lineas').classList.add('active');
-      } else {
-        document.querySelectorAll('.tab-btn')[1].classList.add('active');
-        document.getElementById('tab-paradas').classList.add('active');
-      }
-    }
-
-    function abrirPanelSalidas(nombreParada) {
-      document.getElementById('titulo-parada').innerText = nombreParada;
-      document.getElementById('modal-salidas').style.display = 'flex';
-      document.getElementById('sidebar').classList.remove('open');
-    }
-
-    function cerrarPanelSalidas() {
-      document.getElementById('modal-salidas').style.display = 'none';
-    }
-
-    // --- Lógica del Mapa y API (Tu código original intacto) ---
     function initMap() {
       if (map) return;
       map = L.map('map', { zoomControl: false }).setView([41.6563, -0.8773], 13);
@@ -554,9 +520,7 @@
     function iniciarMapa(linea) {
       lineaActiva = linea;
       document.getElementById('badge-linea-tag').innerText = linea;
-      
-      // Ocultar menú lateral al seleccionar
-      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('pantalla-inicio').style.display = 'none';
       document.getElementById('header-card').style.display = 'block';
 
       initMap();
@@ -565,6 +529,19 @@
 
       if (intervaloTimer) clearInterval(intervaloTimer);
       intervaloTimer = setInterval(actualizarBus, 5000);
+    }
+
+    function volverAlMenu() {
+      if (intervaloTimer) clearInterval(intervaloTimer);
+      lineaActiva = null;
+
+      Object.keys(marcadoresBuses).forEach(id => {
+        map.removeLayer(marcadoresBuses[id]);
+      });
+      marcadoresBuses = {};
+
+      document.getElementById('header-card').style.display = 'none';
+      document.getElementById('pantalla-inicio').style.display = 'flex';
     }
 
     async function actualizarBus() {
@@ -662,9 +639,6 @@
         map.flyToBounds(grupo.getBounds(), { padding: [60, 60], duration: 1.2 });
       }
     }
-
-    // Cargar mapa de fondo al iniciar para que no quede blanco
-    window.onload = () => { initMap(); };
   </script>
 </body>
 </html>
