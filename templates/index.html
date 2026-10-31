@@ -401,6 +401,49 @@
     .stop-arrival-source { display: inline-block; margin-top: 5px; color: #15803d; font-size: 10px; font-weight: 700; }
     .stop-arrival-state { color: #64748b; font-size: 11px; line-height: 1.4; padding: 8px 0; }
     .stop-arrival-updated { color: #94a3b8; font-size: 9px; padding-top: 6px; }
+
+    .header-card { max-height: calc(100vh - 32px); overflow-y: auto; }
+    .map-tools { margin-top: 10px; }
+    .stop-search-row { display: flex; align-items: center; gap: 6px; }
+    #buscador-paradas { min-width: 0; flex: 1; height: 36px; border: 1px solid rgba(255,255,255,.13); border-radius: 9px; background: rgba(255,255,255,.08); color: #f8fafc; padding: 0 10px; font-size: 12px; outline: none; }
+    #buscador-paradas::placeholder { color: #94a3b8; }
+    #buscador-paradas:focus { border-color: #60a5fa; box-shadow: 0 0 0 2px rgba(96,165,250,.14); }
+    .tool-button { height: 36px; border: 1px solid rgba(255,255,255,.14); border-radius: 9px; padding: 0 10px; background: rgba(255,255,255,.09); color: #e2e8f0; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 11px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+    .tool-button:hover { background: rgba(255,255,255,.16); }
+    .favorite-count { display: inline-flex; min-width: 17px; height: 17px; align-items: center; justify-content: center; border-radius: 99px; background: #f59e0b; color: #1e293b; font-size: 10px; }
+    .search-results { max-height: 190px; overflow-y: auto; margin-top: 5px; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; background: #172338; box-shadow: 0 8px 22px rgba(0,0,0,.25); }
+    .search-results[hidden], .favorites-panel[hidden] { display: none; }
+    .search-result { width: 100%; border: 0; border-bottom: 1px solid rgba(255,255,255,.07); background: transparent; color: #e2e8f0; text-align: left; padding: 9px 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .search-result:last-child { border-bottom: 0; }
+    .search-result:hover { background: rgba(255,255,255,.08); }
+    .search-result-name { font-size: 11px; font-weight: 700; }
+    .search-result-meta { font-size: 10px; color: #94a3b8; white-space: nowrap; }
+    .search-empty { padding: 10px; font-size: 11px; color: #94a3b8; }
+    .line-filter-row { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+    .filter-caption { color: #94a3b8; font-size: 10px; text-transform: uppercase; font-weight: 800; letter-spacing: .05em; margin-right: 2px; }
+    .line-filter { display: inline-flex; align-items: center; gap: 4px; border: 1px solid rgba(255,255,255,.12); border-radius: 99px; padding: 4px 7px; background: rgba(255,255,255,.04); color: #94a3b8; font-size: 10px; font-weight: 800; cursor: pointer; }
+    .line-filter.active { color: #f8fafc; background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.25); }
+    .filter-dot { width: 7px; height: 7px; display: inline-block; border-radius: 50%; }
+    .favorites-panel { margin-top: 8px; padding: 10px; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; background: #172338; }
+    .favorites-panel-heading { display: flex; align-items: center; justify-content: space-between; color: #f8fafc; font-size: 12px; margin-bottom: 7px; }
+    .tool-close { border: 0; background: transparent; color: #cbd5e1; font-size: 21px; cursor: pointer; line-height: 1; }
+    .favorite-row { display: flex; align-items: center; gap: 5px; padding: 6px 0; border-top: 1px solid rgba(255,255,255,.07); }
+    .favorite-go { flex: 1; min-width: 0; border: 0; background: none; color: #e2e8f0; text-align: left; cursor: pointer; font-size: 11px; font-weight: 700; }
+    .favorite-action { border: 1px solid rgba(255,255,255,.13); border-radius: 6px; background: rgba(255,255,255,.07); color: #cbd5e1; padding: 5px 7px; cursor: pointer; font-size: 10px; white-space: nowrap; }
+    .favorite-action.enabled { color: #fbbf24; border-color: rgba(251,191,36,.4); }
+    .favorites-note { margin-top: 7px; color: #94a3b8; font-size: 9px; line-height: 1.35; }
+    .stop-popup-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .stop-favorite-button { flex: 0 0 auto; border: 1px solid #e2e8f0; border-radius: 7px; background: #fff; padding: 5px 7px; color: #64748b; cursor: pointer; font-size: 10px; font-weight: 700; }
+    .stop-favorite-button.saved { color: #b45309; border-color: #fcd34d; background: #fffbeb; }
+    .stop-date-input { width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 7px; margin: 4px 0 7px; color: #0f172a; font-size: 11px; background: #fff; }
+    .stop-schedule { border-top: 1px solid #e2e8f0; margin-top: 10px; padding-top: 2px; }
+    .stop-schedule-note { font-size: 9px; color: #94a3b8; padding-top: 5px; }
+    @media (max-width: 480px) {
+      .header-card { top: 8px; left: 8px; right: 8px; max-height: calc(100vh - 16px); padding: 10px; }
+      .stop-search-row { gap: 4px; }
+      .tool-button { padding: 0 7px; font-size: 10px; }
+      #buscador-paradas { font-size: 11px; }
+    }
     @media (max-width: 480px) {
       .header-card { padding: 12px; }
       .footer-actions { gap: 5px; flex-wrap: nowrap; }
@@ -514,6 +557,41 @@
       </div>
     </div>
 
+    <div class="map-tools">
+      <div class="stop-search-row">
+        <input id="buscador-paradas" type="search" autocomplete="off"
+          placeholder="Buscar parada..." aria-label="Buscar parada">
+        <button class="tool-button" id="btn-paradas-cercanas" type="button" title="Ver paradas cercanas">
+          <i class="fa-solid fa-location-crosshairs"></i>
+        </button>
+        <button class="tool-button" id="btn-mostrar-favoritos" type="button">
+          <i class="fa-solid fa-star"></i> <span>Favoritos</span>
+          <span class="favorite-count" id="contador-favoritos">0</span>
+        </button>
+      </div>
+      <div class="search-results" id="resultados-paradas" hidden></div>
+      <div class="line-filter-row">
+        <span class="filter-caption">Autobuses</span>
+        <button class="line-filter active" type="button" data-line-filter="T05-01" aria-pressed="true">
+          <span class="filter-dot" style="background:#2563EB"></span>T05-01
+        </button>
+        <button class="line-filter active" type="button" data-line-filter="T05-20" aria-pressed="true">
+          <span class="filter-dot" style="background:#0F766E"></span>T05-20
+        </button>
+        <button class="line-filter active" type="button" data-line-filter="T05-50" aria-pressed="true">
+          <span class="filter-dot" style="background:#C2410C"></span>T05-50
+        </button>
+      </div>
+      <div class="favorites-panel" id="panel-favoritos" hidden>
+        <div class="favorites-panel-heading">
+          <strong>Mis paradas favoritas</strong>
+          <button class="tool-close" id="btn-cerrar-favoritos" type="button" aria-label="Cerrar favoritos">×</button>
+        </div>
+        <div id="lista-favoritos"></div>
+        <p class="favorites-note">Los avisos requieren permiso del navegador y que el mapa permanezca abierto.</p>
+      </div>
+    </div>
+
     <div class="footer-actions">
       <button class="btn-action btn-menu-back" onclick="volverAlMenu()">
         <i class="fa-solid fa-bars"></i> Menú
@@ -542,6 +620,13 @@
     let intervaloTimer = null;
     let solicitudEnCurso = false;
     let intervaloLlegadasParada = null;
+    let marcadoresParadas = {};
+    let listaParadas = [];
+    let filtrosLineas = { 'T05-01': true, 'T05-20': true, 'T05-50': true };
+    let favoritosParadas = leerFavoritos();
+    let intervaloAlertasFavoritos = null;
+    let herramientasInicializadas = false;
+    const CLAVE_FAVORITOS = 'mapa-tpa-favoritos-v1';
 
     function escaparHTML(valor) {
       return String(valor ?? '').replace(/[&<>"']/g, caracter => ({
@@ -679,14 +764,23 @@
 
           marcador.bindPopup(
             '<div class="stop-popup">' +
-              '<b class="stop-popup-title">' + escaparHTML(parada.name) + '</b>' +
+              '<div class="stop-popup-top">' +
+                '<b class="stop-popup-title">' + escaparHTML(parada.name) + '</b>' +
+                '<button type="button" class="stop-favorite-button"><i class="fa-regular fa-star"></i> Guardar</button>' +
+              '</div>' +
               '<span class="stop-popup-label">Líneas que paran aquí</span>' +
               '<div class="stop-line-list">' +
                 (insigniasLineas || '<span class="stop-arrival-state">Sin líneas identificadas</span>') +
               '</div>' +
               '<div class="stop-arrivals">' +
-                '<span class="stop-popup-label">Próximas llegadas</span>' +
+                '<span class="stop-popup-label">Predicciones en tiempo real</span>' +
                 '<div class="llegadas-parada stop-arrival-state">Consultando predicciones...</div>' +
+              '</div>' +
+              '<div class="stop-schedule">' +
+                '<span class="stop-popup-label">Horario programado</span>' +
+                '<input type="date" class="stop-date-input" aria-label="Fecha del horario">' +
+                '<div class="horarios-parada stop-arrival-state">Consultando horario...</div>' +
+                '<div class="stop-schedule-note">Horario oficial GTFS · se muestra separado de las predicciones</div>' +
               '</div>' +
             '</div>',
             { maxWidth: 310 }
