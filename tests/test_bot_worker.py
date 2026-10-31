@@ -77,6 +77,47 @@ class TelegramBotServiceTests(unittest.TestCase):
         self.assertEqual(segundo, 1)
         self.assertEqual(len(mensajes), 2)
 
+    def test_vincular_guarda_grupo_y_responsable_sin_dar_admin_al_bot(self):
+        from bot_worker import TelegramBot, obtener_config
+
+        bot = TelegramBot("token-de-prueba", self.db)
+        mensajes = []
+        bot.enviar = lambda chat_id, texto: mensajes.append((chat_id, texto)) or True
+        bot.procesar_comando({
+            "chat": {"id": -100123, "type": "supergroup"},
+            "from": {"id": 456},
+            "text": "/vincular@MapaTPAServiciosBot"
+        })
+
+        self.assertEqual(obtener_config(self.db, "chat_id"), "-100123")
+        self.assertEqual(obtener_config(self.db, "owner_user_id"), "456")
+        self.assertIn("vinculado", mensajes[-1][1].lower())
+
+    def test_solo_el_responsable_puede_desvincular(self):
+        from bot_worker import TelegramBot, obtener_config, guardar_config
+
+        bot = TelegramBot("token-de-prueba", self.db)
+        mensajes = []
+        bot.enviar = lambda chat_id, texto: mensajes.append((chat_id, texto)) or True
+        guardar_config(self.db, "chat_id", "-100123")
+        guardar_config(self.db, "owner_user_id", "456")
+
+        bot.procesar_comando({
+            "chat": {"id": -100123, "type": "supergroup"},
+            "from": {"id": 999},
+            "text": "/desvincular@MapaTPAServiciosBot"
+        })
+        self.assertEqual(obtener_config(self.db, "chat_id"), "-100123")
+        self.assertIn("responsable", mensajes[-1][1].lower())
+
+        bot.procesar_comando({
+            "chat": {"id": -100123, "type": "supergroup"},
+            "from": {"id": 456},
+            "text": "/desvincular@MapaTPAServiciosBot"
+        })
+        self.assertIsNone(obtener_config(self.db, "chat_id"))
+        self.assertIsNone(obtener_config(self.db, "owner_user_id"))
+
 
 if __name__ == "__main__":
     unittest.main()
