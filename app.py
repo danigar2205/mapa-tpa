@@ -12,12 +12,15 @@ import math
 import base64
 import json
 from requests.adapters import HTTPAdapter
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from urllib3.poolmanager import PoolManager
 
 # Desactivar avisos de certificados SSL
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
+ZONA_HORARIA = ZoneInfo('Europe/Madrid')
 
 # Índice GTFS estático oficial para resolver stop_id / trip_id + stop_sequence.
 # El fichero se genera desde routes.txt, trips.txt, stop_times.txt y stops.txt.
@@ -317,26 +320,165 @@ def index():
 
 @app.route('/api/mapa/<linea>')
 def get_mapa_lineas(linea):
-    """Devuelve geometrías y paradas GTFS de la concesión solicitada."""
+    """Devuelve las paradas GTFS y las líneas que pasan por cada una."""
     concesion = linea.upper()
     if concesion != "T05":
         return jsonify({"routes": [], "stops": []})
+
     rutas = []
-    paradas = []
+    paradas_por_id = {}
     for route_id, info in GTFS_T05_MAP.get("routes", {}).items():
-        shapes = [
-            GTFS_T05_MAP.get("shapes", {}).get(shape_id, [])
-            for shape_id in info.get("shapes", [])
-        ]
         rutas.append({
             "route_id": route_id,
             "short_name": info.get("short_name", "T05"),
             "long_name": info.get("long_name", ""),
-            "color": "#" + str(info.get("color", "2563EB")).lstrip("#"),
-            "shapes": [shape for shape in shapes if len(shape) >= 2]
+            "color": "#" + str(info.get("color", "2563EB")).lstrip("#")
         })
-        paradas.extend(GTFS_T05_MAP.get("stops", {}).get(info.get("short_name", ""), []))
+        nombre_linea = info.get("short_name", "T05")
+        for parada_original in GTFS_T05_MAP.get("stops", {}).get(nombre_linea, []):
+            parada = dict(parada_original)
+            stop_id = str(parada.get("id") or parada.get("stop_id") or "")
+            if not stop_id:
+                continue
+            if stop_id not in paradas_por_id:
+                parada["lineas"] = []
+                paradas_por_id[stop_id] = parada
+            if nombre_linea not in paradas_por_id[stop_id]["lineas"]:
+                paradas_por_id[stop_id]["lineas"].append(nombre_linea)
+
+    paradas = list(paradas_por_id.values())
+    for parada in paradas:
+        parada["lineas"].sort()
+
     return jsonify({"routes": rutas, "stops": paradas})
+
+
+def obtener_llegadas_en_tiempo_real(stop_id):
+    """Consulta GTFS-RT y devuelve predicciones para una parada concreta."""
+    ahora = time.time()
+    llegadas = []
+    feed_disponible = False
+    headers = {
+        "User-Agent": "Mozilla/5.0 (compatible; MapaTPA/1.0)",
+        "Accept": "*/*"
+    }
+
+    from google.transit import gtfs_realtime_pb2
+
+    for url in TRIPUPDATES_ENDPOINTS:
+        try:
+            respuesta = session.get(url, headers=headers, timeout=7, verify=False)
+            if respuesta.status_code != 200 or not respuesta.content:
+                continue
+
+            contenido = respuesta.content
+            if contenido.startswith(b"\x1f\x8b"):
+                try:
+                    contenido = gzip.decompress(contenido)
+                except (OSError, EOFError):
+                    pass
+
+            feed = gtfs_realtime_pb2.FeedMessage()
+            feed.ParseFromString(contenido)
+            feed_disponible = True
+
+            for entidad in feed.entity:
+                if not entidad.HasField("trip_update"):
+                    continue
+
+                actualizacion = entidad.trip_update
+                if not actualizacion.HasField("trip"):
+                    continue
+
+                viaje = actualizacion.trip
+                route_id = str(viaje.route_id or "")
+                trip_id = str(viaje.trip_id or "")
+                info_ruta = GTFS_T05_MAP.get("routes", {}).get(route_id)
+                if not info_ruta:
+                    continue
+
+                if viaje.HasField("schedule_relationship") and viaje.schedule_relationship == gtfs_realtime_pb2.TripDescriptor.CANCELED:
+                    continue
+
+                direccion = viaje.direction_id if viaje.HasField("direction_id") else None
+                destino, _ = resolver_destino_y_parada("T05", route_id, direccion, None)
+                if not destino or destino == "En trayecto":
+                    destino = info_ruta.get("long_name", "Destino no disponible")
+
+                for actualizacion_parada in actualizacion.stop_time_update:
+                    if actualizacion_parada.HasField("schedule_relationship") and actualizacion_parada.schedule_relationship == gtfs_realtime_pb2.TripUpdate.StopTimeUpdate.SKIPPED:
+                        continue
+
+                    stop_id_actualizacion = (
+                        str(actualizacion_parada.stop_id)
+                        if actualizacion_parada.HasField("stop_id") and actualizacion_parada.stop_id
+                        else ""
+                    )
+                    if not stop_id_actualizacion and trip_id and actualizacion_parada.HasField("stop_sequence"):
+                        stop_id_actualizacion = str(
+                            GTFS_T05_LOOKUP.get("trips", {})
+                            .get(trip_id, {})
+                            .get(str(int(actualizacion_parada.stop_sequence)), "")
+                        )
+
+                    if stop_id_actualizacion != str(stop_id):
+                        continue
+
+                    instante = None
+                    if actualizacion_parada.HasField("arrival") and actualizacion_parada.arrival.HasField("time"):
+                        instante = int(actualizacion_parada.arrival.time)
+                    elif actualizacion_parada.HasField("departure") and actualizacion_parada.departure.HasField("time"):
+                        instante = int(actualizacion_parada.departure.time)
+
+                    if instante is None or instante < ahora - 120 or instante > ahora + 12 * 3600:
+                        continue
+
+                    fecha_hora = datetime.fromtimestamp(instante, ZONA_HORARIA)
+                    minutos = max(0, math.ceil((instante - ahora) / 60))
+                    llegadas.append({
+                        "linea": info_ruta.get("short_name", "T05"),
+                        "destino": destino,
+                        "hora": fecha_hora.strftime("%H:%M"),
+                        "minutos": minutos,
+                        "timestamp": instante,
+                        "fuente": "Tiempo real",
+                        "trip_id": trip_id
+                    })
+
+            if llegadas:
+                break
+        except Exception as exc:
+            print(f"[LLEGADAS GTFS-RT ERROR {url}]: {exc}")
+
+    llegadas.sort(key=lambda item: item["timestamp"])
+    unicas = []
+    vistos = set()
+    for llegada in llegadas:
+        clave = (llegada["trip_id"], llegada["linea"], llegada["timestamp"])
+        if clave in vistos:
+            continue
+        vistos.add(clave)
+        unicas.append(llegada)
+
+    return {
+        "llegadas": unicas[:8],
+        "tiempo_real_disponible": feed_disponible,
+        "actualizado": datetime.now(ZONA_HORARIA).strftime("%H:%M:%S")
+    }
+
+
+@app.route('/api/paradas/<stop_id>/llegadas')
+def get_llegadas_parada(stop_id):
+    """Próximas llegadas en tiempo real a una parada T05."""
+    parada_existe = any(
+        str(parada.get("id") or parada.get("stop_id") or "") == str(stop_id)
+        for paradas in GTFS_T05_MAP.get("stops", {}).values()
+        for parada in paradas
+    )
+    if not parada_existe:
+        return jsonify({"error": "Parada no encontrada", "llegadas": []}), 404
+
+    return jsonify(obtener_llegadas_en_tiempo_real(stop_id))
 
 
 @app.route('/api/buses/<linea>')

@@ -385,6 +385,22 @@
       .btn-layer { min-width: 70px; }
     }
     .leaflet-tooltip.stop-label { border: 0; border-radius: 6px; padding: 4px 7px; color: #0f172a; font-size: 11px; font-weight: 700; box-shadow: 0 2px 8px rgba(15,23,42,.18); }
+
+    .stop-popup { min-width: 230px; color: #0f172a; }
+    .stop-popup-title { display: block; font-size: 14px; line-height: 1.35; margin-bottom: 8px; }
+    .stop-popup-label { display: block; color: #64748b; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; margin: 9px 0 5px; }
+    .stop-line-list { display: flex; flex-wrap: wrap; gap: 5px; }
+    .stop-line-badge { display: inline-flex; align-items: center; border-radius: 6px; padding: 4px 7px; color: #fff; font-size: 10px; font-weight: 800; }
+    .stop-arrivals { border-top: 1px solid #e2e8f0; margin-top: 10px; padding-top: 2px; }
+    .stop-arrival-row { display: grid; grid-template-columns: 58px 1fr auto; align-items: center; gap: 7px; padding: 7px 0; border-bottom: 1px solid #f1f5f9; }
+    .stop-arrival-line { font-size: 10px; font-weight: 800; }
+    .stop-arrival-destination { font-size: 11px; line-height: 1.25; color: #475569; }
+    .stop-arrival-time { text-align: right; white-space: nowrap; }
+    .stop-arrival-time strong { display: block; font-size: 14px; color: #0f172a; }
+    .stop-arrival-time small { display: block; font-size: 10px; color: #2563eb; font-weight: 700; }
+    .stop-arrival-source { display: inline-block; margin-top: 5px; color: #15803d; font-size: 10px; font-weight: 700; }
+    .stop-arrival-state { color: #64748b; font-size: 11px; line-height: 1.4; padding: 8px 0; }
+    .stop-arrival-updated { color: #94a3b8; font-size: 9px; padding-top: 6px; }
     @media (max-width: 480px) {
       .header-card { padding: 12px; }
       .footer-actions { gap: 5px; flex-wrap: nowrap; }
@@ -525,6 +541,7 @@
     let lineaActiva = null;
     let intervaloTimer = null;
     let solicitudEnCurso = false;
+    let intervaloLlegadasParada = null;
 
     function escaparHTML(valor) {
       return String(valor ?? '').replace(/[&<>"']/g, caracter => ({
@@ -577,6 +594,57 @@
       }).addTo(map);
     }
 
+    async function cargarLlegadasParada(stopId, popup) {
+      const contenedor = popup.getElement()?.querySelector('.llegadas-parada');
+      if (!contenedor) return;
+
+      if (!contenedor.dataset.cargado) {
+        contenedor.innerHTML = 'Consultando predicciones en tiempo real...';
+      }
+
+      try {
+        const respuesta = await fetch(
+          '/api/paradas/' + encodeURIComponent(stopId) + '/llegadas',
+          { cache: 'no-store' }
+        );
+        const datos = await respuesta.json();
+        if (!respuesta.ok) throw new Error(datos.error || 'No se pudieron obtener las llegadas.');
+
+        const llegadas = Array.isArray(datos.llegadas) ? datos.llegadas : [];
+        if (!llegadas.length) {
+          contenedor.innerHTML = datos.tiempo_real_disponible
+            ? 'Ahora mismo no hay predicciones de llegada para esta parada.'
+            : 'El servicio de predicciones en tiempo real no está disponible.';
+          contenedor.dataset.cargado = 'true';
+          return;
+        }
+
+        contenedor.innerHTML = llegadas.map(llegada => {
+          const color = {
+            'T05-01': '#2563EB',
+            'T05-20': '#0F766E',
+            'T05-50': '#C2410C'
+          }[llegada.linea] || '#475569';
+          const minutos = Number(llegada.minutos);
+          const cuentaAtras = minutos <= 0 ? 'Llegando' : 'en ' + minutos + ' min';
+          return '<div class="stop-arrival-row">' +
+            '<span class="stop-arrival-line" style="color:' + color + ';">' +
+              escaparHTML(llegada.linea) + '</span>' +
+            '<span class="stop-arrival-destination">' + escaparHTML(llegada.destino) + '</span>' +
+            '<span class="stop-arrival-time"><strong>' + escaparHTML(llegada.hora) +
+              '</strong><small>' + escaparHTML(cuentaAtras) + '</small></span>' +
+          '</div>';
+        }).join('') +
+        '<div class="stop-arrival-source">Predicciones en tiempo real</div>' +
+        '<div class="stop-arrival-updated">Actualizado a las ' +
+          escaparHTML(datos.actualizado || '--:--:--') + ' · Se actualiza cada 30 s</div>';
+        contenedor.dataset.cargado = 'true';
+      } catch (error) {
+        contenedor.innerHTML = 'No se han podido cargar las llegadas. Vuelve a abrir la parada para intentarlo de nuevo.';
+        console.error('Error consultando llegadas de la parada:', error);
+      }
+    }
+
     async function cargarCapasGTFS(linea) {
       if (capasParadas) map.removeLayer(capasParadas);
       capasParadas = L.layerGroup();
@@ -597,8 +665,46 @@
             radius: 5, color: '#ffffff', weight: 2,
             fillColor: '#334155', fillOpacity: 1
           });
-          marcador.bindPopup('<div style="font-family:sans-serif;min-width:150px;">' +
-            '<b style="color:#2563eb;">Parada</b><br>' + escaparHTML(parada.name) + '</div>');
+          const lineasParada = Array.isArray(parada.lineas) ? parada.lineas : [];
+          const coloresLineas = {
+            'T05-01': '#2563EB',
+            'T05-20': '#0F766E',
+            'T05-50': '#C2410C'
+          };
+          const insigniasLineas = lineasParada.map(nombre => {
+            const color = coloresLineas[nombre] || '#475569';
+            return '<span class="stop-line-badge" style="background:' + color + ';">' +
+              escaparHTML(nombre) + '</span>';
+          }).join('');
+
+          marcador.bindPopup(
+            '<div class="stop-popup">' +
+              '<b class="stop-popup-title">' + escaparHTML(parada.name) + '</b>' +
+              '<span class="stop-popup-label">Líneas que paran aquí</span>' +
+              '<div class="stop-line-list">' +
+                (insigniasLineas || '<span class="stop-arrival-state">Sin líneas identificadas</span>') +
+              '</div>' +
+              '<div class="stop-arrivals">' +
+                '<span class="stop-popup-label">Próximas llegadas</span>' +
+                '<div class="llegadas-parada stop-arrival-state">Consultando predicciones...</div>' +
+              '</div>' +
+            '</div>',
+            { maxWidth: 310 }
+          );
+          marcador.on('popupopen', evento => {
+            if (intervaloLlegadasParada) clearInterval(intervaloLlegadasParada);
+            cargarLlegadasParada(parada.id, evento.popup);
+            intervaloLlegadasParada = setInterval(
+              () => cargarLlegadasParada(parada.id, evento.popup),
+              30000
+            );
+          });
+          marcador.on('popupclose', () => {
+            if (intervaloLlegadasParada) {
+              clearInterval(intervaloLlegadasParada);
+              intervaloLlegadasParada = null;
+            }
+          });
           marcador.bindTooltip(escaparHTML(parada.name), {
             direction: 'top', offset: [0, -5], className: 'stop-label'
           });
@@ -645,6 +751,8 @@
 
     function volverAlMenu() {
       if (intervaloTimer) clearInterval(intervaloTimer);
+      if (intervaloLlegadasParada) clearInterval(intervaloLlegadasParada);
+      intervaloLlegadasParada = null;
       lineaActiva = null;
 
       Object.keys(marcadoresBuses).forEach(id => {
