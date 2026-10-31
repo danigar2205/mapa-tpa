@@ -541,10 +541,12 @@
       })[caracter]);
     }
 
+    // Paleta coherente y legible sobre el mapa base de OpenStreetMap.
+    // Se reutiliza también en los iconos de los autobuses.
     const COLORES_LINEA = {
-      'T05-01': '#281173',
-      'T05-20': '#2FEC97',
-      'T05-50': '#5310D7'
+      'T05-01': '#2563EB', // Azul
+      'T05-20': '#0F766E', // Verde azulado
+      'T05-50': '#C2410C'  // Terracota
     };
     const iconosBus = {};
 
@@ -594,37 +596,34 @@
         if (!respuesta.ok) throw new Error('HTTP ' + respuesta.status);
         const datos = await respuesta.json();
 
-        // Primero dibujamos un borde claro bajo cada recorrido para separarlo
-        // visualmente del mapa sin alterar las coordenadas geográficas.
-        const estilosLinea = {
-          'T05-01': { dashArray: '10 7', dashOffset: '0', weight: 4 },
-          'T05-20': { dashArray: '3 6', dashOffset: '2', weight: 4 },
-          'T05-50': { dashArray: null, dashOffset: '0', weight: 4 }
-        };
+        // Todas las líneas usan el mismo lenguaje visual: trazo continuo,
+        // grosor contenido y un contorno blanco muy fino para separarlas del mapa.
+        // No se desplazan las geometrías: las coordenadas siguen siendo las del GTFS.
         (datos.routes || []).forEach(ruta => {
-          const estilo = estilosLinea[ruta.short_name] || { dashArray: null, weight: 4 };
           (ruta.shapes || []).forEach(coordenadas => {
             if (!Array.isArray(coordenadas) || coordenadas.length < 2) return;
-            const colorLinea = '#' + String(ruta.color || '2563EB').replace(/^#/, '');
-            // Halo blanco para legibilidad; la línea conserva sus coordenadas GTFS.
+
+            const nombreLinea = String(ruta.short_name || '').toUpperCase();
+            const colorLinea = COLORES_LINEA[nombreLinea] ||
+              ('#' + String(ruta.color || '2563EB').replace(/^#/, ''));
+
             L.polyline(coordenadas, {
               color: '#ffffff',
-              weight: 7,
-              opacity: 0.95,
+              weight: 5,
+              opacity: 0.78,
               lineCap: 'round',
               lineJoin: 'round',
               interactive: false,
-              smoothFactor: 0.5
+              smoothFactor: 0.8
             }).addTo(capasLineas);
+
             const trazo = L.polyline(coordenadas, {
               color: colorLinea,
-              weight: estilo.weight,
-              opacity: 1,
-              dashArray: estilo.dashArray,
-              dashOffset: estilo.dashOffset,
+              weight: 3.2,
+              opacity: 0.94,
               lineCap: 'round',
               lineJoin: 'round',
-              smoothFactor: 0.5
+              smoothFactor: 0.8
             });
             trazo.bindPopup('<b>' + escaparHTML(ruta.short_name) + '</b><br>' +
               escaparHTML(ruta.long_name || 'Recorrido oficial'));
