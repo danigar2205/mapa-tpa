@@ -1,7 +1,7 @@
 import math
 import unittest
 
-from app import validar_coordenadas, resolver_destino_y_parada
+from app import app, validar_coordenadas, resolver_destino_y_parada, T05_ROUTE_NAMES
 
 
 class ValidarCoordenadasTests(unittest.TestCase):
@@ -54,6 +54,34 @@ class ProximaParadaGTFSTests(unittest.TestCase):
             trip_id="viaje-inexistente"
         )
         self.assertEqual(parada, "Parada sin identificar")
+
+
+class CapasMapaGTFSTests(unittest.TestCase):
+    def setUp(self):
+        self.client = app.test_client()
+
+    def test_api_devuelve_las_tres_lineas_t05(self):
+        respuesta = self.client.get("/api/mapa/t05")
+        self.assertEqual(respuesta.status_code, 200)
+        datos = respuesta.get_json()
+        nombres = {ruta["short_name"] for ruta in datos["routes"]}
+        self.assertEqual(nombres, {"T05-01", "T05-20", "T05-50"})
+
+    def test_api_devuelve_recorridos_y_paradas_con_coordenadas(self):
+        datos = self.client.get("/api/mapa/T05").get_json()
+        self.assertEqual(sum(len(ruta["shapes"]) for ruta in datos["routes"]), 6)
+        self.assertGreaterEqual(len(datos["stops"]), 30)
+        for parada in datos["stops"]:
+            self.assertTrue(-90 <= parada["lat"] <= 90)
+            self.assertTrue(-180 <= parada["lon"] <= 180)
+
+    def test_otras_concesiones_no_reciben_datos_t05(self):
+        datos = self.client.get("/api/mapa/t13").get_json()
+        self.assertEqual(datos, {"routes": [], "stops": []})
+
+    def test_identifica_numero_de_linea_por_route_id(self):
+        self.assertEqual(len(T05_ROUTE_NAMES), 3)
+        self.assertEqual(set(T05_ROUTE_NAMES.values()), {"T05-01", "T05-20", "T05-50"})
 
 
 if __name__ == "__main__":
