@@ -30,6 +30,21 @@ try:
 except (OSError, ValueError, gzip.BadGzipFile) as exc:
     print(f"[GTFS STATIC] No se pudo cargar el índice T05: {exc}")
 
+# Geometrías de recorrido y paradas oficiales de las rutas T05.
+GTFS_T05_MAP = {"routes": {}, "shapes": {}, "stops": {}}
+try:
+    map_path = os.path.join(os.path.dirname(__file__), "data", "gtfs_t05_map.json.gz.b64")
+    with open(map_path, "rt", encoding="ascii") as map_file:
+        map_compressed = base64.b64decode(map_file.read())
+    GTFS_T05_MAP = json.loads(gzip.decompress(map_compressed).decode("utf-8"))
+except (OSError, ValueError, gzip.BadGzipFile) as exc:
+    print(f"[GTFS MAP] No se pudo cargar el mapa estático T05: {exc}")
+
+T05_ROUTE_NAMES = {
+    route_id: info.get("short_name", "T05")
+    for route_id, info in GTFS_T05_MAP.get("routes", {}).items()
+}
+
 # Adaptador SSL permisivo
 class LegacySSLAdapter(HTTPAdapter):
     def init_poolmanager(self, connections, maxsize, block=False, **kwargs):
@@ -300,6 +315,30 @@ def obtener_estimaciones_tripupdates(linea_objetivo):
 def index():
     return render_template('index.html')
 
+@app.route('/api/mapa/<linea>')
+def get_mapa_lineas(linea):
+    """Devuelve geometrías y paradas GTFS de la concesión solicitada."""
+    concesion = linea.upper()
+    if concesion != "T05":
+        return jsonify({"routes": [], "stops": []})
+    rutas = []
+    paradas = []
+    for route_id, info in GTFS_T05_MAP.get("routes", {}).items():
+        shapes = [
+            GTFS_T05_MAP.get("shapes", {}).get(shape_id, [])
+            for shape_id in info.get("shapes", [])
+        ]
+        rutas.append({
+            "route_id": route_id,
+            "short_name": info.get("short_name", "T05"),
+            "long_name": info.get("long_name", ""),
+            "color": "#" + str(info.get("color", "2563EB")).lstrip("#"),
+            "shapes": [shape for shape in shapes if len(shape) >= 2]
+        })
+        paradas.extend(GTFS_T05_MAP.get("stops", {}).get(info.get("short_name", ""), []))
+    return jsonify({"routes": rutas, "stops": paradas})
+
+
 @app.route('/api/buses/<linea>')
 def get_buses(linea):
     linea_objetivo = linea.upper()
@@ -370,6 +409,7 @@ def get_buses(linea):
                         lat, lon = coordenadas
                         buses.append({
                                 'id': v_id or coche_num,
+                                'linea': T05_ROUTE_NAMES.get(r_id, linea_objetivo),
                                 'coche': coche_num,
                                 'matricula': matricula,
                                 'lat': float(lat),
