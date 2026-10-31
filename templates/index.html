@@ -453,9 +453,9 @@
           <p>Localización en tiempo real</p>
         </div>
       </div>
-      <div class="live-status">
-        <div class="pulse-dot"></div>
-        <span>EN VIVO</span>
+      <div class="live-status" id="live-status">
+        <div class="pulse-dot" id="live-dot"></div>
+        <span id="live-status-text">CONECTANDO</span>
       </div>
     </div>
 
@@ -555,6 +555,17 @@
       document.getElementById('pantalla-inicio').style.display = 'flex';
     }
 
+    function actualizarEstadoConexion(estado, texto) {
+      const indicador = document.getElementById('live-status');
+      const punto = document.getElementById('live-dot');
+      const etiqueta = document.getElementById('live-status-text');
+      if (!indicador || !punto || !etiqueta) return;
+      etiqueta.innerText = texto;
+      indicador.dataset.estado = estado;
+      punto.style.backgroundColor = estado === 'online' ? '#22c55e' : (estado === 'offline' ? '#ef4444' : '#f59e0b');
+      punto.style.animation = estado === 'online' ? 'pulse-green 2s infinite' : 'none';
+    }
+
     async function actualizarBus() {
       if (!lineaActiva || solicitudEnCurso) return;
 
@@ -568,6 +579,7 @@
         if (lineaActiva !== lineaSolicitada) return;
 
         if (Array.isArray(datos) && datos.length > 0) {
+          actualizarEstadoConexion('online', 'EN VIVO');
           const idsVivos = new Set();
           const detallesCoches = [];
           const puntosLatLng = [];
@@ -638,6 +650,7 @@
             primeraCarga = false;
           }
         } else {
+          actualizarEstadoConexion('empty', 'SIN VEHÍCULOS');
           // Si la API no devuelve vehículos, no dejar autobuses antiguos en el mapa.
           Object.keys(marcadoresBuses).forEach(id => {
             map.removeLayer(marcadoresBuses[id]);
@@ -647,6 +660,7 @@
           document.getElementById('bus-info').innerText = "Sin señal de bus";
         }
       } catch (error) {
+        actualizarEstadoConexion('offline', 'SIN CONEXIÓN');
         console.error('Error cargando datos:', error);
         if (lineaActiva === lineaSolicitada) {
           document.getElementById('bus-info').innerText = "No se han podido actualizar los datos";
