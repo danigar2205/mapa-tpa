@@ -1,0 +1,107 @@
+name: Importar GTFS NAP Aragón
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/importar-gtfs-nap.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  importar:
+    if: github.repository == 'danigar2205/mapa-tpa'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar proyecto
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Descargar ZIP GTFS público del NAP
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install gdown
+          gdown --fuzzy "https://drive.google.com/file/d/1tj91dYzwuKOZA19t95r0PBQoipG7ir6d/view?usp=sharing" -O /tmp/gtfs_aragon_nap.zip
+          python - <<'PY'
+          import zipfile
+          from pathlib import Path
+
+          ruta = Path("/tmp/gtfs_aragon_nap.zip")
+          if not ruta.is_file() or ruta.stat().st_size < 100_000:
+              raise SystemExit("La descarga del GTFS está vacía o incompleta.")
+          if not zipfile.is_zipfile(ruta):
+              raise SystemExit("El archivo descargado no es un ZIP válido.")
+          with zipfile.ZipFile(ruta) as archivo:
+              nombres = {nombre.rsplit("/", 1)[-1].lower() for nombre in archivo.namelist()}
+              requeridos = {"routes.txt", "stops.txt", "trips.txt", "stop_times.txt"}
+              if not requeridos.issubset(nombres):
+                  raise SystemExit("El ZIP no contiene todos los ficheros GTFS obligatorios.")
+              with archivo.open(next(n for n in archivo.namelist() if n.rsplit("/", 1)[-1].lower() == "routes.txt")) as fichero:
+                  import csv
+                  import io
+                  filas = csv.DictReader(io.TextIOWrapper(fichero, encoding="utf-8-sig"))
+                  agencias = {fila.get("agency_id", "").upper() for fila in filas}
+          esperadas = {"T02", "T04", "T05", "T06", "T07", "T08", "T09", "T10", "T11", "T12", "T13", "T14", "T15"}
+          faltan = esperadas - agencias
+          if faltan:
+              raise SystemExit(f"Faltan agencias previstas en el ZIP: {sorted(faltan)}")
+          print(f"ZIP válido. Agencias encontradas: {', '.join(sorted(agencias))}")
+          PY
+
+      - name: Importar concesiones sin mezclar agencias
+        run: |
+          # T05 se conserva para mantener intactas las referencias usadas por GTFS-RT.
+          for concesion in T02 T04 T06 T07 T08 T09 T10 T11 T12 T13 T14 T15; do
+            python scripts/importar_gtfs.py "$concesion" /tmp/gtfs_aragon_nap.zip
+          done
+
+      - name: Validar mapas y horarios generados
+        run: |
+          python - <<'PY'
+          from gtfs_datasets import cargar_datasets_gtfs
+
+          codigos = ["T02", "T04", "T06", "T07", "T08", "T09", "T10", "T11", "T12", "T13", "T14", "T15"]
+          datasets = cargar_datasets_gtfs("data")
+          for codigo in codigos:
+              dataset = datasets[codigo]
+              mapa = dataset["map"]
+              horario = dataset["schedule"]
+              if not dataset["has_map"] or not mapa["routes"]:
+                  raise SystemExit(f"{codigo}: el mapa no se ha generado correctamente.")
+              if not dataset["has_schedules"] or not horario["stop_times"]:
+                  raise SystemExit(f"{codigo}: no se han generado horarios utilizables.")
+              prefijos = {ruta.get("short_name", "")[:3] for ruta in mapa["routes"].values()}
+              if prefijos != {codigo}:
+                  raise SystemExit(f"{codigo}: se han mezclado rutas de otras concesiones: {prefijos}")
+              print(
+                  f"{codigo}: {len(mapa['routes'])} rutas, "
+                  f"{sum(len(p) for p in mapa['stops'].values())} paradas por línea, "
+                  f"{len(horario['stop_times'])} pasos horarios"
+              )
+          if not datasets["T05"]["has_realtime"]:
+              raise SystemExit("La capacidad GTFS-RT existente de T05 se ha perdido.")
+          PY
+
+      - name: Guardar datos GTFS en el repositorio
+        run: |
+          for concesion in T02 T04 T06 T07 T08 T09 T10 T11 T12 T13 T14 T15; do
+            codigo=$(echo "$concesion" | tr '[:upper:]' '[:lower:]')
+            git add "data/gtfs_${codigo}_map.json.gz.b64" \
+                    "data/gtfs_${codigo}_lookup.json.gz.b64" \
+                    "data/gtfs_${codigo}_timetable.json.gz.b64"
+          done
+          if git diff --cached --quiet; then
+            echo "Los datos GTFS ya estaban actualizados; no hay cambios que guardar."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Añade GTFS estático de las concesiones Aragón"
+          git push origin main
