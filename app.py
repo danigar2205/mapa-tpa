@@ -524,7 +524,7 @@ def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05"):
                     fecha_hora = datetime.fromtimestamp(instante, ZONA_HORARIA)
                     minutos = max(0, math.ceil((instante - ahora) / 60))
                     llegadas.append({
-                        "linea": info_ruta.get("short_name", codigo),
+                        "linea": info_ruta.get("short_name", concesion),
                         "destino": destino,
                         "hora": fecha_hora.strftime("%H:%M"),
                         "minutos": minutos,
