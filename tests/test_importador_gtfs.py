@@ -65,6 +65,41 @@ class ImportadorGTFSTests(unittest.TestCase):
             self.assertEqual(len(t01["schedule"]["stop_times"]), 2)
             self.assertEqual(t01["schedule"]["exceptions"][0]["exception_type"], "2")
 
+    def test_corrige_las_dos_paradas_t05_en_todas_las_lineas(self):
+        with tempfile.TemporaryDirectory() as temporal:
+            raiz = Path(temporal)
+            zip_path = raiz / "gtfs_t05.zip"
+            data_dir = raiz / "data"
+            archivos_gtfs = dict(GTFS_FILES)
+            archivos_gtfs["routes.txt"] = archivos_gtfs["routes.txt"].replace("T01-01", "T05-01")
+            archivos_gtfs["stops.txt"] = (
+                "stop_id,stop_name,stop_lat,stop_lon\n"
+                "lugarico,Lugarico de Cerdán,40.0000,-1.0000\n"
+                "condado,Condado (El),40.1000,-1.1000\n"
+            )
+            archivos_gtfs["stop_times.txt"] = (
+                "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n"
+                "viaje-1,08:00:00,08:00:00,lugarico,1\n"
+                "viaje-1,08:30:00,08:30:00,condado,2\n"
+            )
+
+            with zipfile.ZipFile(zip_path, "w") as archivo:
+                for nombre, contenido in archivos_gtfs.items():
+                    archivo.writestr("feed/" + nombre, contenido)
+
+            convertir_gtfs("T05", zip_path, data_dir)
+            t05 = cargar_datasets_gtfs(data_dir)["T05"]
+            paradas = {
+                parada["id"]: parada
+                for lista in t05["map"]["stops"].values()
+                for parada in lista
+            }
+
+            self.assertEqual((paradas["lugarico"]["lat"], paradas["lugarico"]["lon"]),
+                             (41.649452, -0.790304))
+            self.assertAlmostEqual(paradas["condado"]["lat"], 41.59113888888889)
+            self.assertAlmostEqual(paradas["condado"]["lon"], -0.66819444444444)
+
     def test_rechaza_codigo_de_concesion_no_valido(self):
         with tempfile.TemporaryDirectory() as temporal:
             raiz = Path(temporal)
