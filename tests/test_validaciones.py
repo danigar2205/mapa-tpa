@@ -70,9 +70,10 @@ class ProximaParadaGTFSTests(unittest.TestCase):
 
 class HorariosGTFSTests(unittest.TestCase):
     def test_se_carga_el_horario_de_las_tres_lineas(self):
-        self.assertEqual(set(GTFS_T05_SCHEDULE["routes"].values()), {
-            "T05-01", "T05-20", "T05-50"
-        })
+        nombres = {
+            info["short_name"] for info in GTFS_T05_SCHEDULE["routes"].values()
+        }
+        self.assertEqual(nombres, {"T05-01", "T05-20", "T05-50"})
         self.assertGreaterEqual(len(GTFS_T05_SCHEDULE["stop_times"]), 300)
 
     def test_respeta_excepciones_de_calendario(self):
