@@ -8,6 +8,7 @@ import urllib3
 import gzip
 import time
 import ssl
+import math
 from requests.adapters import HTTPAdapter
 from urllib3.poolmanager import PoolManager
 
@@ -308,7 +309,14 @@ def get_buses(linea):
                         if not destino_final or destino_final in ['Desconocido', 'En trayecto']:
                             destino_final = dest_defecto
 
-                        if lat and lon:
+                        # Las coordenadas 0.0 son válidas; comprobar presencia, finitud y rango.
+                        if lat is not None and lon is not None:
+                            lat = float(lat)
+                            lon = float(lon)
+                            if not (math.isfinite(lat) and math.isfinite(lon)):
+                                continue
+                            if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                                continue
                             buses.append({
                                 'id': v_id or coche_num,
                                 'coche': coche_num,
@@ -331,4 +339,5 @@ def get_buses(linea):
     return jsonify([])
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # El modo debug solo se activa explícitamente en desarrollo local.
+    app.run(host='0.0.0.0', port=5000, debug=os.environ.get('FLASK_DEBUG') == '1')
