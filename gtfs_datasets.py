@@ -82,7 +82,12 @@ def cargar_datasets_gtfs(data_dir: str | Path) -> dict[str, dict[str, Any]]:
         tiene_mapa = bool(mapa.get("routes")) and any(
             isinstance(paradas, list) and paradas for paradas in mapa.get("stops", {}).values()
         )
-        tiene_horarios = bool(horarios.get("stop_times")) and bool(horarios.get("routes"))
+        tiene_calendario = bool(horarios.get("services")) or bool(horarios.get("exceptions"))
+        tiene_horarios = (
+            bool(horarios.get("stop_times")) and
+            bool(horarios.get("routes")) and
+            tiene_calendario
+        )
         datasets[codigo] = {
             "map": mapa,
             "lookup": lookup,
