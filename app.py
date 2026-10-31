@@ -390,11 +390,11 @@ def get_mapa_lineas(linea):
     for route_id, info in mapa.get("routes", {}).items():
         rutas.append({
             "route_id": route_id,
-            "short_name": info.get("short_name", "T05"),
+            "short_name": info.get("short_name", concesion),
             "long_name": info.get("long_name", ""),
             "color": "#" + str(info.get("color", "2563EB")).lstrip("#")
         })
-        nombre_linea = info.get("short_name", "T05")
+        nombre_linea = info.get("short_name", concesion)
         for parada_original in mapa.get("stops", {}).get(nombre_linea, []):
             parada = dict(parada_original)
             parada["concesion"] = concesion
@@ -524,7 +524,7 @@ def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05"):
                     fecha_hora = datetime.fromtimestamp(instante, ZONA_HORARIA)
                     minutos = max(0, math.ceil((instante - ahora) / 60))
                     llegadas.append({
-                        "linea": info_ruta.get("short_name", "T05"),
+                        "linea": info_ruta.get("short_name", codigo),
                         "destino": destino,
                         "hora": fecha_hora.strftime("%H:%M"),
                         "minutos": minutos,
@@ -649,7 +649,7 @@ def get_horarios_parada(stop_id):
 
         info_ruta = horario.get("routes", {}).get(registro.get("route_id"), {})
         horarios.append({
-            "linea": info_ruta.get("short_name", "T05"),
+            "linea": info_ruta.get("short_name", codigo),
             "destino": registro.get("headsign") or info_ruta.get("long_name", "Destino no disponible"),
             "hora": instante.strftime("%H:%M"),
             "timestamp": int(instante.timestamp()),
@@ -724,7 +724,7 @@ def get_buses(linea):
                     direction_id = v.trip.direction_id if (v.HasField('trip') and v.trip.HasField('direction_id')) else None
 
                     # Garantiza que SOLO se carguen los buses de la concesión pulsada
-                    es_linea_bus = any(str(rid).lower() in r_id.lower() for rid in rutas_validas) or (linea_objetivo in r_id.upper())
+                    es_linea_bus = r_id in rutas_validas
 
                     if es_linea_bus:
                         lat = v.position.latitude if v.HasField('position') else None
