@@ -57,7 +57,10 @@ class ImportadorGTFSTests(unittest.TestCase):
             self.assertTrue(t01["has_schedules"])
             self.assertFalse(t01["has_realtime"])
             self.assertEqual(t01["map"]["routes"]["ruta-1"]["short_name"], "T01-01")
-            self.assertEqual(t01["map"]["stops"]["T01-01"][0]["id"], "parada-1")
+            self.assertEqual(
+                {parada["id"] for parada in t01["map"]["stops"]["T01-01"]},
+                {"parada-1", "parada-2"}
+            )
             self.assertEqual(t01["lookup"]["trips"]["viaje-1"]["2"], "parada-2")
             self.assertEqual(len(t01["schedule"]["stop_times"]), 2)
             self.assertEqual(t01["schedule"]["exceptions"][0]["exception_type"], "2")
