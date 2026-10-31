@@ -186,6 +186,71 @@
       margin-bottom: 12px;
     }
 
+    .header-quick-actions {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      flex-shrink: 0;
+    }
+
+    .panel-toggle-button {
+      width: 30px;
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 8px;
+      background: rgba(255,255,255,.08);
+      color: #cbd5e1;
+      cursor: pointer;
+      transition: background .15s ease, color .15s ease;
+    }
+
+    .panel-toggle-button:hover {
+      background: rgba(255,255,255,.17);
+      color: #fff;
+    }
+
+    .panel-show-button {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      z-index: 1100;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 42px;
+      padding: 0 14px;
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 12px;
+      background: rgba(15,23,42,.95);
+      color: #f8fafc;
+      box-shadow: 0 8px 22px rgba(15,23,42,.3);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .panel-show-button:hover {
+      background: #1e293b;
+    }
+
+    .panel-show-button[hidden] {
+      display: none;
+    }
+
+    @media (max-width: 480px) {
+      .panel-show-button {
+        top: 10px;
+        left: 10px;
+        min-height: 40px;
+      }
+    }
+
     .line-badge {
       display: flex;
       align-items: center;
@@ -543,9 +608,16 @@
           <p>Localización en tiempo real</p>
         </div>
       </div>
-      <div class="live-status" id="live-status">
-        <div class="pulse-dot" id="live-dot"></div>
-        <span id="live-status-text">CONECTANDO</span>
+      <div class="header-quick-actions">
+        <div class="live-status" id="live-status">
+          <div class="pulse-dot" id="live-dot"></div>
+          <span id="live-status-text">CONECTANDO</span>
+        </div>
+        <button class="panel-toggle-button" id="btn-ocultar-panel" type="button"
+          aria-label="Ocultar panel de información" title="Ocultar panel"
+          aria-expanded="true" onclick="ocultarPanel()">
+          <i class="fa-solid fa-chevron-up"></i>
+        </button>
       </div>
     </div>
 
@@ -607,6 +679,13 @@
       </button>
     </div>
   </div>
+
+  <button class="panel-show-button" id="btn-mostrar-panel" type="button"
+    title="Mostrar panel de información" aria-label="Mostrar panel de información"
+    aria-expanded="false" onclick="mostrarPanel()" hidden>
+    <i class="fa-solid fa-chevron-down"></i>
+    <span>Mostrar información</span>
+  </button>
 
   <!-- Mapa -->
   <div id="map"></div>
@@ -1187,12 +1266,36 @@
       actualizarBotonesCapas();
     }
 
+    function ocultarPanel() {
+      const panel = document.getElementById('header-card');
+      const botonMostrar = document.getElementById('btn-mostrar-panel');
+      const botonOcultar = document.getElementById('btn-ocultar-panel');
+      if (!panel || !botonMostrar) return;
+
+      panel.style.display = 'none';
+      botonMostrar.hidden = false;
+      botonMostrar.setAttribute('aria-expanded', 'false');
+      botonOcultar?.setAttribute('aria-expanded', 'false');
+    }
+
+    function mostrarPanel() {
+      const panel = document.getElementById('header-card');
+      const botonMostrar = document.getElementById('btn-mostrar-panel');
+      const botonOcultar = document.getElementById('btn-ocultar-panel');
+      if (!panel || !botonMostrar) return;
+
+      panel.style.display = 'block';
+      botonMostrar.hidden = true;
+      botonMostrar.setAttribute('aria-expanded', 'true');
+      botonOcultar?.setAttribute('aria-expanded', 'true');
+    }
+
     function iniciarMapa(linea) {
       lineaActiva = linea;
       inicializarHerramientas();
       document.getElementById('badge-linea-tag').innerText = linea;
       document.getElementById('pantalla-inicio').style.display = 'none';
-      document.getElementById('header-card').style.display = 'block';
+      mostrarPanel();
 
       initMap();
       primeraCarga = true;
@@ -1215,6 +1318,7 @@
       marcadoresBuses = {};
 
       document.getElementById('header-card').style.display = 'none';
+      document.getElementById('btn-mostrar-panel').hidden = true;
       document.getElementById('pantalla-inicio').style.display = 'flex';
     }
 
