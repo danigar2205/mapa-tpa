@@ -9,6 +9,8 @@ import gzip
 import time
 import ssl
 import math
+import base64
+import json
 from requests.adapters import HTTPAdapter
 from urllib3.poolmanager import PoolManager
 
@@ -16,6 +18,17 @@ from urllib3.poolmanager import PoolManager
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
+
+# Índice GTFS estático oficial para resolver stop_id / trip_id + stop_sequence.
+# El fichero se genera desde routes.txt, trips.txt, stop_times.txt y stops.txt.
+GTFS_T05_LOOKUP = {"stops": {}, "trips": {}}
+try:
+    lookup_path = os.path.join(os.path.dirname(__file__), "data", "gtfs_t05_lookup.json.gz.b64")
+    with open(lookup_path, "rt", encoding="ascii") as lookup_file:
+        lookup_compressed = base64.b64decode(lookup_file.read())
+    GTFS_T05_LOOKUP = json.loads(gzip.decompress(lookup_compressed).decode("utf-8"))
+except (OSError, ValueError, gzip.BadGzipFile) as exc:
+    print(f"[GTFS STATIC] No se pudo cargar el índice T05: {exc}")
 
 # Adaptador SSL permisivo
 class LegacySSLAdapter(HTTPAdapter):
@@ -131,7 +144,7 @@ def validar_coordenadas(lat, lon):
     return lat, lon
 
 
-def resolver_destino_y_parada(concesion_key, route_id, direction_id, stop_sequence, stop_id=None):
+def resolver_destino_y_parada(concesion_key, route_id, direction_id, stop_sequence, stop_id=None, trip_id=None):
     """
     Busca de forma dinámica la línea dentro de la concesión activa.
     """
@@ -151,20 +164,17 @@ def resolver_destino_y_parada(concesion_key, route_id, direction_id, stop_sequen
                 paradas = info[dir_key]["paradas"]
             break
 
-    # stop_sequence ordena las paradas del viaje, pero no equivale a un
-    # índice de las listas manuales. stop_id identifica la parada GTFS,
-    # aunque necesitamos stops.txt para traducirlo a un nombre legible.
-    detalles = []
-    if stop_sequence is not None:
-        try:
-            detalles.append(f"secuencia {int(stop_sequence)}")
-        except (ValueError, TypeError):
-            pass
+    # Primero usar stop_id de GTFS-RT; si falta, resolver trip_id + stop_sequence
+    # contra stop_times.txt del GTFS estático oficial.
+    nombre_parada = None
     if stop_id:
-        detalles.append(f"ID {str(stop_id)}")
-    nombre_parada = "Parada sin identificar"
-    if detalles:
-        nombre_parada += " (" + " · ".join(detalles) + ")"
+        nombre_parada = GTFS_T05_LOOKUP.get("stops", {}).get(str(stop_id))
+    if not nombre_parada and trip_id and stop_sequence is not None:
+        stop_id_estatico = GTFS_T05_LOOKUP.get("trips", {}).get(str(trip_id), {}).get(str(int(stop_sequence)))
+        if stop_id_estatico:
+            nombre_parada = GTFS_T05_LOOKUP.get("stops", {}).get(str(stop_id_estatico))
+    if not nombre_parada:
+        nombre_parada = "Parada sin identificar"
 
     return destino, nombre_parada
 
@@ -256,7 +266,7 @@ def obtener_estimaciones_tripupdates(linea_objetivo):
                             stop_id = stu.stop_id if stu.HasField('stop_id') and stu.stop_id else None
 
                             _, nombre_parada = resolver_destino_y_parada(
-                                linea_objetivo, r_id, direction_id, stop_seq, stop_id
+                                linea_objetivo, r_id, direction_id, stop_seq, stop_id, trip_id
                             )
                             proxima_parada = f"{nombre_parada}" + (f" ({minutos} min)" if minutos is not None else "")
 
