@@ -489,6 +489,9 @@
     .line-filter { display: inline-flex; align-items: center; gap: 4px; border: 1px solid rgba(255,255,255,.12); border-radius: 99px; padding: 4px 7px; background: rgba(255,255,255,.04); color: #94a3b8; font-size: 10px; font-weight: 800; cursor: pointer; }
     .line-filter.active { color: #f8fafc; background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.25); }
     .filter-dot { width: 7px; height: 7px; display: inline-block; border-radius: 50%; }
+    #lista-filtros-lineas { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
+    .concession-status { display: block; margin-top: 3px; font-size: 10px; line-height: 1.25; font-weight: 500; opacity: .88; }
+    .btn-menu.btn-deshabilitado .concession-status { color: #64748b; }
     .favorites-panel { margin-top: 8px; padding: 10px; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; background: #172338; }
     .favorites-panel-heading { display: flex; align-items: center; justify-content: space-between; color: #f8fafc; font-size: 12px; margin-bottom: 7px; }
     .tool-close { border: 0; background: transparent; color: #cbd5e1; font-size: 21px; cursor: pointer; line-height: 1; }
@@ -550,66 +553,66 @@
       </div>
 
       <div class="lista-botones">
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T01">
           <span class="btn-title">T01</span>
           <span class="btn-subtitle">Jacetania y Alto Gállego - Zaragoza</span>
         </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T02">
           <span class="btn-title">T02</span>
           <span class="btn-subtitle">Sobrarbe y Ribagorza - Barbastro</span>
         </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T03">
           <span class="btn-title">T03</span>
           <span class="btn-subtitle">Fraga - Huesca por Monzón</span>
         </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T04">
           <span class="btn-title">T04</span>
           <span class="btn-subtitle">Monegros - Huesca y Zaragoza</span>
         </button>
         
         <!-- Concesión Activa -->
-        <button class="btn-menu" onclick="iniciarMapa('T05')">
+        <button class="btn-menu" data-concesion="T05">
           <span class="btn-title">T05</span>
           <span class="btn-subtitle">Fraga / Castejón - Zaragoza</span>
         </button>
         
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T06">
           <span class="btn-title">T06</span>
           <span class="btn-subtitle">Bajo Aragón - Zaragoza</span>
         </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T07">
           <span class="btn-title">T07</span>
           <span class="btn-subtitle">Bajo Aragón y Cuencas Mineras - Teruel</span>
         </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T08">
           <span class="btn-title">T08</span>
           <span class="btn-subtitle">Maestrazgo - Teruel</span>
         </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T09">
           <span class="btn-title">T09</span>
           <span class="btn-subtitle">Gúdar-Javalambre - Teruel</span>
         </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T10">
           <span class="btn-title">T10</span>
           <span class="btn-subtitle">Serranía de Albarracín - Teruel</span>
         </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T11">
           <span class="btn-title">T11</span>
           <span class="btn-subtitle">Teruel - Zaragoza por Calamocha</span>
         </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T12">
           <span class="btn-title">T12</span>
           <span class="btn-subtitle">Campo de Belchite - Zaragoza</span>
         </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T13">
           <span class="btn-title">T13</span>
           <span class="btn-subtitle">Calatayud y Aranda - Zaragoza</span>
         </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T14">
           <span class="btn-title">T14</span>
           <span class="btn-subtitle">Moncayo y Campo de Borja - Zaragoza</span>
         </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T15">
           <span class="btn-title">T15</span>
           <span class="btn-subtitle">Cinco Villas - Zaragoza</span>
         </button>
@@ -664,17 +667,9 @@
         </button>
       </div>
       <div class="search-results" id="resultados-paradas" hidden></div>
-      <div class="line-filter-row">
+      <div class="line-filter-row" id="contenedor-filtros-lineas" hidden>
         <span class="filter-caption">Autobuses</span>
-        <button class="line-filter active" type="button" data-line-filter="T05-01" aria-pressed="true">
-          <span class="filter-dot" style="background:#2563EB"></span>T05-01
-        </button>
-        <button class="line-filter active" type="button" data-line-filter="T05-20" aria-pressed="true">
-          <span class="filter-dot" style="background:#0F766E"></span>T05-20
-        </button>
-        <button class="line-filter active" type="button" data-line-filter="T05-50" aria-pressed="true">
-          <span class="filter-dot" style="background:#C2410C"></span>T05-50
-        </button>
+        <div id="lista-filtros-lineas"></div>
       </div>
       <div class="favorites-panel" id="panel-favoritos" hidden>
         <div class="favorites-panel-heading">
@@ -741,6 +736,12 @@
     let favoritosParadas = leerFavoritos();
     let intervaloAlertasFavoritos = null;
     let herramientasInicializadas = false;
+    let catalogoConcesiones = {};
+    let configuracionConcesionActiva = null;
+    const COLORES_LINEA = {
+      'T05-01': '#2563EB', 'T05-20': '#0F766E', 'T05-50': '#C2410C'
+    };
+
     function escaparHTML(valor) {
       return String(valor ?? '').replace(/[&<>"']/g, caracter => ({
         '&': '&amp;',
@@ -751,13 +752,33 @@
       })[caracter]);
     }
 
-    // Paleta coherente y legible sobre el mapa base de OpenStreetMap.
-    // Se reutiliza también en los iconos de los autobuses.
-    const COLORES_LINEA = {
-      'T05-01': '#2563EB', // Azul
-      'T05-20': '#0F766E', // Verde azulado
-      'T05-50': '#C2410C'  // Terracota
-    };
+    async function cargarCatalogoConcesiones() {
+      const lista = document.querySelector('.lista-botones');
+      if (!lista) return;
+      try {
+        const respuesta = await fetch('/api/concesiones', { cache: 'no-store' });
+        if (!respuesta.ok) throw new Error('HTTP ' + respuesta.status);
+        const datos = await respuesta.json();
+        catalogoConcesiones = Object.fromEntries((datos.concesiones || []).map(item => [item.codigo, item]));
+        lista.querySelectorAll('[data-concesion]').forEach(boton => {
+          const codigo = boton.dataset.concesion;
+          const configuracion = catalogoConcesiones[codigo];
+          if (!configuracion) return;
+          const subtitulo = boton.querySelector('.btn-subtitle');
+          const disponible = !!configuracion.disponible;
+          boton.disabled = !disponible;
+          boton.classList.toggle('btn-deshabilitado', !disponible);
+          boton.title = configuracion.estado || '';
+          if (subtitulo) subtitulo.innerHTML = escaparHTML(configuracion.descripcion) +
+            '<small class="concession-status">' + escaparHTML(configuracion.estado) + '</small>';
+          boton.onclick = disponible ? () => iniciarMapa(codigo) : null;
+        });
+      } catch (error) {
+        console.warn('No se pudo cargar el catálogo de concesiones:', error);
+        const botonT05 = lista.querySelector('[data-concesion="T05"]');
+        if (botonT05) botonT05.onclick = () => iniciarMapa('T05');
+      }
+    }
 
     function leerFavoritos() {
       try {
@@ -1006,8 +1027,9 @@
           guardarFavoritos();
         }
       });
-      document.querySelectorAll('[data-line-filter]').forEach(boton => {
-        boton.addEventListener('click', () => toggleFiltroLinea(boton.dataset.lineFilter));
+      document.getElementById('lista-filtros-lineas')?.addEventListener('click', evento => {
+        const boton = evento.target.closest('[data-line-filter]');
+        if (boton) toggleFiltroLinea(boton.dataset.lineFilter);
       });
 
       renderFavoritos();
@@ -1016,9 +1038,30 @@
       }
     }
 
+    function actualizarFiltrosLineas(rutas = []) {
+      const contenedor = document.getElementById('contenedor-filtros-lineas');
+      const lista = document.getElementById('lista-filtros-lineas');
+      if (!contenedor || !lista) return;
+      const lineas = new Map();
+      rutas.forEach(ruta => {
+        const nombre = String(ruta.short_name || '').trim();
+        if (!nombre) return;
+        const color = '#' + String(ruta.color || '2563EB').replace(/^#/, '');
+        lineas.set(nombre, color);
+        COLORES_LINEA[nombre] = color;
+      });
+      filtrosLineas = Object.fromEntries([...lineas.keys()].map(nombre => [nombre, true]));
+      lista.innerHTML = [...lineas.entries()].map(([nombre, color]) =>
+        '<button class="line-filter active" type="button" data-line-filter="' + escaparHTML(nombre) + '" aria-pressed="true">' +
+          '<span class="filter-dot" style="background:' + escaparHTML(color) + '"></span>' +
+          escaparHTML(nombre) + '</button>'
+      ).join('');
+      contenedor.hidden = !configuracionConcesionActiva?.funciones?.tiempo_real || !lineas.size;
+    }
+
     function toggleFiltroLinea(linea) {
       filtrosLineas[linea] = !filtrosLineas[linea];
-      const boton = document.querySelector('[data-line-filter="' + linea + '"]');
+      const boton = document.querySelector('[data-line-filter="' + CSS.escape(linea) + '"]');
       if (boton) {
         boton.classList.toggle('active', filtrosLineas[linea]);
         boton.setAttribute('aria-pressed', String(filtrosLineas[linea]));
@@ -1190,6 +1233,7 @@
         const respuesta = await fetch('/api/mapa/' + encodeURIComponent(linea.toLowerCase()));
         if (!respuesta.ok) throw new Error('HTTP ' + respuesta.status);
         const datos = await respuesta.json();
+        actualizarFiltrosLineas(datos.routes || []);
 
         const paradasUnicas = new Map();
         (datos.stops || []).forEach(parada => {
@@ -1343,19 +1387,34 @@
     }
 
     function iniciarMapa(linea) {
-      lineaActiva = linea;
+      const codigo = String(linea || '').toUpperCase();
+      const config = catalogoConcesiones[codigo];
+      if (!config?.disponible && codigo !== 'T05') return;
+      if (intervaloTimer) clearInterval(intervaloTimer);
+      Object.values(marcadoresBuses).forEach(marcador => map?.removeLayer(marcador));
+      marcadoresBuses = {};
+      lineaActiva = codigo;
+      configuracionConcesionActiva = config || { funciones: { paradas: true, horarios: true, tiempo_real: true } };
       inicializarHerramientas();
-      document.getElementById('badge-linea-tag').innerText = linea;
+      document.getElementById('badge-linea-tag').innerText = codigo;
       document.getElementById('pantalla-inicio').style.display = 'none';
       mostrarPanel();
 
       initMap();
       primeraCarga = true;
-      cargarCapasGTFS(linea);
-      actualizarBus();
-
-      if (intervaloTimer) clearInterval(intervaloTimer);
-      intervaloTimer = setInterval(actualizarBus, 5000);
+      cargarCapasGTFS(codigo);
+      if (configuracionConcesionActiva.funciones.tiempo_real) {
+        document.getElementById('vehicle-title').innerText = 'Buscando autobuses...';
+        document.getElementById('bus-info').innerText = 'Conectando con el servicio GTFS-RT...';
+        actualizarEstadoConexion('connecting', 'CONECTANDO');
+        actualizarBus();
+        intervaloTimer = setInterval(actualizarBus, 5000);
+      } else {
+        actualizarEstadoConexion('empty', 'SIN TIEMPO REAL');
+        document.getElementById('vehicle-title').innerText = 'Seguimiento en directo no disponible';
+        document.getElementById('bus-info').innerText = 'Esta concesión no dispone de un feed GTFS-RT.';
+        document.getElementById('last-updated').innerText = '—';
+      }
     }
 
     function volverAlMenu() {
@@ -1371,6 +1430,9 @@
 
       document.getElementById('header-card').style.display = 'none';
       document.getElementById('btn-mostrar-panel').hidden = true;
+      document.getElementById('contenedor-filtros-lineas').hidden = true;
+      document.getElementById('lista-filtros-lineas').innerHTML = '';
+      configuracionConcesionActiva = null;
       document.getElementById('pantalla-inicio').style.display = 'flex';
     }
 
@@ -1505,6 +1567,7 @@
         map.flyToBounds(grupo.getBounds(), { padding: [60, 60], duration: 1.2 });
       }
     }
+    cargarCatalogoConcesiones();
   </script>
 </body>
 </html>
