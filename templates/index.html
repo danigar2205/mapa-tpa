@@ -809,6 +809,7 @@
     let indiceReproduccionHistorial = 0;
     let intervaloReproduccionHistorial = null;
     let historialVehiculos = [];
+    let controlesHistorialInicializados = false;
 
     function escaparHTML(valor) {
       return String(valor ?? '').replace(/[&<>"']/g, caracter => ({
@@ -1391,15 +1392,9 @@
     }
 
     const DIAS_RETENCION_HISTORIAL = 30;
-    const DISTANCIA_MINIMA_HISTORIAL = 22;
+    const DISTANCIA_MINIMA_HISTORIAL = 35;
     const INTERVALO_MINIMO_HISTORIAL = 45;
-
-    function fechaLocalISO(fecha = new Date()) {
-      const anio = fecha.getFullYear();
-      const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-      const dia = String(fecha.getDate()).padStart(2, '0');
-      return anio + '-' + mes + '-' + dia;
-    }
+    const INTERVALO_MINIMO_ENTRE_PUNTOS = 15;
 
     function distanciaHistorialMetros(a, b) {
       const rad = valor => valor * Math.PI / 180;
@@ -1492,7 +1487,8 @@
         const distancia = anterior ? distanciaHistorialMetros(anterior, actual) : Infinity;
         const segundos = anterior ? timestamp - anterior.timestamp : Infinity;
         const registrar = !anterior ||
-          (segundos > -5 && (distancia >= DISTANCIA_MINIMA_HISTORIAL || segundos >= INTERVALO_MINIMO_HISTORIAL));
+          (segundos >= INTERVALO_MINIMO_ENTRE_PUNTOS &&
+            (distancia >= DISTANCIA_MINIMA_HISTORIAL || segundos >= INTERVALO_MINIMO_HISTORIAL));
 
         let ultimoGuardado = anterior || actual;
         if (registrar) {
@@ -1720,12 +1716,15 @@
       document.getElementById('history-range').value = String(indiceReproduccionHistorial);
       document.getElementById('history-current-time').textContent =
         new Date(punto.timestamp * 1000).toLocaleTimeString('es-ES');
-      marcadorReproduccionHistorial.bindTooltip(
+      const contenidoTooltip =
         '<b>' + escaparHTML(punto.coche) + '</b><br>' +
         escaparHTML(punto.linea) + ' · ' +
-        new Date(punto.timestamp * 1000).toLocaleString('es-ES'),
-        { direction: 'top' }
-      );
+        new Date(punto.timestamp * 1000).toLocaleString('es-ES');
+      if (marcadorReproduccionHistorial.getTooltip()) {
+        marcadorReproduccionHistorial.setTooltipContent(contenidoTooltip);
+      } else {
+        marcadorReproduccionHistorial.bindTooltip(contenidoTooltip, { direction: 'top' });
+      }
     }
 
     function detenerReproduccionHistorial() {
@@ -1754,7 +1753,8 @@
     }
 
     function inicializarControlesHistorial() {
-      document.getElementById('btn-historial')?.addEventListener('click', abrirHistorial);
+      if (controlesHistorialInicializados) return;
+      controlesHistorialInicializados = true;
       document.getElementById('btn-cerrar-historial')?.addEventListener('click', cerrarHistorial);
       document.getElementById('btn-cargar-historial')?.addEventListener('click', cargarHistorialSeleccionado);
       document.getElementById('btn-limpiar-historial')?.addEventListener('click', () => {
