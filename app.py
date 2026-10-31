@@ -524,7 +524,7 @@ def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05"):
                     fecha_hora = datetime.fromtimestamp(instante, ZONA_HORARIA)
                     minutos = max(0, math.ceil((instante - ahora) / 60))
                     llegadas.append({
-                        "linea": info_ruta.get("short_name", concesion),
+                        "linea": info_ruta.get("short_name", codigo),
                         "destino": destino,
                         "hora": fecha_hora.strftime("%H:%M"),
                         "minutos": minutos,
@@ -649,7 +649,7 @@ def get_horarios_parada(stop_id):
 
         info_ruta = horario.get("routes", {}).get(registro.get("route_id"), {})
         horarios.append({
-            "linea": info_ruta.get("short_name", codigo),
+            "linea": info_ruta.get("short_name", concesion),
             "destino": registro.get("headsign") or info_ruta.get("long_name", "Destino no disponible"),
             "hora": instante.strftime("%H:%M"),
             "timestamp": int(instante.timestamp()),
