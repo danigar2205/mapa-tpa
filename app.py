@@ -304,7 +304,7 @@ def obtener_estimaciones_tripupdates(linea_objetivo):
                     direction_id = tu.trip.direction_id if (tu.HasField('trip') and tu.trip.HasField('direction_id')) else None
 
                     # Filtro estricto por concesión activa
-                    es_linea_bus = any(str(rid).lower() in r_id.lower() for rid in rutas_validas) or (linea_objetivo in r_id.upper())
+                    es_linea_bus = r_id in rutas_validas
 
                     if es_linea_bus:
                         delay_sec = tu.delay if tu.HasField('delay') else 0
