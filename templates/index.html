@@ -104,7 +104,7 @@
       align-items: center;
       justify-content: flex-start;
       gap: 16px;
-      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      background: var(--bus-color, #2563eb);
       color: white;
       border: none;
       border-radius: 14px;
@@ -286,20 +286,33 @@
       background: #2563eb;
       color: white;
       border: none;
-      padding: 8px 12px;
+      min-height: 34px;
+      min-width: 0;
+      padding: 7px 10px;
       border-radius: 8px;
       font-weight: 600;
-      font-size: 0.8rem;
+      font-size: 0.76rem;
+      line-height: 1;
+      white-space: nowrap;
+      box-sizing: border-box;
+      flex: 0 0 auto;
       cursor: pointer;
-      display: flex;
+      display: inline-flex;
       align-items: center;
+      justify-content: center;
       gap: 6px;
-      transition: all 0.2s ease;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+      transform: none;
     }
 
-    .btn-action:hover {
-      background: #1d4ed8;
-      transform: translateY(-1px);
+    .btn-action:hover,
+    .btn-action:focus,
+    .btn-action:active {
+      transform: none;
+    }
+    .btn-action:focus-visible {
+      outline: 2px solid #93c5fd;
+      outline-offset: 2px;
     }
 
     .btn-menu-back {
@@ -325,7 +338,7 @@
       position: absolute;
       width: 100%;
       height: 100%;
-      background: rgba(37, 99, 235, 0.4);
+      background: var(--bus-color, rgba(37, 99, 235, 0.4));
       border-radius: 50%;
       animation: bus-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
     }
@@ -362,13 +375,20 @@
     .occ-orange { background: #ffedd5; color: #c2410c; }
     .occ-red { background: #fee2e2; color: #b91c1c; }
     .occ-gray { background: #f1f5f9; color: #64748b; }
-    .btn-layer { background: rgba(255,255,255,.1); color: #e2e8f0; border: 1px solid rgba(255,255,255,.15); }
+    .btn-layer { background: rgba(255,255,255,.1); color: #e2e8f0; border: 1px solid rgba(255,255,255,.15); min-width: 78px; }
     .btn-layer.active { background: rgba(37,99,235,.24); border-color: rgba(96,165,250,.7); color: #bfdbfe; }
+    .footer-actions { display: flex; align-items: center; justify-content: flex-start; gap: 8px; flex-wrap: nowrap; }
+    .footer-actions .btn-menu-back { margin-right: auto; }
+    @media (max-width: 480px) {
+      .footer-actions { gap: 5px; }
+      .btn-action { min-height: 32px; padding: 6px 8px; font-size: .7rem; gap: 4px; }
+      .btn-layer { min-width: 70px; }
+    }
     .leaflet-tooltip.stop-label { border: 0; border-radius: 6px; padding: 4px 7px; color: #0f172a; font-size: 11px; font-weight: 700; box-shadow: 0 2px 8px rgba(15,23,42,.18); }
     @media (max-width: 480px) {
       .header-card { padding: 12px; }
-      .footer-actions { gap: 6px; flex-wrap: wrap; }
-      .btn-action { padding: 8px 9px; font-size: .72rem; }
+      .footer-actions { gap: 5px; flex-wrap: nowrap; }
+      .btn-action { padding: 6px 8px; font-size: .7rem; }
     }
   </style>
 </head>
@@ -521,19 +541,33 @@
       })[caracter]);
     }
 
-    const busIcon = L.divIcon({
-      className: 'custom-bus-icon',
-      html: `
-        <div class="bus-marker-container">
-          <div class="bus-marker-pulse"></div>
-          <div class="bus-marker-icon">
-            <i class="fa-solid fa-bus"></i>
-          </div>
-        </div>
-      `,
-      iconSize: [44, 44],
-      iconAnchor: [22, 22]
-    });
+    const COLORES_LINEA = {
+      'T05-01': '#281173',
+      'T05-20': '#2FEC97',
+      'T05-50': '#5310D7'
+    };
+    const iconosBus = {};
+
+    function obtenerIconoBus(linea) {
+      const nombre = String(linea || lineaActiva || '').toUpperCase();
+      const color = COLORES_LINEA[nombre] || '#2563eb';
+      if (!iconosBus[nombre]) {
+        iconosBus[nombre] = L.divIcon({
+          className: 'custom-bus-icon',
+          html: `
+            <div class="bus-marker-container" style="--bus-color: ${color};">
+              <div class="bus-marker-pulse"></div>
+              <div class="bus-marker-icon">
+                <i class="fa-solid fa-bus"></i>
+              </div>
+            </div>
+          `,
+          iconSize: [44, 44],
+          iconAnchor: [22, 22]
+        });
+      }
+      return iconosBus[nombre];
+    }
 
     function initMap() {
       if (map) return;
@@ -560,14 +594,46 @@
         if (!respuesta.ok) throw new Error('HTTP ' + respuesta.status);
         const datos = await respuesta.json();
 
+        // Separación cartográfica: evita que las líneas coincidentes queden
+        // exactamente una encima de otra. El desplazamiento es pequeño (8 m).
+        function desplazarRecorrido(coords, metros) {
+          if (!metros || coords.length < 2) return coords;
+          return coords.map((punto, i) => {
+            const anterior = coords[Math.max(0, i - 1)];
+            const siguiente = coords[Math.min(coords.length - 1, i + 1)];
+            const latRad = punto[0] * Math.PI / 180;
+            const escalaX = 111320 * Math.cos(latRad);
+            const escalaY = 110540;
+            const dx = (siguiente[1] - anterior[1]) * escalaX;
+            const dy = (siguiente[0] - anterior[0]) * escalaY;
+            const longitud = Math.hypot(dx, dy) || 1;
+            const nx = -dy / longitud;
+            const ny = dx / longitud;
+            return [
+              punto[0] + (ny * metros) / escalaY,
+              punto[1] + (nx * metros) / escalaX
+            ];
+          });
+        }
+
+        const estilosLinea = {
+          'T05-01': { dashArray: '11 7', weight: 4, offset: -8 },
+          'T05-20': { dashArray: '3 6', weight: 4, offset: 0 },
+          'T05-50': { dashArray: null, weight: 5, offset: 8 }
+        };
         (datos.routes || []).forEach(ruta => {
+          const estilo = estilosLinea[ruta.short_name] || { dashArray: null, weight: 4 };
           (ruta.shapes || []).forEach(coordenadas => {
             if (!Array.isArray(coordenadas) || coordenadas.length < 2) return;
-            const trazo = L.polyline(coordenadas, {
-              color: ruta.color || '#2563eb',
-              weight: 4,
-              opacity: 0.82,
-              smoothFactor: 1.5
+            const coordsVisibles = desplazarRecorrido(coordenadas, estilo.offset);
+            const trazo = L.polyline(coordsVisibles, {
+              color: '#' + String(ruta.color || '2563EB').replace(/^#/, ''),
+              weight: estilo.weight,
+              opacity: 0.95,
+              dashArray: estilo.dashArray,
+              lineCap: 'round',
+              lineJoin: 'round',
+              smoothFactor: 0.5
             });
             trazo.bindPopup('<b>' + escaparHTML(ruta.short_name) + '</b><br>' +
               escaparHTML(ruta.long_name || 'Recorrido oficial'));
@@ -605,12 +671,12 @@
       if (btnLineas) {
         btnLineas.classList.toggle('active', lineasVisibles);
         btnLineas.setAttribute('aria-pressed', String(lineasVisibles));
-        btnLineas.innerHTML = '<i class="fa-solid fa-route"></i> ' + (lineasVisibles ? 'Líneas' : 'Líneas ocultas');
+        btnLineas.innerHTML = '<i class="fa-solid fa-route"></i> Líneas';
       }
       if (btnParadas) {
         btnParadas.classList.toggle('active', paradasVisibles);
         btnParadas.setAttribute('aria-pressed', String(paradasVisibles));
-        btnParadas.innerHTML = '<i class="fa-solid fa-location-dot"></i> ' + (paradasVisibles ? 'Paradas' : 'Paradas ocultas');
+        btnParadas.innerHTML = '<i class="fa-solid fa-location-dot"></i> Paradas';
       }
     }
 
@@ -721,11 +787,14 @@
               </div>
             `;
 
+            const lineaBus = bus.linea || lineaSolicitada;
+            const iconoBus = obtenerIconoBus(lineaBus);
             if (marcadoresBuses[idUnico]) {
               marcadoresBuses[idUnico].setLatLng([lat, lon]);
+              marcadoresBuses[idUnico].setIcon(iconoBus);
               marcadoresBuses[idUnico].getPopup().setContent(popupContent);
             } else {
-              marcadoresBuses[idUnico] = L.marker([lat, lon], { icon: busIcon }).addTo(map);
+              marcadoresBuses[idUnico] = L.marker([lat, lon], { icon: iconoBus }).addTo(map);
               marcadoresBuses[idUnico].bindPopup(popupContent);
             }
           });
