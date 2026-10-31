@@ -519,6 +519,7 @@
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-polylineoffset@1.1.1/leaflet.polylineoffset.js"></script>
   <script>
     let map = null;
     let marcadoresBuses = {};
@@ -582,6 +583,101 @@
       }).addTo(map);
     }
 
+    const TAM_CELDA_ESPACIAL = 0.00012;
+    const DISTANCIA_SOLAPAMIENTO_METROS = 18;
+
+    function claveCeldaEspacial(punto) {
+      return Math.floor(punto[0] / TAM_CELDA_ESPACIAL) + ':' +
+        Math.floor(punto[1] / TAM_CELDA_ESPACIAL);
+    }
+
+    function distanciaMetros(a, b) {
+      const latMedia = ((a[0] + b[0]) / 2) * Math.PI / 180;
+      const dx = (a[1] - b[1]) * 111320 * Math.cos(latMedia);
+      const dy = (a[0] - b[0]) * 110540;
+      return Math.hypot(dx, dy);
+    }
+
+    function crearIndicesEspaciales(rutas) {
+      const indices = new Map();
+
+      rutas.forEach(ruta => {
+        const nombre = String(ruta.short_name || '').toUpperCase();
+        if (!nombre) return;
+        if (!indices.has(nombre)) indices.set(nombre, new Map());
+        const indice = indices.get(nombre);
+
+        const añadir = punto => {
+          const clave = claveCeldaEspacial(punto);
+          if (!indice.has(clave)) indice.set(clave, []);
+          indice.get(clave).push(punto);
+        };
+
+        (ruta.shapes || []).forEach(coordenadas => {
+          coordenadas.forEach((punto, i) => {
+            añadir(punto);
+            if (i < coordenadas.length - 1) {
+              const siguiente = coordenadas[i + 1];
+              añadir([(punto[0] + siguiente[0]) / 2, (punto[1] + siguiente[1]) / 2]);
+            }
+          });
+        });
+      });
+
+      return indices;
+    }
+
+    function estaCercaDeOtraLinea(punto, nombreActual, indices) {
+      const celdaLat = Math.floor(punto[0] / TAM_CELDA_ESPACIAL);
+      const celdaLon = Math.floor(punto[1] / TAM_CELDA_ESPACIAL);
+
+      for (const [nombre, indice] of indices) {
+        if (nombre === nombreActual) continue;
+
+        for (let dy = -2; dy <= 2; dy++) {
+          for (let dx = -2; dx <= 2; dx++) {
+            const vecinos = indice.get((celdaLat + dy) + ':' + (celdaLon + dx));
+            if (!vecinos) continue;
+            if (vecinos.some(otro => distanciaMetros(punto, otro) <= DISTANCIA_SOLAPAMIENTO_METROS) ) {
+              return true;
+            }
+          }
+        }
+      }
+      return false;
+    }
+
+    function obtenerTramosDeRuta(coordenadas, nombreLinea, indices) {
+      if (coordenadas.length < 2) return [];
+      const tramos = [];
+      let inicio = 0;
+      let tipoActual = null;
+
+      for (let i = 0; i < coordenadas.length - 1; i++) {
+        const a = coordenadas[i];
+        const b = coordenadas[i + 1];
+        const puntoMedio = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+        const compartido = estaCercaDeOtraLinea(puntoMedio, nombreLinea, indices);
+
+        if (tipoActual === null) {
+          tipoActual = compartido;
+        } else if (compartido !== tipoActual) {
+          tramos.push({
+            coordenadas: coordenadas.slice(inicio, i + 1),
+            compartido: tipoActual
+          });
+          inicio = i;
+          tipoActual = compartido;
+        }
+      }
+
+      tramos.push({
+        coordenadas: coordenadas.slice(inicio),
+        compartido: Boolean(tipoActual)
+      });
+      return tramos.filter(tramo => tramo.coordenadas.length >= 2);
+    }
+
     async function cargarCapasGTFS(linea) {
       if (capasLineas) map.removeLayer(capasLineas);
       if (capasParadas) map.removeLayer(capasParadas);
@@ -596,38 +692,54 @@
         if (!respuesta.ok) throw new Error('HTTP ' + respuesta.status);
         const datos = await respuesta.json();
 
-        // Todas las líneas usan el mismo lenguaje visual: trazo continuo,
-        // grosor contenido y un contorno blanco muy fino para separarlas del mapa.
-        // No se desplazan las geometrías: las coordenadas siguen siendo las del GTFS.
-        (datos.routes || []).forEach(ruta => {
+        // El índice espacial permite detectar tramos que varias líneas recorren
+        // por la misma carretera. Solo esos tramos se separan unos píxeles al
+        // dibujarse; sus coordenadas geográficas GTFS permanecen intactas.
+        const rutas = datos.routes || [];
+        const indicesRutas = crearIndicesEspaciales(rutas);
+        const desplazamientosCompartidos = {
+          'T05-01': -3.5,
+          'T05-20': 3.5,
+          'T05-50': 0
+        };
+
+        rutas.forEach(ruta => {
+          const nombreLinea = String(ruta.short_name || '').toUpperCase();
+          const colorLinea = COLORES_LINEA[nombreLinea] ||
+            ('#' + String(ruta.color || '2563EB').replace(/^#/, ''));
+
           (ruta.shapes || []).forEach(coordenadas => {
             if (!Array.isArray(coordenadas) || coordenadas.length < 2) return;
 
-            const nombreLinea = String(ruta.short_name || '').toUpperCase();
-            const colorLinea = COLORES_LINEA[nombreLinea] ||
-              ('#' + String(ruta.color || '2563EB').replace(/^#/, ''));
+            obtenerTramosDeRuta(coordenadas, nombreLinea, indicesRutas).forEach(tramo => {
+              const offset = tramo.compartido
+                ? (desplazamientosCompartidos[nombreLinea] ?? 0)
+                : 0;
 
-            L.polyline(coordenadas, {
-              color: '#ffffff',
-              weight: 5,
-              opacity: 0.78,
-              lineCap: 'round',
-              lineJoin: 'round',
-              interactive: false,
-              smoothFactor: 0.8
-            }).addTo(capasLineas);
+              L.polyline(tramo.coordenadas, {
+                color: '#ffffff',
+                weight: 5,
+                opacity: 0.72,
+                offset,
+                lineCap: 'round',
+                lineJoin: 'round',
+                interactive: false,
+                smoothFactor: 0.8
+              }).addTo(capasLineas);
 
-            const trazo = L.polyline(coordenadas, {
-              color: colorLinea,
-              weight: 3.2,
-              opacity: 0.94,
-              lineCap: 'round',
-              lineJoin: 'round',
-              smoothFactor: 0.8
+              const trazo = L.polyline(tramo.coordenadas, {
+                color: colorLinea,
+                weight: 3.2,
+                opacity: 0.96,
+                offset,
+                lineCap: 'round',
+                lineJoin: 'round',
+                smoothFactor: 0.8
+              });
+              trazo.bindPopup('<b>' + escaparHTML(ruta.short_name) + '</b><br>' +
+                escaparHTML(ruta.long_name || 'Recorrido oficial'));
+              trazo.addTo(capasLineas);
             });
-            trazo.bindPopup('<b>' + escaparHTML(ruta.short_name) + '</b><br>' +
-              escaparHTML(ruta.long_name || 'Recorrido oficial'));
-            trazo.addTo(capasLineas);
           });
         });
 
