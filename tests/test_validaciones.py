@@ -90,6 +90,65 @@ class HorariosGTFSTests(unittest.TestCase):
         respuesta = app.test_client().get("/api/paradas/inexistente/horarios")
         self.assertEqual(respuesta.status_code, 404)
 
+    def test_api_de_horarios_t05_devuelve_salidas_sin_error_500(self):
+        from datetime import timedelta
+
+        fecha = date.today() + timedelta(days=1)
+        dataset = {
+            "map": {"stops": {"T05-01": [{"id": "parada-prueba"}]}},
+            "schedule": {
+                "routes": {"ruta-prueba": {"short_name": "T05-01", "long_name": "Destino"}},
+                "services": {},
+                "exceptions": [{
+                    "service_id": "servicio-prueba",
+                    "date": fecha.strftime("%Y%m%d"),
+                    "exception_type": "1",
+                }],
+                "stop_times": [{
+                    "stop_id": "parada-prueba",
+                    "service_id": "servicio-prueba",
+                    "departure_time": "10:00:00",
+                    "route_id": "ruta-prueba",
+                    "headsign": "Destino",
+                    "trip_id": "viaje-prueba",
+                    "direction_id": "0",
+                }],
+            },
+            "has_map": True,
+            "has_schedules": True,
+            "has_realtime": True,
+        }
+        with patch("app.obtener_dataset_gtfs", return_value=dataset):
+            respuesta = app.test_client().get(
+                "/api/paradas/parada-prueba/horarios?concesion=T05&fecha=" + fecha.isoformat()
+            )
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.get_json()["horarios"][0]["linea"], "T05-01")
+
+    def test_api_de_llegadas_t05_responde_con_feed_gtfsrt_vacio(self):
+        from types import SimpleNamespace
+
+        dataset = {
+            "map": {"routes": {"ruta-prueba": {"short_name": "T05-01"}} ,
+                    "stops": {"T05-01": [{"id": "parada-prueba"}]}},
+            "lookup": {"stops": {}, "trips": {}},
+            "schedule": {"routes": {}, "services": {}, "exceptions": [], "stop_times": []},
+            "has_map": True,
+            "has_schedules": True,
+            "has_realtime": True,
+        }
+        feed_vacio = SimpleNamespace(status_code=200, content=bytes([0x12, 0x00]))
+        with patch("app.obtener_dataset_gtfs", return_value=dataset), \
+             patch("app.obtener_respuesta_cacheada", return_value=feed_vacio) as consulta:
+            respuesta = app.test_client().get(
+                "/api/paradas/parada-prueba/llegadas?concesion=T05"
+            )
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTrue(respuesta.get_json()["tiempo_real_disponible"])
+        self.assertEqual(respuesta.get_json()["llegadas"], [])
+        consulta.assert_called()
+
+
 
 class CacheGTFSRTTests(unittest.TestCase):
     def test_reutiliza_respuesta_durante_ttl(self):

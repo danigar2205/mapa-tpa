@@ -649,7 +649,7 @@ def get_horarios_parada(stop_id):
 
         info_ruta = horario.get("routes", {}).get(registro.get("route_id"), {})
         horarios.append({
-            "linea": info_ruta.get("short_name", codigo),
+            "linea": info_ruta.get("short_name", concesion),
             "destino": registro.get("headsign") or info_ruta.get("long_name", "Destino no disponible"),
             "hora": instante.strftime("%H:%M"),
             "timestamp": int(instante.timestamp()),
