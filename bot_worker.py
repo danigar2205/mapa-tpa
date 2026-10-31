@@ -379,7 +379,7 @@ class TelegramBot:
                 self.enviar(chat_id, "Este grupo no está vinculado.")
                 return
             if str(user_id) != responsable:
-                self.enviar(chat_id, "Solo la persona que vinculó este grupo puede desvincularlo.")
+                self.enviar(chat_id, "Solo la persona responsable que vinculó este grupo puede desvincularlo.")
                 return
 
             guardar_config(self.conexion, "chat_id", None)
@@ -425,7 +425,7 @@ class TelegramBot:
             "setMyCommands",
             {
                 "commands": [
-                    {"command": "vincular", "description": "Vincular este grupo (administrador)"},
+                    {"command": "vincular", "description": "Vincular este grupo"},
                     {"command": "estado", "description": "Comprobar el estado del grupo"},
                     {"command": "prueba", "description": "Enviar un mensaje de prueba"},
                     {"command": "desvincular", "description": "Detener los avisos en este grupo"},
