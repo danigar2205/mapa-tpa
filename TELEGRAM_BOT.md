@@ -30,12 +30,12 @@ La cuenta de bot no necesita un número de teléfono propio.
 
 1. Añade el bot al grupo de Telegram.
 2. No necesita permisos de administrador para escribir, pero debe poder enviar mensajes en el grupo.
-3. Un administrador del grupo debe enviar el comando `/vincular@NombreDeTuBot` (sustituye el username por el real).
+3. Un miembro del grupo debe enviar el comando `/vincular@NombreDeTuBot` (sustituye el username por el real). Esa persona quedará como responsable para poder desvincular el grupo.
 4. El bot confirmará que el grupo está vinculado.
 
 Se puede comprobar con `/estado@NombreDeTuBot`, mandar un mensaje de prueba con `/prueba@NombreDeTuBot` o detener los avisos con `/desvincular@NombreDeTuBot`. El comando `/ayuda@NombreDeTuBot` muestra la ayuda.
 
-El bot usa el modo de privacidad normal de Telegram: solo necesita recibir los comandos dirigidos a él; no hace falta desactivar la privacidad del grupo.
+El bot no necesita permisos de administrador ni acceso a los mensajes normales del grupo. Mantén activado el modo de privacidad de Telegram; el worker solo procesa comandos dirigidos al bot.
 
 ## 3. Desplegar el worker en Render
 
