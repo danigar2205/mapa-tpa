@@ -135,16 +135,16 @@ def resolver_destino_y_parada(concesion_key, route_id, direction_id, stop_sequen
                 paradas = info[dir_key]["paradas"]
             break
 
-    nombre_parada = "En trayecto"
-    if stop_sequence is not None and paradas:
+    # GTFS-RT stop_sequence es un identificador de orden, no un índice
+    # garantizado para estas listas locales. Sin un GTFS estático que permita
+    # relacionar stop_id/stop_sequence con cada parada, no debemos inventar el nombre.
+    nombre_parada = "Próxima parada"
+    if stop_sequence is not None:
         try:
             seq = int(stop_sequence)
-            if 0 <= seq < len(paradas):
-                nombre_parada = paradas[seq]
-            else:
-                nombre_parada = f"Parada nº {seq}"
+            nombre_parada = f"Próxima parada (secuencia {seq})"
         except (ValueError, TypeError):
-            nombre_parada = "Próxima parada"
+            pass
 
     return destino, nombre_parada
 
