@@ -548,8 +548,8 @@
     <div class="menu-card">
       <div class="menu-header">
         <i class="fa-solid fa-bus-simple"></i>
-        <h1>Líneas en Tiempo Real</h1>
-        <p>Selecciona una línea para abrir el mapa</p>
+        <h1>Mapa de concesiones TPA</h1>
+        <p>Selecciona una concesión para consultar sus servicios</p>
       </div>
 
       <div class="lista-botones">
@@ -627,7 +627,7 @@
         <span class="badge-tag" id="badge-linea-tag">T05</span>
         <div class="badge-text">
           <h1 id="vehicle-title">Buscando buses...</h1>
-          <p>Localización en tiempo real</p>
+          <p id="vehicle-subtitle">Localización en tiempo real</p>
         </div>
       </div>
       <div class="header-quick-actions">
@@ -1190,7 +1190,7 @@
 
         if (respuestaHorario && !respuestaHorario.ok) throw new Error(datosHorario.error || 'No se pudo cargar el horario.');
         const programadas = Array.isArray(datosHorario.horarios) ? datosHorario.horarios : [];
-        const tiempoReal = respuestaRT.ok && Array.isArray(datosRT.llegadas) ? datosRT.llegadas : [];
+        const tiempoReal = respuestaRT?.ok && Array.isArray(datosRT.llegadas) ? datosRT.llegadas : [];
         const tiempoRealPorViaje = new Map(
           tiempoReal.filter(item => item.trip_id).map(item => [item.trip_id, item])
         );
@@ -1471,12 +1471,14 @@
       primeraCarga = true;
       cargarCapasGTFS(codigo);
       if (configuracionConcesionActiva.funciones.tiempo_real) {
+        document.getElementById('vehicle-subtitle').innerText = 'Localización en tiempo real';
         document.getElementById('vehicle-title').innerText = 'Buscando autobuses...';
         document.getElementById('bus-info').innerText = 'Conectando con el servicio GTFS-RT...';
         actualizarEstadoConexion('connecting', 'CONECTANDO');
         actualizarBus();
         intervaloTimer = setInterval(actualizarBus, 5000);
       } else {
+        document.getElementById('vehicle-subtitle').innerText = 'Mapa de paradas y horarios oficiales';
         actualizarEstadoConexion('empty', 'SIN TIEMPO REAL');
         document.getElementById('vehicle-title').innerText = 'Seguimiento en directo no disponible';
         document.getElementById('bus-info').innerText = 'Esta concesión no dispone de un feed GTFS-RT.';
@@ -1632,6 +1634,18 @@
       } else if (marcadores.length > 1) {
         const grupo = L.featureGroup(marcadores);
         map.flyToBounds(grupo.getBounds(), { padding: [60, 60], duration: 1.2 });
+        return;
+      }
+
+      // En concesiones sin seguimiento GPS, encuadrar las paradas cargadas.
+      if (!marcadores.length) {
+        const paradas = Object.values(marcadoresParadas);
+        if (paradas.length === 1) {
+          map.flyTo(paradas[0].getLatLng(), 15, { duration: 1.2 });
+        } else if (paradas.length > 1) {
+          const grupoParadas = L.featureGroup(paradas);
+          map.flyToBounds(grupoParadas.getBounds(), { padding: [45, 45], maxZoom: 14, duration: 1.2 });
+        }
       }
     }
     cargarCatalogoConcesiones();
