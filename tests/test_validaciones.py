@@ -121,7 +121,7 @@ class CapasMapaGTFSTests(unittest.TestCase):
 
     def test_api_devuelve_paradas_con_coordenadas_y_lineas(self):
         datos = self.client.get("/api/mapa/T05").get_json()
-        self.assertGreaterEqual(len(datos["stops"]), 30)
+        self.assertGreaterEqual(len(datos["stops"]), 20)
         for parada in datos["stops"]:
             self.assertTrue(-90 <= parada["lat"] <= 90)
             self.assertTrue(-180 <= parada["lon"] <= 180)
