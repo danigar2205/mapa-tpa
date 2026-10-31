@@ -135,9 +135,8 @@ def resolver_destino_y_parada(concesion_key, route_id, direction_id, stop_sequen
                 paradas = info[dir_key]["paradas"]
             break
 
-    # GTFS-RT stop_sequence es un identificador de orden, no un índice
-    # garantizado para estas listas locales. Sin un GTFS estático que permita
-    # relacionar stop_id/stop_sequence con cada parada, no debemos inventar el nombre.
+    # GTFS-RT stop_sequence no es un índice garantizado de las listas locales.
+    # Sin el GTFS estático correspondiente, evitamos asignar un nombre incorrecto.
     nombre_parada = "Próxima parada"
     if stop_sequence is not None:
         try:
@@ -309,7 +308,7 @@ def get_buses(linea):
                         if not destino_final or destino_final in ['Desconocido', 'En trayecto']:
                             destino_final = dest_defecto
 
-                        # Las coordenadas 0.0 son válidas; comprobar presencia, finitud y rango.
+                        # Las coordenadas 0.0 son válidas; validar presencia, finitud y rango.
                         if lat is not None and lon is not None:
                             lat = float(lat)
                             lon = float(lon)
