@@ -1458,6 +1458,8 @@
       if (intervaloTimer) clearInterval(intervaloTimer);
       Object.values(marcadoresBuses).forEach(marcador => map?.removeLayer(marcador));
       marcadoresBuses = {};
+      marcadoresParadas = {};
+      listaParadas = [];
       lineaActiva = codigo;
       configuracionConcesionActiva = config || { funciones: { paradas: true, horarios: true, tiempo_real: true } };
       inicializarHerramientas();
