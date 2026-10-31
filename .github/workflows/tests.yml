@@ -55,7 +55,7 @@ jobs:
           PY
           node --check /tmp/mapa-tpa-inline.js
       - name: Comprobar sintaxis Python
-        run: python -m py_compile app.py bot_worker.py
+        run: python -m py_compile app.py bot_worker.py gtfs_datasets.py scripts/importar_gtfs.py
       - name: Ejecutar pruebas
         env:
           PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python

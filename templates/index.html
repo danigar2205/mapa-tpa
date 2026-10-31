@@ -489,6 +489,9 @@
     .line-filter { display: inline-flex; align-items: center; gap: 4px; border: 1px solid rgba(255,255,255,.12); border-radius: 99px; padding: 4px 7px; background: rgba(255,255,255,.04); color: #94a3b8; font-size: 10px; font-weight: 800; cursor: pointer; }
     .line-filter.active { color: #f8fafc; background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.25); }
     .filter-dot { width: 7px; height: 7px; display: inline-block; border-radius: 50%; }
+    #lista-filtros-lineas { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
+    .concession-status { display: block; margin-top: 3px; font-size: 10px; line-height: 1.25; font-weight: 500; opacity: .88; }
+    .btn-menu.btn-deshabilitado .concession-status { color: #64748b; }
     .favorites-panel { margin-top: 8px; padding: 10px; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; background: #172338; }
     .favorites-panel-heading { display: flex; align-items: center; justify-content: space-between; color: #f8fafc; font-size: 12px; margin-bottom: 7px; }
     .tool-close { border: 0; background: transparent; color: #cbd5e1; font-size: 21px; cursor: pointer; line-height: 1; }
@@ -545,71 +548,71 @@
     <div class="menu-card">
       <div class="menu-header">
         <i class="fa-solid fa-bus-simple"></i>
-        <h1>Líneas en Tiempo Real</h1>
-        <p>Selecciona una línea para abrir el mapa</p>
+        <h1>Mapa de concesiones TPA</h1>
+        <p>Selecciona una concesión para consultar sus servicios</p>
       </div>
 
       <div class="lista-botones">
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T01">
           <span class="btn-title">T01</span>
           <span class="btn-subtitle">Jacetania y Alto Gállego - Zaragoza</span>
         </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T02">
           <span class="btn-title">T02</span>
           <span class="btn-subtitle">Sobrarbe y Ribagorza - Barbastro</span>
         </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T03">
           <span class="btn-title">T03</span>
           <span class="btn-subtitle">Fraga - Huesca por Monzón</span>
         </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T04">
           <span class="btn-title">T04</span>
           <span class="btn-subtitle">Monegros - Huesca y Zaragoza</span>
         </button>
         
         <!-- Concesión Activa -->
-        <button class="btn-menu" onclick="iniciarMapa('T05')">
+        <button class="btn-menu" data-concesion="T05">
           <span class="btn-title">T05</span>
           <span class="btn-subtitle">Fraga / Castejón - Zaragoza</span>
         </button>
         
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T06">
           <span class="btn-title">T06</span>
           <span class="btn-subtitle">Bajo Aragón - Zaragoza</span>
         </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T07">
           <span class="btn-title">T07</span>
           <span class="btn-subtitle">Bajo Aragón y Cuencas Mineras - Teruel</span>
         </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T08">
           <span class="btn-title">T08</span>
           <span class="btn-subtitle">Maestrazgo - Teruel</span>
         </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T09">
           <span class="btn-title">T09</span>
           <span class="btn-subtitle">Gúdar-Javalambre - Teruel</span>
         </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T10">
           <span class="btn-title">T10</span>
           <span class="btn-subtitle">Serranía de Albarracín - Teruel</span>
         </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T11">
           <span class="btn-title">T11</span>
           <span class="btn-subtitle">Teruel - Zaragoza por Calamocha</span>
         </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T12">
           <span class="btn-title">T12</span>
           <span class="btn-subtitle">Campo de Belchite - Zaragoza</span>
         </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T13">
           <span class="btn-title">T13</span>
           <span class="btn-subtitle">Calatayud y Aranda - Zaragoza</span>
         </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T14">
           <span class="btn-title">T14</span>
           <span class="btn-subtitle">Moncayo y Campo de Borja - Zaragoza</span>
         </button>
-        <button class="btn-menu btn-deshabilitado" disabled>
+        <button class="btn-menu btn-deshabilitado" disabled data-concesion="T15">
           <span class="btn-title">T15</span>
           <span class="btn-subtitle">Cinco Villas - Zaragoza</span>
         </button>
@@ -624,7 +627,7 @@
         <span class="badge-tag" id="badge-linea-tag">T05</span>
         <div class="badge-text">
           <h1 id="vehicle-title">Buscando buses...</h1>
-          <p>Localización en tiempo real</p>
+          <p id="vehicle-subtitle">Localización en tiempo real</p>
         </div>
       </div>
       <div class="header-quick-actions">
@@ -664,17 +667,9 @@
         </button>
       </div>
       <div class="search-results" id="resultados-paradas" hidden></div>
-      <div class="line-filter-row">
+      <div class="line-filter-row" id="contenedor-filtros-lineas" hidden>
         <span class="filter-caption">Autobuses</span>
-        <button class="line-filter active" type="button" data-line-filter="T05-01" aria-pressed="true">
-          <span class="filter-dot" style="background:#2563EB"></span>T05-01
-        </button>
-        <button class="line-filter active" type="button" data-line-filter="T05-20" aria-pressed="true">
-          <span class="filter-dot" style="background:#0F766E"></span>T05-20
-        </button>
-        <button class="line-filter active" type="button" data-line-filter="T05-50" aria-pressed="true">
-          <span class="filter-dot" style="background:#C2410C"></span>T05-50
-        </button>
+        <div id="lista-filtros-lineas"></div>
       </div>
       <div class="favorites-panel" id="panel-favoritos" hidden>
         <div class="favorites-panel-heading">
@@ -741,6 +736,12 @@
     let favoritosParadas = leerFavoritos();
     let intervaloAlertasFavoritos = null;
     let herramientasInicializadas = false;
+    let catalogoConcesiones = {};
+    let configuracionConcesionActiva = null;
+    const COLORES_LINEA = {
+      'T05-01': '#2563EB', 'T05-20': '#0F766E', 'T05-50': '#C2410C'
+    };
+
     function escaparHTML(valor) {
       return String(valor ?? '').replace(/[&<>"']/g, caracter => ({
         '&': '&amp;',
@@ -751,13 +752,33 @@
       })[caracter]);
     }
 
-    // Paleta coherente y legible sobre el mapa base de OpenStreetMap.
-    // Se reutiliza también en los iconos de los autobuses.
-    const COLORES_LINEA = {
-      'T05-01': '#2563EB', // Azul
-      'T05-20': '#0F766E', // Verde azulado
-      'T05-50': '#C2410C'  // Terracota
-    };
+    async function cargarCatalogoConcesiones() {
+      const lista = document.querySelector('.lista-botones');
+      if (!lista) return;
+      try {
+        const respuesta = await fetch('/api/concesiones', { cache: 'no-store' });
+        if (!respuesta.ok) throw new Error('HTTP ' + respuesta.status);
+        const datos = await respuesta.json();
+        catalogoConcesiones = Object.fromEntries((datos.concesiones || []).map(item => [item.codigo, item]));
+        lista.querySelectorAll('[data-concesion]').forEach(boton => {
+          const codigo = boton.dataset.concesion;
+          const configuracion = catalogoConcesiones[codigo];
+          if (!configuracion) return;
+          const subtitulo = boton.querySelector('.btn-subtitle');
+          const disponible = !!configuracion.disponible;
+          boton.disabled = !disponible;
+          boton.classList.toggle('btn-deshabilitado', !disponible);
+          boton.title = configuracion.estado || '';
+          if (subtitulo) subtitulo.innerHTML = escaparHTML(configuracion.descripcion) +
+            '<small class="concession-status">' + escaparHTML(configuracion.estado) + '</small>';
+          boton.onclick = disponible ? () => iniciarMapa(codigo) : null;
+        });
+      } catch (error) {
+        console.warn('No se pudo cargar el catálogo de concesiones:', error);
+        const botonT05 = lista.querySelector('[data-concesion="T05"]');
+        if (botonT05) botonT05.onclick = () => iniciarMapa('T05');
+      }
+    }
 
     function leerFavoritos() {
       try {
@@ -790,7 +811,20 @@
       return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
-    function seleccionarParada(stopId) {
+    function seleccionarParada(stopId, concesion = lineaActiva) {
+      const codigo = String(concesion || lineaActiva || 'T05').toUpperCase();
+      if (lineaActiva && codigo !== lineaActiva) {
+        if (!catalogoConcesiones[codigo]?.disponible) return;
+        iniciarMapa(codigo);
+        let intentos = 0;
+        const esperarParada = () => {
+          if (lineaActiva !== codigo) return;
+          if (marcadoresParadas[String(stopId)]) seleccionarParada(stopId, codigo);
+          else if (intentos++ < 40) setTimeout(esperarParada, 125);
+        };
+        setTimeout(esperarParada, 125);
+        return;
+      }
       const marcador = marcadoresParadas[String(stopId)];
       if (!marcador || !map) return;
       if (!paradasVisibles) alternarParadas();
@@ -849,9 +883,13 @@
       }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
     }
 
-    function actualizarBotonFavorito(boton, stopId) {
+    function actualizarBotonFavorito(boton, stopId, concesion = lineaActiva) {
       if (!boton) return;
-      const guardado = favoritosParadas.some(favorito => String(favorito.id) === String(stopId));
+      const codigo = String(concesion || 'T05').toUpperCase();
+      const guardado = favoritosParadas.some(favorito =>
+        String(favorito.id) === String(stopId) &&
+        String(favorito.concesion || 'T05').toUpperCase() === codigo
+      );
       boton.classList.toggle('saved', guardado);
       boton.innerHTML = guardado
         ? '<i class="fa-solid fa-star"></i> Guardada'
@@ -859,12 +897,17 @@
     }
 
     function alternarFavorito(parada) {
-      const indice = favoritosParadas.findIndex(favorito => String(favorito.id) === String(parada.id));
+      const concesion = String(parada.concesion || lineaActiva || 'T05').toUpperCase();
+      const indice = favoritosParadas.findIndex(favorito =>
+        String(favorito.id) === String(parada.id) &&
+        String(favorito.concesion || 'T05').toUpperCase() === concesion
+      );
       if (indice >= 0) {
         favoritosParadas.splice(indice, 1);
       } else {
         favoritosParadas.push({
           id: String(parada.id),
+          concesion,
           nombre: parada.name,
           lat: Number(parada.lat),
           lon: Number(parada.lon),
@@ -886,26 +929,34 @@
       }
       contenedor.innerHTML = favoritosParadas.map(favorito =>
         '<div class="favorite-row">' +
-          '<button type="button" class="favorite-go" data-fav-action="go" data-stop-id="' + escaparHTML(favorito.id) + '">' +
+          '<button type="button" class="favorite-go" data-fav-action="go" data-stop-id="' + escaparHTML(favorito.id) + '" data-concesion="' + escaparHTML(favorito.concesion || 'T05') + '">' +
             escaparHTML(favorito.nombre) +
           '</button>' +
           '<button type="button" class="favorite-action ' + (favorito.avisos ? 'enabled' : '') +
-            '" data-fav-action="alerts" data-stop-id="' + escaparHTML(favorito.id) + '">' +
+            '" data-fav-action="alerts" data-stop-id="' + escaparHTML(favorito.id) + '" data-concesion="' + escaparHTML(favorito.concesion || 'T05') + '">' +
             (favorito.avisos ? 'Avisos ON' : 'Avisos OFF') +
           '</button>' +
-          '<button type="button" class="favorite-action" data-fav-action="remove" data-stop-id="' + escaparHTML(favorito.id) + '" aria-label="Eliminar favorito">' +
+          '<button type="button" class="favorite-action" data-fav-action="remove" data-stop-id="' + escaparHTML(favorito.id) + '" data-concesion="' + escaparHTML(favorito.concesion || 'T05') + '" aria-label="Eliminar favorito">' +
             '<i class="fa-solid fa-trash"></i>' +
           '</button>' +
         '</div>'
       ).join('');
     }
 
-    async function alternarAvisosFavorito(stopId) {
-      const favorito = favoritosParadas.find(item => String(item.id) === String(stopId));
+    async function alternarAvisosFavorito(stopId, concesion = 'T05') {
+      const codigo = String(concesion || 'T05').toUpperCase();
+      const favorito = favoritosParadas.find(item =>
+        String(item.id) === String(stopId) &&
+        String(item.concesion || 'T05').toUpperCase() === codigo
+      );
       if (!favorito) return;
       if (favorito.avisos) {
         favorito.avisos = false;
         guardarFavoritos();
+        return;
+      }
+      if (!catalogoConcesiones[codigo]?.funciones?.tiempo_real) {
+        alert('Esta concesión todavía no dispone de avisos en tiempo real.');
         return;
       }
       if (!('Notification' in window)) {
@@ -937,20 +988,23 @@
       consultaAlertasEnCurso = true;
       try {
         for (const favorito of activos) {
-          const respuesta = await fetch('/api/paradas/' + encodeURIComponent(favorito.id) + '/llegadas', { cache: 'no-store' });
+          const concesion = String(favorito.concesion || 'T05').toUpperCase();
+          if (!catalogoConcesiones[concesion]?.funciones?.tiempo_real) continue;
+          const respuesta = await fetch('/api/paradas/' + encodeURIComponent(favorito.id) +
+            '/llegadas?concesion=' + encodeURIComponent(concesion), { cache: 'no-store' });
           if (!respuesta.ok) continue;
           const datos = await respuesta.json();
           for (const llegada of (datos.llegadas || [])) {
             const minutos = Number(llegada.minutos);
             if (!Number.isFinite(minutos) || minutos < 0 || minutos > 10) continue;
-            const clave = fechaLocalISO() + ':' + String(llegada.trip_id || llegada.linea + ':' + llegada.timestamp);
+            const clave = concesion + ':' + fechaLocalISO() + ':' + String(llegada.trip_id || llegada.linea + ':' + llegada.timestamp);
             favorito.notificados = Array.isArray(favorito.notificados) ? favorito.notificados : [];
             if (favorito.notificados.includes(clave)) continue;
 
             const textoMinutos = minutos <= 0 ? 'está llegando' : 'llega en ' + minutos + ' minutos';
             new Notification(llegada.linea + ' · ' + favorito.nombre, {
               body: 'Dirección ' + llegada.destino + ': ' + textoMinutos + '.',
-              tag: 't05-' + favorito.id + '-' + clave
+              tag: concesion.toLowerCase() + '-' + favorito.id + '-' + clave
             });
             favorito.notificados.push(clave);
             favorito.notificados = favorito.notificados.slice(-30);
@@ -998,16 +1052,20 @@
       document.getElementById('lista-favoritos')?.addEventListener('click', evento => {
         const boton = evento.target.closest('[data-fav-action]');
         if (!boton) return;
-        const { favAction, stopId } = boton.dataset;
-        if (favAction === 'go') seleccionarParada(stopId);
-        if (favAction === 'alerts') alternarAvisosFavorito(stopId);
+        const { favAction, stopId, concesion } = boton.dataset;
+        if (favAction === 'go') seleccionarParada(stopId, concesion);
+        if (favAction === 'alerts') alternarAvisosFavorito(stopId, concesion);
         if (favAction === 'remove') {
-          favoritosParadas = favoritosParadas.filter(favorito => String(favorito.id) !== String(stopId));
+          favoritosParadas = favoritosParadas.filter(favorito =>
+            String(favorito.id) !== String(stopId) ||
+            String(favorito.concesion || 'T05').toUpperCase() !== String(concesion || 'T05').toUpperCase()
+          );
           guardarFavoritos();
         }
       });
-      document.querySelectorAll('[data-line-filter]').forEach(boton => {
-        boton.addEventListener('click', () => toggleFiltroLinea(boton.dataset.lineFilter));
+      document.getElementById('lista-filtros-lineas')?.addEventListener('click', evento => {
+        const boton = evento.target.closest('[data-line-filter]');
+        if (boton) toggleFiltroLinea(boton.dataset.lineFilter);
       });
 
       renderFavoritos();
@@ -1016,9 +1074,30 @@
       }
     }
 
+    function actualizarFiltrosLineas(rutas = []) {
+      const contenedor = document.getElementById('contenedor-filtros-lineas');
+      const lista = document.getElementById('lista-filtros-lineas');
+      if (!contenedor || !lista) return;
+      const lineas = new Map();
+      rutas.forEach(ruta => {
+        const nombre = String(ruta.short_name || '').trim();
+        if (!nombre) return;
+        const color = '#' + String(ruta.color || '2563EB').replace(/^#/, '');
+        lineas.set(nombre, color);
+        COLORES_LINEA[nombre] = color;
+      });
+      filtrosLineas = Object.fromEntries([...lineas.keys()].map(nombre => [nombre, true]));
+      lista.innerHTML = [...lineas.entries()].map(([nombre, color]) =>
+        '<button class="line-filter active" type="button" data-line-filter="' + escaparHTML(nombre) + '" aria-pressed="true">' +
+          '<span class="filter-dot" style="background:' + escaparHTML(color) + '"></span>' +
+          escaparHTML(nombre) + '</button>'
+      ).join('');
+      contenedor.hidden = !configuracionConcesionActiva?.funciones?.tiempo_real || !lineas.size;
+    }
+
     function toggleFiltroLinea(linea) {
       filtrosLineas[linea] = !filtrosLineas[linea];
-      const boton = document.querySelector('[data-line-filter="' + linea + '"]');
+      const boton = document.querySelector('[data-line-filter="' + CSS.escape(linea) + '"]');
       if (boton) {
         boton.classList.toggle('active', filtrosLineas[linea]);
         boton.setAttribute('aria-pressed', String(filtrosLineas[linea]));
@@ -1089,21 +1168,29 @@
       if (!contenedor) return;
 
       if (selectorFecha && selectorFecha.value !== fecha) selectorFecha.value = fecha;
-      contenedor.innerHTML = 'Consultando horario oficial y predicciones...';
+      contenedor.innerHTML = 'Consultando información de servicio...';
 
       try {
-        const [respuestaRT, respuestaHorario] = await Promise.all([
-          fetch('/api/paradas/' + encodeURIComponent(stopId) + '/llegadas', { cache: 'no-store' }),
-          fetch('/api/paradas/' + encodeURIComponent(stopId) + '/horarios?fecha=' + encodeURIComponent(fecha), { cache: 'no-store' })
+        const funciones = configuracionConcesionActiva?.funciones || {};
+        const codigo = encodeURIComponent(lineaActiva || 'T05');
+        const consultas = await Promise.all([
+          funciones.tiempo_real
+            ? fetch('/api/paradas/' + encodeURIComponent(stopId) + '/llegadas?concesion=' + codigo, { cache: 'no-store' })
+            : Promise.resolve(null),
+          funciones.horarios
+            ? fetch('/api/paradas/' + encodeURIComponent(stopId) + '/horarios?concesion=' + codigo +
+                '&fecha=' + encodeURIComponent(fecha), { cache: 'no-store' })
+            : Promise.resolve(null)
         ]);
-        const [datosRT, datosHorario] = await Promise.all([
-          respuestaRT.json(),
-          respuestaHorario.json()
-        ]);
+        const respuestaRT = consultas[0], respuestaHorario = consultas[1];
+        const datosRT = respuestaRT ? await respuestaRT.json() :
+          { llegadas: [], tiempo_real_disponible: false, actualizado: null };
+        const datosHorario = respuestaHorario ? await respuestaHorario.json() :
+          { horarios: [], mensaje: 'Esta concesión todavía no tiene horarios oficiales incorporados.' };
 
-        if (!respuestaHorario.ok) throw new Error(datosHorario.error || 'No se pudo cargar el horario.');
+        if (respuestaHorario && !respuestaHorario.ok) throw new Error(datosHorario.error || 'No se pudo cargar el horario.');
         const programadas = Array.isArray(datosHorario.horarios) ? datosHorario.horarios : [];
-        const tiempoReal = respuestaRT.ok && Array.isArray(datosRT.llegadas) ? datosRT.llegadas : [];
+        const tiempoReal = respuestaRT?.ok && Array.isArray(datosRT.llegadas) ? datosRT.llegadas : [];
         const tiempoRealPorViaje = new Map(
           tiempoReal.filter(item => item.trip_id).map(item => [item.trip_id, item])
         );
@@ -1135,9 +1222,9 @@
         if (!elementos.length) {
           const mensajes = [];
           if (datosHorario.mensaje) mensajes.push(escaparHTML(datosHorario.mensaje));
-          if (!respuestaRT.ok || !datosRT.tiempo_real_disponible) {
+          if (funciones.tiempo_real && (!respuestaRT?.ok || !datosRT.tiempo_real_disponible)) {
             mensajes.push('No hay conexión con las predicciones en tiempo real.');
-          } else if (!tiempoReal.length) {
+          } else if (funciones.tiempo_real && !tiempoReal.length) {
             mensajes.push('Ahora mismo no hay predicciones en tiempo real para esta parada.');
           }
           if (datosHorario.vigencia_gtfs_hasta) {
@@ -1171,8 +1258,11 @@
         const actualizado = datosRT.actualizado
           ? '<div class="stop-arrival-updated">Tiempo real consultado a las ' + escaparHTML(datosRT.actualizado) + ' · actualización cada 30 s</div>'
           : '';
+        const fuenteTexto = funciones.tiempo_real
+          ? 'En vivo = predicción GTFS-RT · Programado = horario oficial'
+          : 'Programado = horario oficial GTFS';
         contenedor.innerHTML = html +
-          '<div class="stop-arrival-source">En vivo = predicción GTFS-RT · Programado = horario oficial</div>' +
+          '<div class="stop-arrival-source">' + fuenteTexto + '</div>' +
           actualizado + avisoVigencia;
       } catch (error) {
         contenedor.innerHTML = 'No se han podido cargar los horarios y llegadas de esta parada.';
@@ -1190,6 +1280,8 @@
         const respuesta = await fetch('/api/mapa/' + encodeURIComponent(linea.toLowerCase()));
         if (!respuesta.ok) throw new Error('HTTP ' + respuesta.status);
         const datos = await respuesta.json();
+        if (lineaActiva !== linea) return;
+        actualizarFiltrosLineas(datos.routes || []);
 
         const paradasUnicas = new Map();
         (datos.stops || []).forEach(parada => {
@@ -1203,11 +1295,7 @@
             fillColor: '#334155', fillOpacity: 1
           });
           const lineasParada = Array.isArray(parada.lineas) ? parada.lineas : [];
-          const coloresLineas = {
-            'T05-01': '#2563EB',
-            'T05-20': '#0F766E',
-            'T05-50': '#C2410C'
-          };
+          const coloresLineas = COLORES_LINEA;
           const insigniasLineas = lineasParada.map(nombre => {
             const color = coloresLineas[nombre] || '#475569';
             return '<span class="stop-line-badge" style="background:' + color + ';">' +
@@ -1225,10 +1313,15 @@
                 (insigniasLineas || '<span class="stop-arrival-state">Sin líneas identificadas</span>') +
               '</div>' +
               '<div class="stop-arrivals">' +
-                '<span class="stop-popup-label">Próximas salidas · horario y tiempo real</span>' +
-                '<input type="date" class="stop-date-input" aria-label="Fecha de las salidas">' +
-                '<div class="llegadas-parada stop-arrival-state">Consultando horarios y predicciones...</div>' +
-                '<div class="stop-schedule-note">“En vivo” utiliza una predicción GTFS-RT; “Programado” corresponde al horario oficial GTFS.</div>' +
+                '<span class="stop-popup-label">Próximas salidas</span>' +
+                (configuracionConcesionActiva?.funciones?.horarios
+                  ? '<input type="date" class="stop-date-input" aria-label="Fecha de las salidas">' : '') +
+                '<div class="llegadas-parada stop-arrival-state">Consultando información de servicio...</div>' +
+                '<div class="stop-schedule-note">' +
+                  (configuracionConcesionActiva?.funciones?.tiempo_real
+                    ? '“En vivo” utiliza predicciones GTFS-RT; “Programado” corresponde al horario oficial.'
+                    : 'La información mostrada procede del horario oficial GTFS.') +
+                '</div>' +
               '</div>' +
             '</div>',
             {
@@ -1263,17 +1356,23 @@
             }
 
             const botonFavorito = elemento?.querySelector('.stop-favorite-button');
-            actualizarBotonFavorito(botonFavorito, parada.id);
+            actualizarBotonFavorito(botonFavorito, parada.id, parada.concesion || lineaActiva);
             botonFavorito?.addEventListener('click', () => {
               alternarFavorito(parada);
-              actualizarBotonFavorito(botonFavorito, parada.id);
+              actualizarBotonFavorito(botonFavorito, parada.id, parada.concesion || lineaActiva);
             });
 
-            cargarLlegadasParada(parada.id, evento.popup, hoy);
-            intervaloLlegadasParada = setInterval(() => {
-              const fechaActual = selectorFecha?.value || hoy;
-              cargarLlegadasParada(parada.id, evento.popup, fechaActual);
-            }, 30000);
+            const funciones = configuracionConcesionActiva?.funciones || {};
+            if (funciones.horarios || funciones.tiempo_real) {
+              cargarLlegadasParada(parada.id, evento.popup, hoy);
+              intervaloLlegadasParada = setInterval(() => {
+                const fechaActual = selectorFecha?.value || hoy;
+                cargarLlegadasParada(parada.id, evento.popup, fechaActual);
+              }, 30000);
+            } else {
+              const llegadas = elemento?.querySelector('.llegadas-parada');
+              if (llegadas) llegadas.textContent = 'Todavía no hay horarios ni predicciones disponibles para esta concesión.';
+            }
           });
           marcador.on('popupclose', () => {
             if (intervaloLlegadasParada) {
@@ -1295,6 +1394,16 @@
         });
 
         if (paradasVisibles) capasParadas.addTo(map);
+        if (!configuracionConcesionActiva?.funciones?.tiempo_real && primeraCarga) {
+          const marcadores = Object.values(marcadoresParadas);
+          if (marcadores.length === 1) {
+            map.setView(marcadores[0].getLatLng(), 14);
+          } else if (marcadores.length > 1) {
+            const grupoParadas = L.featureGroup(marcadores);
+            map.fitBounds(grupoParadas.getBounds(), { padding: [35, 35], maxZoom: 14 });
+          }
+          primeraCarga = false;
+        }
         renderFavoritos();
       } catch (error) {
         console.error('No se pudieron cargar las líneas y paradas GTFS:', error);
@@ -1343,19 +1452,38 @@
     }
 
     function iniciarMapa(linea) {
-      lineaActiva = linea;
+      const codigo = String(linea || '').toUpperCase();
+      const config = catalogoConcesiones[codigo];
+      if (!config?.disponible && codigo !== 'T05') return;
+      if (intervaloTimer) clearInterval(intervaloTimer);
+      Object.values(marcadoresBuses).forEach(marcador => map?.removeLayer(marcador));
+      marcadoresBuses = {};
+      marcadoresParadas = {};
+      listaParadas = [];
+      lineaActiva = codigo;
+      configuracionConcesionActiva = config || { funciones: { paradas: true, horarios: true, tiempo_real: true } };
       inicializarHerramientas();
-      document.getElementById('badge-linea-tag').innerText = linea;
+      document.getElementById('badge-linea-tag').innerText = codigo;
       document.getElementById('pantalla-inicio').style.display = 'none';
       mostrarPanel();
 
       initMap();
       primeraCarga = true;
-      cargarCapasGTFS(linea);
-      actualizarBus();
-
-      if (intervaloTimer) clearInterval(intervaloTimer);
-      intervaloTimer = setInterval(actualizarBus, 5000);
+      cargarCapasGTFS(codigo);
+      if (configuracionConcesionActiva.funciones.tiempo_real) {
+        document.getElementById('vehicle-subtitle').innerText = 'Localización en tiempo real';
+        document.getElementById('vehicle-title').innerText = 'Buscando autobuses...';
+        document.getElementById('bus-info').innerText = 'Conectando con el servicio GTFS-RT...';
+        actualizarEstadoConexion('connecting', 'CONECTANDO');
+        actualizarBus();
+        intervaloTimer = setInterval(actualizarBus, 5000);
+      } else {
+        document.getElementById('vehicle-subtitle').innerText = 'Mapa de paradas y horarios oficiales';
+        actualizarEstadoConexion('empty', 'SIN TIEMPO REAL');
+        document.getElementById('vehicle-title').innerText = 'Seguimiento en directo no disponible';
+        document.getElementById('bus-info').innerText = 'Esta concesión no dispone de un feed GTFS-RT.';
+        document.getElementById('last-updated').innerText = '—';
+      }
     }
 
     function volverAlMenu() {
@@ -1371,6 +1499,9 @@
 
       document.getElementById('header-card').style.display = 'none';
       document.getElementById('btn-mostrar-panel').hidden = true;
+      document.getElementById('contenedor-filtros-lineas').hidden = true;
+      document.getElementById('lista-filtros-lineas').innerHTML = '';
+      configuracionConcesionActiva = null;
       document.getElementById('pantalla-inicio').style.display = 'flex';
     }
 
@@ -1503,8 +1634,21 @@
       } else if (marcadores.length > 1) {
         const grupo = L.featureGroup(marcadores);
         map.flyToBounds(grupo.getBounds(), { padding: [60, 60], duration: 1.2 });
+        return;
+      }
+
+      // En concesiones sin seguimiento GPS, encuadrar las paradas cargadas.
+      if (!marcadores.length) {
+        const paradas = Object.values(marcadoresParadas);
+        if (paradas.length === 1) {
+          map.flyTo(paradas[0].getLatLng(), 15, { duration: 1.2 });
+        } else if (paradas.length > 1) {
+          const grupoParadas = L.featureGroup(paradas);
+          map.flyToBounds(grupoParadas.getBounds(), { padding: [45, 45], maxZoom: 14, duration: 1.2 });
+        }
       }
     }
+    cargarCatalogoConcesiones();
   </script>
 </body>
 </html>
