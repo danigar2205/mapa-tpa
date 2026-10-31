@@ -517,6 +517,25 @@
       .footer-actions { gap: 5px; flex-wrap: nowrap; }
       .btn-action { padding: 6px 8px; font-size: .7rem; }
     }
+
+    /* En móviles, la ficha de una parada dispone del espacio del mapa.
+       El panel superior se recupera automáticamente al cerrar la ficha. */
+    body.parada-seleccionada-movil #btn-mostrar-panel {
+      display: none !important;
+    }
+
+    @media (max-width: 640px) {
+      .stop-popup {
+        min-width: min(230px, calc(100vw - 100px));
+        max-width: calc(100vw - 88px);
+      }
+
+      .leaflet-popup-content {
+        max-width: calc(100vw - 78px);
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+      }
+    }
   </style>
 </head>
 <body>
@@ -714,6 +733,7 @@
     let intervaloTimer = null;
     let solicitudEnCurso = false;
     let intervaloLlegadasParada = null;
+    let restaurarPanelMovilTrasPopup = false;
     let marcadoresParadas = {};
     let listaParadas = [];
     let filtrosLineas = { 'T05-01': true, 'T05-20': true, 'T05-50': true };
@@ -1211,10 +1231,25 @@
                 '<div class="stop-schedule-note">“En vivo” utiliza una predicción GTFS-RT; “Programado” corresponde al horario oficial GTFS.</div>' +
               '</div>' +
             '</div>',
-            { maxWidth: 310 }
+            {
+              maxWidth: window.matchMedia('(max-width: 640px)').matches
+                ? Math.max(220, Math.min(310, window.innerWidth - 58))
+                : 310,
+              maxHeight: window.matchMedia('(max-width: 640px)').matches
+                ? Math.max(220, Math.floor(window.innerHeight * 0.62))
+                : undefined
+            }
           );
           marcador.on('popupopen', evento => {
             if (intervaloLlegadasParada) clearInterval(intervaloLlegadasParada);
+
+            if (window.matchMedia('(max-width: 640px)').matches) {
+              const panel = document.getElementById('header-card');
+              restaurarPanelMovilTrasPopup = !!panel && getComputedStyle(panel).display !== 'none';
+              if (restaurarPanelMovilTrasPopup) ocultarPanel();
+              document.body.classList.add('parada-seleccionada-movil');
+            }
+
             const elemento = evento.popup.getElement();
             const selectorFecha = elemento?.querySelector('.stop-date-input');
             const hoy = fechaLocalISO();
@@ -1244,6 +1279,12 @@
             if (intervaloLlegadasParada) {
               clearInterval(intervaloLlegadasParada);
               intervaloLlegadasParada = null;
+            }
+
+            if (document.body.classList.contains('parada-seleccionada-movil')) {
+              document.body.classList.remove('parada-seleccionada-movil');
+              if (restaurarPanelMovilTrasPopup) mostrarPanel();
+              restaurarPanelMovilTrasPopup = false;
             }
           });
           marcador.bindTooltip(escaparHTML(parada.name), {
