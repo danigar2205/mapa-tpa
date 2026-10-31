@@ -24,41 +24,37 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 app = Flask(__name__)
 ZONA_HORARIA = ZoneInfo('Europe/Madrid')
 
-# Índice GTFS estático oficial para resolver stop_id / trip_id + stop_sequence.
-# El fichero se genera desde routes.txt, trips.txt, stop_times.txt y stops.txt.
-GTFS_T05_LOOKUP = {"stops": {}, "trips": {}}
-try:
-    lookup_path = os.path.join(os.path.dirname(__file__), "data", "gtfs_t05_lookup.json.gz.b64")
-    with open(lookup_path, "rt", encoding="ascii") as lookup_file:
-        lookup_compressed = base64.b64decode(lookup_file.read())
-    GTFS_T05_LOOKUP = json.loads(gzip.decompress(lookup_compressed).decode("utf-8"))
-except (OSError, ValueError, gzip.BadGzipFile) as exc:
-    print(f"[GTFS STATIC] No se pudo cargar el índice T05: {exc}")
+# Datos estáticos desacoplados por concesión. Los ficheros T05 actuales
+# conservan sus nombres; las nuevas concesiones usan la misma convención.
+from gtfs_datasets import (
+    CATALOGO_CONCESIONES,
+    CONCESIONES_CON_TIEMPO_REAL,
+    cargar_datasets_gtfs,
+    construir_catalogo_publico,
+)
 
-# Geometrías de recorrido y paradas oficiales de las rutas T05.
-GTFS_T05_MAP = {"routes": {}, "shapes": {}, "stops": {}}
-try:
-    map_path = os.path.join(os.path.dirname(__file__), "data", "gtfs_t05_map.json.gz.b64")
-    with open(map_path, "rt", encoding="ascii") as map_file:
-        map_compressed = base64.b64decode(map_file.read())
-    GTFS_T05_MAP = json.loads(gzip.decompress(map_compressed).decode("utf-8"))
-except (OSError, ValueError, gzip.BadGzipFile) as exc:
-    print(f"[GTFS MAP] No se pudo cargar el mapa estático T05: {exc}")
-
-# Horarios oficiales y calendarios GTFS de las rutas T05.
-GTFS_T05_SCHEDULE = {"routes": {}, "services": {}, "exceptions": [], "stop_times": []}
-try:
-    schedule_path = os.path.join(os.path.dirname(__file__), "data", "gtfs_t05_timetable.json.gz.b64")
-    with open(schedule_path, "rt", encoding="ascii") as schedule_file:
-        schedule_compressed = base64.b64decode(schedule_file.read())
-    GTFS_T05_SCHEDULE = json.loads(gzip.decompress(schedule_compressed).decode("utf-8"))
-except (OSError, ValueError, gzip.BadGzipFile) as exc:
-    print(f"[GTFS HORARIOS] No se pudo cargar el horario T05: {exc}")
-
+DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+GTFS_DATASETS = cargar_datasets_gtfs(DATA_DIR)
+GTFS_T05_MAP = GTFS_DATASETS["T05"]["map"]       # Compatibilidad con herramientas existentes.
+GTFS_T05_LOOKUP = GTFS_DATASETS["T05"]["lookup"]
+GTFS_T05_SCHEDULE = GTFS_DATASETS["T05"]["schedule"]
 T05_ROUTE_NAMES = {
     route_id: info.get("short_name", "T05")
     for route_id, info in GTFS_T05_MAP.get("routes", {}).items()
 }
+
+
+def obtener_dataset_gtfs(concesion):
+    """Devuelve los datos GTFS de una concesión o estructuras vacías seguras."""
+    codigo = str(concesion or "").upper()
+    return GTFS_DATASETS.get(codigo, {
+        "map": {"routes": {}, "shapes": {}, "stops": {}},
+        "lookup": {"stops": {}, "trips": {}},
+        "schedule": {"routes": {}, "services": {}, "exceptions": [], "stop_times": []},
+        "has_map": False,
+        "has_schedules": False,
+        "has_realtime": False,
+    })
 
 # Adaptador SSL permisivo
 class LegacySSLAdapter(HTTPAdapter):
@@ -89,6 +85,15 @@ TRIPUPDATES_ENDPOINTS = [
     "https://tpaits.gmv.com/gtfsrtapi/api/tripupdates",
     "https://sintram.consorciozaragoza.es/api/gtfs-rt/trip-updates"
 ]
+
+# Fuentes RT configuradas explícitamente por concesión.
+# El piloto actual (ALSA/T05) es el único que utiliza estos feeds.
+FUENTES_GTFSRT_POR_CONCESION = {
+    "T05": {
+        "vehiclepositions": VEHICLES_ENDPOINTS,
+        "tripupdates": TRIPUPDATES_ENDPOINTS,
+    }
+}
 
 # Caché compartida por las rutas Flask dentro de cada proceso Gunicorn.
 # Evita descargar los mismos feeds por cada navegador y cada parada abierta.
@@ -232,15 +237,15 @@ def resolver_destino_y_parada(concesion_key, route_id, direction_id, stop_sequen
                 paradas = info[dir_key]["paradas"]
             break
 
-    # Primero usar stop_id de GTFS-RT; si falta, resolver trip_id + stop_sequence
-    # contra stop_times.txt del GTFS estático oficial.
+    # Resolver con el índice estático de la concesión correspondiente.
+    lookup = obtener_dataset_gtfs(concesion_key)["lookup"]
     nombre_parada = None
     if stop_id:
-        nombre_parada = GTFS_T05_LOOKUP.get("stops", {}).get(str(stop_id))
+        nombre_parada = lookup.get("stops", {}).get(str(stop_id))
     if not nombre_parada and trip_id and stop_sequence is not None:
-        stop_id_estatico = GTFS_T05_LOOKUP.get("trips", {}).get(str(trip_id), {}).get(str(int(stop_sequence)))
+        stop_id_estatico = lookup.get("trips", {}).get(str(trip_id), {}).get(str(int(stop_sequence)))
         if stop_id_estatico:
-            nombre_parada = GTFS_T05_LOOKUP.get("stops", {}).get(str(stop_id_estatico))
+            nombre_parada = lookup.get("stops", {}).get(str(stop_id_estatico))
     if not nombre_parada:
         nombre_parada = "Parada sin identificar"
 
@@ -266,11 +271,14 @@ def procesar_ocupacion(raw_status):
 def obtener_estimaciones_tripupdates(linea_objetivo):
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Accept': '*/*'}
     estimaciones = {}
-    
-    # IDs válidos de la concesión actual
-    rutas_validas = list(CONCESIONES.get(linea_objetivo, {}).keys())
+    fuentes = FUENTES_GTFSRT_POR_CONCESION.get(linea_objetivo, {})
+    if not fuentes:
+        return estimaciones
 
-    for url in TRIPUPDATES_ENDPOINTS:
+    dataset = obtener_dataset_gtfs(linea_objetivo)
+    rutas_validas = list(dataset["map"].get("routes", {}).keys())
+
+    for url in fuentes.get("tripupdates", []):
         try:
             res = obtener_respuesta_cacheada(url, "tripupdates", 15, headers, 8)
             if res.status_code != 200 or not res.content:
@@ -372,12 +380,14 @@ def index():
 def get_mapa_lineas(linea):
     """Devuelve las paradas GTFS y las líneas que pasan por cada una."""
     concesion = linea.upper()
-    if concesion != "T05":
-        return jsonify({"routes": [], "stops": []})
+    if concesion not in CATALOGO_CONCESIONES:
+        return jsonify({"error": "Concesión no reconocida", "routes": [], "stops": []}), 404
 
+    dataset = obtener_dataset_gtfs(concesion)
+    mapa = dataset["map"]
     rutas = []
     paradas_por_id = {}
-    for route_id, info in GTFS_T05_MAP.get("routes", {}).items():
+    for route_id, info in mapa.get("routes", {}).items():
         rutas.append({
             "route_id": route_id,
             "short_name": info.get("short_name", "T05"),
@@ -385,8 +395,9 @@ def get_mapa_lineas(linea):
             "color": "#" + str(info.get("color", "2563EB")).lstrip("#")
         })
         nombre_linea = info.get("short_name", "T05")
-        for parada_original in GTFS_T05_MAP.get("stops", {}).get(nombre_linea, []):
+        for parada_original in mapa.get("stops", {}).get(nombre_linea, []):
             parada = dict(parada_original)
+            parada["concesion"] = concesion
             stop_id = str(parada.get("id") or parada.get("stop_id") or "")
             if not stop_id:
                 continue
@@ -400,11 +411,38 @@ def get_mapa_lineas(linea):
     for parada in paradas:
         parada["lineas"].sort()
 
-    return jsonify({"routes": rutas, "stops": paradas})
+    return jsonify({
+        "concesion": concesion,
+        "routes": rutas,
+        "stops": paradas,
+        "funciones": {
+            "paradas": dataset["has_map"],
+            "horarios": dataset["has_schedules"],
+            "tiempo_real": dataset["has_realtime"],
+        }
+    })
 
 
-def obtener_llegadas_en_tiempo_real(stop_id):
+@app.route('/api/concesiones')
+def get_concesiones():
+    """Catálogo público: activa solo concesiones que tengan datos estáticos cargados."""
+    return jsonify({"concesiones": construir_catalogo_publico(GTFS_DATASETS)})
+
+
+def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05"):
     """Consulta GTFS-RT y devuelve predicciones para una parada concreta."""
+    codigo = str(concesion or "").upper()
+    dataset = obtener_dataset_gtfs(codigo)
+    fuentes = FUENTES_GTFSRT_POR_CONCESION.get(codigo, {})
+    if not fuentes or not dataset["has_map"]:
+        return {
+            "llegadas": [],
+            "tiempo_real_disponible": False,
+            "actualizado": None,
+        }
+
+    mapa = dataset["map"]
+    lookup = dataset["lookup"]
     ahora = time.time()
     llegadas = []
     feed_disponible = False
@@ -415,7 +453,7 @@ def obtener_llegadas_en_tiempo_real(stop_id):
 
     from google.transit import gtfs_realtime_pb2
 
-    for url in TRIPUPDATES_ENDPOINTS:
+    for url in fuentes.get("tripupdates", []):
         try:
             respuesta = obtener_respuesta_cacheada(url, "tripupdates", 15, headers, 7)
             if respuesta.status_code != 200 or not respuesta.content:
@@ -443,7 +481,7 @@ def obtener_llegadas_en_tiempo_real(stop_id):
                 viaje = actualizacion.trip
                 route_id = str(viaje.route_id or "")
                 trip_id = str(viaje.trip_id or "")
-                info_ruta = GTFS_T05_MAP.get("routes", {}).get(route_id)
+                info_ruta = mapa.get("routes", {}).get(route_id)
                 if not info_ruta:
                     continue
 
@@ -451,7 +489,7 @@ def obtener_llegadas_en_tiempo_real(stop_id):
                     continue
 
                 direccion = viaje.direction_id if viaje.HasField("direction_id") else None
-                destino, _ = resolver_destino_y_parada("T05", route_id, direccion, None)
+                destino, _ = resolver_destino_y_parada(codigo, route_id, direccion, None)
                 if not destino or destino == "En trayecto":
                     destino = info_ruta.get("long_name", "Destino no disponible")
 
@@ -466,7 +504,7 @@ def obtener_llegadas_en_tiempo_real(stop_id):
                     )
                     if not stop_id_actualizacion and trip_id and actualizacion_parada.HasField("stop_sequence"):
                         stop_id_actualizacion = str(
-                            GTFS_T05_LOOKUP.get("trips", {})
+                            lookup.get("trips", {})
                             .get(trip_id, {})
                             .get(str(int(actualizacion_parada.stop_sequence)), "")
                         )
@@ -519,26 +557,29 @@ def obtener_llegadas_en_tiempo_real(stop_id):
 
 @app.route('/api/paradas/<stop_id>/llegadas')
 def get_llegadas_parada(stop_id):
-    """Próximas llegadas en tiempo real a una parada T05."""
+    """Próximas llegadas para una parada de una concesión."""
+    concesion = request.args.get("concesion", "T05").upper()
+    dataset = obtener_dataset_gtfs(concesion)
     parada_existe = any(
         str(parada.get("id") or parada.get("stop_id") or "") == str(stop_id)
-        for paradas in GTFS_T05_MAP.get("stops", {}).values()
+        for paradas in dataset["map"].get("stops", {}).values()
         for parada in paradas
     )
     if not parada_existe:
         return jsonify({"error": "Parada no encontrada", "llegadas": []}), 404
 
-    return jsonify(obtener_llegadas_en_tiempo_real(stop_id))
+    return jsonify(obtener_llegadas_en_tiempo_real(stop_id, concesion))
 
 
-def servicio_activo_gtfs(service_id, fecha):
-    """Aplica calendar.txt y calendar_dates.txt para una fecha de servicio."""
+def servicio_activo_gtfs(service_id, fecha, horario=None):
+    """Aplica calendar.txt y calendar_dates.txt para el GTFS indicado."""
+    horario = horario if horario is not None else GTFS_T05_SCHEDULE
     fecha_gtfs = fecha.strftime("%Y%m%d")
-    for excepcion in GTFS_T05_SCHEDULE.get("exceptions", []):
+    for excepcion in horario.get("exceptions", []):
         if excepcion.get("service_id") == service_id and excepcion.get("date") == fecha_gtfs:
             return str(excepcion.get("exception_type")) == "1"
 
-    servicio = GTFS_T05_SCHEDULE.get("services", {}).get(service_id)
+    servicio = horario.get("services", {}).get(service_id)
     if not servicio:
         return False
 
@@ -564,10 +605,13 @@ def segundos_horario_gtfs(valor):
 
 @app.route('/api/paradas/<stop_id>/horarios')
 def get_horarios_parada(stop_id):
-    """Devuelve salidas programadas en esta parada para la fecha de servicio."""
+    """Devuelve salidas programadas para la concesión solicitada."""
+    concesion = request.args.get("concesion", "T05").upper()
+    dataset = obtener_dataset_gtfs(concesion)
+    horario = dataset["schedule"]
     parada_existe = any(
         str(parada.get("id") or parada.get("stop_id") or "") == str(stop_id)
-        for paradas in GTFS_T05_MAP.get("stops", {}).values()
+        for paradas in dataset["map"].get("stops", {}).values()
         for parada in paradas
     )
     if not parada_existe:
@@ -588,11 +632,11 @@ def get_horarios_parada(stop_id):
 
     ahora = datetime.now(ZONA_HORARIA)
     horarios = []
-    for registro in GTFS_T05_SCHEDULE.get("stop_times", []):
+    for registro in horario.get("stop_times", []):
         if str(registro.get("stop_id")) != str(stop_id):
             continue
         service_id = registro.get("service_id")
-        if not servicio_activo_gtfs(service_id, fecha):
+        if not servicio_activo_gtfs(service_id, fecha, horario):
             continue
 
         segundos = segundos_horario_gtfs(registro.get("departure_time") or registro.get("arrival_time"))
@@ -603,7 +647,7 @@ def get_horarios_parada(stop_id):
         if fecha == hoy and instante < ahora - timedelta(minutes=1):
             continue
 
-        info_ruta = GTFS_T05_SCHEDULE.get("routes", {}).get(registro.get("route_id"), {})
+        info_ruta = horario.get("routes", {}).get(registro.get("route_id"), {})
         horarios.append({
             "linea": info_ruta.get("short_name", "T05"),
             "destino": registro.get("headsign") or info_ruta.get("long_name", "Destino no disponible"),
@@ -616,12 +660,12 @@ def get_horarios_parada(stop_id):
 
     horarios.sort(key=lambda item: item["timestamp"])
     ultima_fecha = []
-    for servicio in GTFS_T05_SCHEDULE.get("services", {}).values():
+    for servicio in horario.get("services", {}).values():
         try:
             ultima_fecha.append(datetime.strptime(servicio.get("end_date", ""), "%Y%m%d").date())
         except ValueError:
             pass
-    for excepcion in GTFS_T05_SCHEDULE.get("exceptions", []):
+    for excepcion in horario.get("exceptions", []):
         try:
             ultima_fecha.append(datetime.strptime(excepcion.get("date", ""), "%Y%m%d").date())
         except ValueError:
@@ -640,12 +684,20 @@ def get_horarios_parada(stop_id):
 def get_buses(linea):
     linea_objetivo = linea.upper()
     print(f"-> Consultando API de autobuses para la concesión {linea_objetivo}...")
+    fuentes = FUENTES_GTFSRT_POR_CONCESION.get(linea_objetivo, {})
+    if not fuentes:
+        return jsonify([])
+    dataset = obtener_dataset_gtfs(linea_objetivo)
+    nombres_rutas = {
+        route_id: info.get("short_name", linea_objetivo)
+        for route_id, info in dataset["map"].get("routes", {}).items()
+    }
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Accept': '*/*'}
-    
-    estimaciones = obtener_estimaciones_tripupdates(linea_objetivo)
-    rutas_validas = list(CONCESIONES.get(linea_objetivo, {}).keys())
 
-    for url in VEHICLES_ENDPOINTS:
+    estimaciones = obtener_estimaciones_tripupdates(linea_objetivo)
+    rutas_validas = list(dataset["map"].get("routes", {}).keys())
+
+    for url in fuentes.get("vehiclepositions", []):
         try:
             res = obtener_respuesta_cacheada(url, "vehiclepositions", 5, headers, 8)
             if res.status_code != 200 or not res.content:
@@ -706,7 +758,7 @@ def get_buses(linea):
                         lat, lon = coordenadas
                         buses.append({
                                 'id': v_id or coche_num,
-                                'linea': T05_ROUTE_NAMES.get(r_id, linea_objetivo),
+                                'linea': nombres_rutas.get(r_id, linea_objetivo),
                                 'coche': coche_num,
                                 'matricula': matricula,
                                 'lat': float(lat),
