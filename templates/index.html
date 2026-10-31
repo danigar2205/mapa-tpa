@@ -362,6 +362,14 @@
     .occ-orange { background: #ffedd5; color: #c2410c; }
     .occ-red { background: #fee2e2; color: #b91c1c; }
     .occ-gray { background: #f1f5f9; color: #64748b; }
+    .btn-layer { background: rgba(255,255,255,.1); color: #e2e8f0; border: 1px solid rgba(255,255,255,.15); }
+    .btn-layer.active { background: rgba(37,99,235,.24); border-color: rgba(96,165,250,.7); color: #bfdbfe; }
+    .leaflet-tooltip.stop-label { border: 0; border-radius: 6px; padding: 4px 7px; color: #0f172a; font-size: 11px; font-weight: 700; box-shadow: 0 2px 8px rgba(15,23,42,.18); }
+    @media (max-width: 480px) {
+      .header-card { padding: 12px; }
+      .footer-actions { gap: 6px; flex-wrap: wrap; }
+      .btn-action { padding: 8px 9px; font-size: .72rem; }
+    }
   </style>
 </head>
 <body>
@@ -474,6 +482,12 @@
       <button class="btn-action btn-menu-back" onclick="volverAlMenu()">
         <i class="fa-solid fa-bars"></i> Menú
       </button>
+      <button class="btn-action btn-layer active" id="btn-lineas" onclick="alternarLineas()" aria-pressed="true">
+        <i class="fa-solid fa-route"></i> Líneas
+      </button>
+      <button class="btn-action btn-layer active" id="btn-paradas" onclick="alternarParadas()" aria-pressed="true">
+        <i class="fa-solid fa-location-dot"></i> Paradas
+      </button>
       <button class="btn-action" onclick="centrarEnBus()">
         <i class="fa-solid fa-crosshairs"></i> Encuadrar
       </button>
@@ -488,6 +502,10 @@
   <script>
     let map = null;
     let marcadoresBuses = {};
+    let capasLineas = null;
+    let capasParadas = null;
+    let lineasVisibles = true;
+    let paradasVisibles = true;
     let primeraCarga = true;
     let lineaActiva = null;
     let intervaloTimer = null;
@@ -528,6 +546,90 @@
       }).addTo(map);
     }
 
+    async function cargarCapasGTFS(linea) {
+      if (capasLineas) map.removeLayer(capasLineas);
+      if (capasParadas) map.removeLayer(capasParadas);
+      capasLineas = L.layerGroup();
+      capasParadas = L.layerGroup();
+      lineasVisibles = true;
+      paradasVisibles = true;
+      actualizarBotonesCapas();
+
+      try {
+        const respuesta = await fetch('/api/mapa/' + encodeURIComponent(linea.toLowerCase()));
+        if (!respuesta.ok) throw new Error('HTTP ' + respuesta.status);
+        const datos = await respuesta.json();
+
+        (datos.routes || []).forEach(ruta => {
+          (ruta.shapes || []).forEach(coordenadas => {
+            if (!Array.isArray(coordenadas) || coordenadas.length < 2) return;
+            const trazo = L.polyline(coordenadas, {
+              color: ruta.color || '#2563eb',
+              weight: 4,
+              opacity: 0.82,
+              smoothFactor: 1.5
+            });
+            trazo.bindPopup('<b>' + escaparHTML(ruta.short_name) + '</b><br>' +
+              escaparHTML(ruta.long_name || 'Recorrido oficial'));
+            trazo.addTo(capasLineas);
+          });
+        });
+
+        const paradasUnicas = new Map();
+        (datos.stops || []).forEach(parada => {
+          if (parada.id && !paradasUnicas.has(parada.id)) paradasUnicas.set(parada.id, parada);
+        });
+        paradasUnicas.forEach(parada => {
+          const marcador = L.circleMarker([parada.lat, parada.lon], {
+            radius: 5, color: '#ffffff', weight: 2,
+            fillColor: '#334155', fillOpacity: 1
+          });
+          marcador.bindPopup('<div style="font-family:sans-serif;min-width:150px;">' +
+            '<b style="color:#2563eb;">Parada</b><br>' + escaparHTML(parada.name) + '</div>');
+          marcador.bindTooltip(escaparHTML(parada.name), {
+            direction: 'top', offset: [0, -5], className: 'stop-label'
+          });
+          marcador.addTo(capasParadas);
+        });
+
+        if (lineasVisibles) capasLineas.addTo(map);
+        if (paradasVisibles) capasParadas.addTo(map);
+      } catch (error) {
+        console.error('No se pudieron cargar las líneas y paradas GTFS:', error);
+      }
+    }
+
+    function actualizarBotonesCapas() {
+      const btnLineas = document.getElementById('btn-lineas');
+      const btnParadas = document.getElementById('btn-paradas');
+      if (btnLineas) {
+        btnLineas.classList.toggle('active', lineasVisibles);
+        btnLineas.setAttribute('aria-pressed', String(lineasVisibles));
+        btnLineas.innerHTML = '<i class="fa-solid fa-route"></i> ' + (lineasVisibles ? 'Líneas' : 'Líneas ocultas');
+      }
+      if (btnParadas) {
+        btnParadas.classList.toggle('active', paradasVisibles);
+        btnParadas.setAttribute('aria-pressed', String(paradasVisibles));
+        btnParadas.innerHTML = '<i class="fa-solid fa-location-dot"></i> ' + (paradasVisibles ? 'Paradas' : 'Paradas ocultas');
+      }
+    }
+
+    function alternarLineas() {
+      if (!capasLineas) return;
+      lineasVisibles = !lineasVisibles;
+      if (lineasVisibles) capasLineas.addTo(map);
+      else map.removeLayer(capasLineas);
+      actualizarBotonesCapas();
+    }
+
+    function alternarParadas() {
+      if (!capasParadas) return;
+      paradasVisibles = !paradasVisibles;
+      if (paradasVisibles) capasParadas.addTo(map);
+      else map.removeLayer(capasParadas);
+      actualizarBotonesCapas();
+    }
+
     function iniciarMapa(linea) {
       lineaActiva = linea;
       document.getElementById('badge-linea-tag').innerText = linea;
@@ -536,6 +638,7 @@
 
       initMap();
       primeraCarga = true;
+      cargarCapasGTFS(linea);
       actualizarBus();
 
       if (intervaloTimer) clearInterval(intervaloTimer);
@@ -602,7 +705,7 @@
 
             const popupContent = `
               <div style="text-align: center; font-family: sans-serif; padding: 6px; min-width: 180px;">
-                <b style="font-size: 1.1rem; color: #2563eb;">Concesión ${escaparHTML(lineaSolicitada)}</b><br>
+                <b style="font-size: 1.1rem; color: #2563eb;">Línea ${escaparHTML(bus.linea || lineaSolicitada)}</b><br>
                 <span style="font-size: 0.95rem; font-weight: bold; color: #1e293b;">Nº Coche: ${escaparHTML(coche)}</span><br>
                 ${matricula ? `<span style="font-size: 0.8rem; color: #64748b;">Matrícula: ${escaparHTML(matricula)}</span><br>` : ''}
                 
