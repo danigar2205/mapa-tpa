@@ -54,6 +54,8 @@ jobs:
           Path("/tmp/mapa-tpa-inline.js").write_text(parser.scripts[-1], encoding="utf-8")
           PY
           node --check /tmp/mapa-tpa-inline.js
+      - name: Comprobar sintaxis Python
+        run: python -m py_compile app.py bot_worker.py
       - name: Ejecutar pruebas
         env:
           PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
