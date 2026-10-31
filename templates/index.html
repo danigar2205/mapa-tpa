@@ -594,43 +594,34 @@
         if (!respuesta.ok) throw new Error('HTTP ' + respuesta.status);
         const datos = await respuesta.json();
 
-        // Separación cartográfica: evita que las líneas coincidentes queden
-        // exactamente una encima de otra. El desplazamiento es pequeño (8 m).
-        function desplazarRecorrido(coords, metros) {
-          if (!metros || coords.length < 2) return coords;
-          return coords.map((punto, i) => {
-            const anterior = coords[Math.max(0, i - 1)];
-            const siguiente = coords[Math.min(coords.length - 1, i + 1)];
-            const latRad = punto[0] * Math.PI / 180;
-            const escalaX = 111320 * Math.cos(latRad);
-            const escalaY = 110540;
-            const dx = (siguiente[1] - anterior[1]) * escalaX;
-            const dy = (siguiente[0] - anterior[0]) * escalaY;
-            const longitud = Math.hypot(dx, dy) || 1;
-            const nx = -dy / longitud;
-            const ny = dx / longitud;
-            return [
-              punto[0] + (ny * metros) / escalaY,
-              punto[1] + (nx * metros) / escalaX
-            ];
-          });
-        }
-
+        // Primero dibujamos un borde claro bajo cada recorrido para separarlo
+        // visualmente del mapa sin alterar las coordenadas geográficas.
         const estilosLinea = {
-          'T05-01': { dashArray: '11 7', weight: 4, offset: -8 },
-          'T05-20': { dashArray: '3 6', weight: 4, offset: 0 },
-          'T05-50': { dashArray: null, weight: 5, offset: 8 }
+          'T05-01': { dashArray: '10 7', dashOffset: '0', weight: 4 },
+          'T05-20': { dashArray: '3 6', dashOffset: '2', weight: 4 },
+          'T05-50': { dashArray: null, dashOffset: '0', weight: 4 }
         };
         (datos.routes || []).forEach(ruta => {
           const estilo = estilosLinea[ruta.short_name] || { dashArray: null, weight: 4 };
           (ruta.shapes || []).forEach(coordenadas => {
             if (!Array.isArray(coordenadas) || coordenadas.length < 2) return;
-            const coordsVisibles = desplazarRecorrido(coordenadas, estilo.offset);
-            const trazo = L.polyline(coordsVisibles, {
-              color: '#' + String(ruta.color || '2563EB').replace(/^#/, ''),
-              weight: estilo.weight,
+            const colorLinea = '#' + String(ruta.color || '2563EB').replace(/^#/, '');
+            // Halo blanco para legibilidad; la línea conserva sus coordenadas GTFS.
+            L.polyline(coordenadas, {
+              color: '#ffffff',
+              weight: 7,
               opacity: 0.95,
+              lineCap: 'round',
+              lineJoin: 'round',
+              interactive: false,
+              smoothFactor: 0.5
+            }).addTo(capasLineas);
+            const trazo = L.polyline(coordenadas, {
+              color: colorLinea,
+              weight: estilo.weight,
+              opacity: 1,
               dashArray: estilo.dashArray,
+              dashOffset: estilo.dashOffset,
               lineCap: 'round',
               lineJoin: 'round',
               smoothFactor: 0.5
