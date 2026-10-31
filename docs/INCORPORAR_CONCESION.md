@@ -1,30 +1,38 @@
 # Incorporar una nueva concesión a Mapa TPA
 
-La aplicación ya carga el GTFS estático de cada concesión de forma independiente. No hay que duplicar la web ni crear otro servidor para T01, T02, etc.
+La aplicación carga los datos GTFS de cada concesión de forma independiente. Un ZIP puede incluir una o varias agencias; el importador separa las rutas por `agency_id`.
 
-## 1. Importar el GTFS estático
+## 1. Importar GTFS estático
 
-Descarga el ZIP GTFS estático oficial de la concesión y ejecútalo desde la raíz del proyecto:
+Descarga el ZIP GTFS oficial y ejecuta el importador desde la raíz del proyecto:
 
 ```bash
-python scripts/importar_gtfs.py T01 descarga_t01.zip
+python scripts/importar_gtfs.py T02 descarga_gtfs.zip
 ```
 
-El importador admite que los ficheros GTFS estén en la raíz del ZIP o dentro de una carpeta. Genera estos tres ficheros dentro de `data/`:
+Si el ZIP contiene varias agencias, ejecuta el comando una vez por cada código que quieras incorporar. Por ejemplo:
 
-- `gtfs_t01_map.json.gz.b64`: rutas, paradas y coordenadas.
-- `gtfs_t01_lookup.json.gz.b64`: relación entre identificadores de paradas, viajes y secuencias.
-- `gtfs_t01_timetable.json.gz.b64`: servicios, calendarios, excepciones y horarios.
+```bash
+python scripts/importar_gtfs.py T02 descarga_gtfs.zip
+python scripts/importar_gtfs.py T04 descarga_gtfs.zip
+python scripts/importar_gtfs.py T06 descarga_gtfs.zip
+```
 
-El código de la concesión determina el nombre de los ficheros. Para T13, por ejemplo, se usa `T13` y se generan ficheros `gtfs_t13_...`.
+El importador selecciona solo las rutas cuyo `agency_id` coincide con el código indicado. A partir de esas rutas conserva únicamente sus viajes, paradas utilizadas, horarios, calendarios y excepciones. Así no se mezclan concesiones al reutilizar un ZIP multiactor.
 
-El ZIP debe contener `routes.txt`, `stops.txt`, `trips.txt` y `stop_times.txt`. Para habilitar horarios también debe aportar `calendar.txt`, `calendar_dates.txt`, o ambos, con al menos un calendario/servicio utilizable.
+El importador admite ficheros GTFS en la raíz del ZIP o dentro de una carpeta. Genera tres ficheros en `data/`:
 
-## 2. Añadir los ficheros al proyecto
+- `gtfs_t02_map.json.gz.b64`: rutas, paradas y coordenadas.
+- `gtfs_t02_lookup.json.gz.b64`: relación entre identificadores de paradas, viajes y secuencias.
+- `gtfs_t02_timetable.json.gz.b64`: servicios, calendarios, excepciones y horarios.
 
-Comprueba el resumen que muestra el importador y añade los tres ficheros generados a `data/`. Al arrancar Flask, el registro detecta automáticamente qué concesiones tienen datos cargados.
+El ZIP debe contener `routes.txt`, `stops.txt`, `trips.txt` y `stop_times.txt`. Para habilitar horarios debe aportar calendarios y/o excepciones utilizables en `calendar.txt` y `calendar_dates.txt`.
 
-La pantalla inicial activa por sí sola una concesión cuando encuentra un mapa con rutas y paradas. Si se importan mapas pero no calendarios, se mostrarán las paradas, pero no se anunciarán horarios que no se puedan calcular.
+## 2. Incorporar los ficheros
+
+Comprueba el resumen del importador y añade los tres ficheros generados a `data/`. Al arrancar Flask, el catálogo detecta automáticamente qué concesiones tienen datos cargados.
+
+La aplicación activa las paradas y rutas cuando encuentra un mapa válido. La consulta de horarios se habilita cuando también hay servicios, calendarios y horas de paso utilizables.
 
 ## 3. Tiempo real: configuración explícita
 
@@ -34,20 +42,14 @@ Cuando exista una fuente GTFS-RT real y probada para otra concesión:
 
 1. Añade el código a `CONCESIONES_CON_TIEMPO_REAL` en `gtfs_datasets.py`.
 2. Configura sus URLs de VehiclePositions y TripUpdates en `FUENTES_GTFSRT_POR_CONCESION` en `app.py`.
-3. Verifica que los `route_id`, `trip_id` y `stop_id` del feed coinciden con el GTFS estático publicado para esa concesión.
+3. Verifica que los `route_id`, `trip_id` y `stop_id` del feed coinciden con el GTFS estático publicado.
 4. Añade pruebas con muestras reales antes de activar la función.
 
-No añadas una concesión a esa configuración solo porque comparta operador, plataforma o URL con otra. Hay que verificar su cobertura real.
-
-## 4. Qué se activa automáticamente
-
-Cuando el GTFS estático está importado, la plataforma habilita el acceso al mapa y a sus paradas. Si también hay calendarios y horarios válidos, habilita la consulta de salidas programadas. Los filtros y colores de línea se construyen a partir de las rutas del propio GTFS.
-
-El seguimiento de vehículos, la predicción de llegadas y los avisos de favoritos solo se activan para concesiones que tengan una fuente GTFS-RT configurada y validada.
+No añadas una concesión a esa configuración solo porque comparta operador, plataforma o URL con otra.
 
 ## Consideraciones
 
-- El importador no incorpora las geometrías de `shapes.txt`: la visualización de trazados de líneas está desactivada en el mapa actual.
-- Los datos GTFS deben actualizarse cuando el organismo publique un nuevo ZIP, especialmente sus calendarios y fechas de vigencia.
-- Si una concesión utiliza horarios basados en `frequencies.txt`, comprueba primero su modelo de servicio: el importador actual trabaja con viajes y horas explícitas en `stop_times.txt`.
-- Los ficheros GTFS importados deben respetar las condiciones de uso y atribución de su fuente.
+- El importador no incorpora geometrías de `shapes.txt`: los trazados de líneas están desactivados en el mapa actual.
+- Los calendarios GTFS deben actualizarse cuando el organismo publique un nuevo ZIP. Comprueba siempre la fecha final de vigencia antes de anunciar horarios.
+- Si una concesión utiliza `frequencies.txt`, comprueba primero su modelo de servicio: el importador trabaja con viajes y horas explícitas en `stop_times.txt`.
+- Los datos GTFS deben respetar las condiciones de uso y atribución de su fuente.
