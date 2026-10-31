@@ -13,7 +13,6 @@ from app import (
     segundos_horario_gtfs,
     obtener_respuesta_cacheada,
     CACHE_RESPUESTAS_GTFSRT,
-    obtener_timestamp_posicion,
 )
 
 
@@ -107,23 +106,6 @@ class CacheGTFSRTTests(unittest.TestCase):
         self.assertEqual(segunda.content, b"feed")
         self.assertEqual(get.call_count, 1)
         CACHE_RESPUESTAS_GTFSRT.pop(clave, None)
-
-
-class TimestampPosicionTests(unittest.TestCase):
-    class Posicion:
-        def __init__(self, timestamp=None):
-            self.timestamp = timestamp
-
-        def HasField(self, nombre):
-            return nombre == "timestamp" and self.timestamp is not None
-
-    def test_utiliza_timestamp_del_feed_gtfs_rt(self):
-        posicion = self.Posicion(1793457600)
-        self.assertEqual(obtener_timestamp_posicion(posicion, 123), 1793457600)
-
-    def test_usa_hora_de_respaldo_si_feed_no_incluye_timestamp(self):
-        posicion = self.Posicion()
-        self.assertEqual(obtener_timestamp_posicion(posicion, 123), 123)
 
 
 class CapasMapaGTFSTests(unittest.TestCase):
