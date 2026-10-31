@@ -1280,6 +1280,7 @@
         const respuesta = await fetch('/api/mapa/' + encodeURIComponent(linea.toLowerCase()));
         if (!respuesta.ok) throw new Error('HTTP ' + respuesta.status);
         const datos = await respuesta.json();
+        if (lineaActiva !== linea) return;
         actualizarFiltrosLineas(datos.routes || []);
 
         const paradasUnicas = new Map();
@@ -1361,11 +1362,17 @@
               actualizarBotonFavorito(botonFavorito, parada.id, parada.concesion || lineaActiva);
             });
 
-            cargarLlegadasParada(parada.id, evento.popup, hoy);
-            intervaloLlegadasParada = setInterval(() => {
-              const fechaActual = selectorFecha?.value || hoy;
-              cargarLlegadasParada(parada.id, evento.popup, fechaActual);
-            }, 30000);
+            const funciones = configuracionConcesionActiva?.funciones || {};
+            if (funciones.horarios || funciones.tiempo_real) {
+              cargarLlegadasParada(parada.id, evento.popup, hoy);
+              intervaloLlegadasParada = setInterval(() => {
+                const fechaActual = selectorFecha?.value || hoy;
+                cargarLlegadasParada(parada.id, evento.popup, fechaActual);
+              }, 30000);
+            } else {
+              const llegadas = elemento?.querySelector('.llegadas-parada');
+              if (llegadas) llegadas.textContent = 'Todavía no hay horarios ni predicciones disponibles para esta concesión.';
+            }
           });
           marcador.on('popupclose', () => {
             if (intervaloLlegadasParada) {
@@ -1387,6 +1394,16 @@
         });
 
         if (paradasVisibles) capasParadas.addTo(map);
+        if (!configuracionConcesionActiva?.funciones?.tiempo_real && primeraCarga) {
+          const marcadores = Object.values(marcadoresParadas);
+          if (marcadores.length === 1) {
+            map.setView(marcadores[0].getLatLng(), 14);
+          } else if (marcadores.length > 1) {
+            const grupoParadas = L.featureGroup(marcadores);
+            map.fitBounds(grupoParadas.getBounds(), { padding: [35, 35], maxZoom: 14 });
+          }
+          primeraCarga = false;
+        }
         renderFavoritos();
       } catch (error) {
         console.error('No se pudieron cargar las líneas y paradas GTFS:', error);
