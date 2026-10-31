@@ -1,7 +1,19 @@
 import math
 import unittest
+from datetime import date
+from unittest.mock import patch, Mock
 
-from app import app, validar_coordenadas, resolver_destino_y_parada, T05_ROUTE_NAMES
+from app import (
+    app,
+    validar_coordenadas,
+    resolver_destino_y_parada,
+    T05_ROUTE_NAMES,
+    GTFS_T05_SCHEDULE,
+    servicio_activo_gtfs,
+    segundos_horario_gtfs,
+    obtener_respuesta_cacheada,
+    CACHE_RESPUESTAS_GTFSRT,
+)
 
 
 class ValidarCoordenadasTests(unittest.TestCase):
@@ -56,6 +68,45 @@ class ProximaParadaGTFSTests(unittest.TestCase):
         self.assertEqual(parada, "Parada sin identificar")
 
 
+class HorariosGTFSTests(unittest.TestCase):
+    def test_se_carga_el_horario_de_las_tres_lineas(self):
+        self.assertEqual(set(GTFS_T05_SCHEDULE["routes"].values()), {
+            "T05-01", "T05-20", "T05-50"
+        })
+        self.assertGreaterEqual(len(GTFS_T05_SCHEDULE["stop_times"]), 300)
+
+    def test_respeta_excepciones_de_calendario(self):
+        service_id = "bde18d92-f44d-45fb-8970-e4d3fbc899be_22146502-c35d-4e38-a720-41155b8c4aff"
+        self.assertTrue(servicio_activo_gtfs(service_id, date(2026, 11, 7)))
+        self.assertFalse(servicio_activo_gtfs(service_id, date(2026, 11, 8)))
+
+    def test_admite_horas_gtfs_superiores_a_24(self):
+        self.assertEqual(segundos_horario_gtfs("25:15:00"), 90900)
+        self.assertIsNone(segundos_horario_gtfs("12:75:00"))
+        self.assertIsNone(segundos_horario_gtfs("hora"))
+
+    def test_rechaza_parada_inexistente_en_api_de_horarios(self):
+        respuesta = app.test_client().get("/api/paradas/inexistente/horarios")
+        self.assertEqual(respuesta.status_code, 404)
+
+
+class CacheGTFSRTTests(unittest.TestCase):
+    def test_reutiliza_respuesta_durante_ttl(self):
+        url = "https://test.local/gtfsrt-cache-unittest"
+        clave = ("unit-test", url)
+        CACHE_RESPUESTAS_GTFSRT.pop(clave, None)
+        respuesta_falsa = Mock(status_code=200, content=b"feed")
+
+        with patch("app.session.get", return_value=respuesta_falsa) as get:
+            primera = obtener_respuesta_cacheada(url, "unit-test", 60, {}, 1)
+            segunda = obtener_respuesta_cacheada(url, "unit-test", 60, {}, 1)
+
+        self.assertEqual(primera.content, b"feed")
+        self.assertEqual(segunda.content, b"feed")
+        self.assertEqual(get.call_count, 1)
+        CACHE_RESPUESTAS_GTFSRT.pop(clave, None)
+
+
 class CapasMapaGTFSTests(unittest.TestCase):
     def setUp(self):
         self.client = app.test_client()
@@ -67,13 +118,20 @@ class CapasMapaGTFSTests(unittest.TestCase):
         nombres = {ruta["short_name"] for ruta in datos["routes"]}
         self.assertEqual(nombres, {"T05-01", "T05-20", "T05-50"})
 
-    def test_api_devuelve_recorridos_y_paradas_con_coordenadas(self):
+    def test_api_devuelve_paradas_con_coordenadas_y_lineas(self):
         datos = self.client.get("/api/mapa/T05").get_json()
-        self.assertEqual(sum(len(ruta["shapes"]) for ruta in datos["routes"]), 6)
         self.assertGreaterEqual(len(datos["stops"]), 30)
         for parada in datos["stops"]:
             self.assertTrue(-90 <= parada["lat"] <= 90)
             self.assertTrue(-180 <= parada["lon"] <= 180)
+            self.assertTrue(parada["lineas"])
+            self.assertTrue(set(parada["lineas"]).issubset({"T05-01", "T05-20", "T05-50"}))
+        self.assertTrue(all("shapes" not in ruta for ruta in datos["routes"]))
+
+    def test_lugarico_indica_que_lineas_paran(self):
+        datos = self.client.get("/api/mapa/T05").get_json()
+        lugarico = next(parada for parada in datos["stops"] if parada["name"] == "Lugarico de Cerdán")
+        self.assertEqual(set(lugarico["lineas"]), {"T05-01", "T05-20"})
 
     def test_otras_concesiones_no_reciben_datos_t05(self):
         datos = self.client.get("/api/mapa/t13").get_json()
