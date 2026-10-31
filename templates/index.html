@@ -243,6 +243,50 @@
       display: none;
     }
 
+    .history-panel {
+      position: absolute;
+      top: 78px;
+      left: 16px;
+      z-index: 1200;
+      width: min(370px, calc(100vw - 32px));
+      max-height: calc(100vh - 100px);
+      overflow-y: auto;
+      padding: 14px;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 14px;
+      background: rgba(15,23,42,.97);
+      color: #e2e8f0;
+      box-shadow: 0 18px 35px rgba(15,23,42,.38);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+    .history-panel[hidden] { display: none; }
+    .history-panel-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .history-panel-header strong { font-size: 13px; color: #f8fafc; }
+    .history-panel-header p { margin-top: 3px; color: #94a3b8; font-size: 10px; }
+    .history-close { width: 26px; height: 26px; border: 0; border-radius: 7px; background: rgba(255,255,255,.08); color: #cbd5e1; font-size: 20px; line-height: 1; cursor: pointer; }
+    .history-local-notice { display: flex; gap: 8px; margin: 10px 0; padding: 8px 9px; border: 1px solid rgba(96,165,250,.18); border-radius: 8px; background: rgba(37,99,235,.10); color: #bfdbfe; font-size: 10px; line-height: 1.4; }
+    .history-local-notice i { margin-top: 1px; }
+    .history-label { display: block; margin: 9px 0 4px; color: #94a3b8; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+    .history-select, .history-date { width: 100%; height: 35px; border: 1px solid rgba(255,255,255,.14); border-radius: 8px; padding: 0 9px; background: #1e293b; color: #f8fafc; font-size: 11px; color-scheme: dark; }
+    .history-action-row { display: flex; gap: 7px; margin-top: 10px; }
+    .history-action { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 33px; padding: 7px 10px; border: 1px solid rgba(255,255,255,.14); border-radius: 8px; background: rgba(255,255,255,.07); color: #e2e8f0; font-size: 10px; font-weight: 800; cursor: pointer; }
+    .history-action.primary { flex: 1; border-color: #2563eb; background: #2563eb; color: white; }
+    .history-action:disabled { opacity: .4; cursor: not-allowed; }
+    .history-summary { margin-top: 10px; padding: 9px; border-radius: 8px; background: rgba(255,255,255,.055); color: #cbd5e1; font-size: 10px; line-height: 1.5; }
+    .history-playback { margin-top: 9px; padding: 9px; border: 1px solid rgba(255,255,255,.09); border-radius: 8px; }
+    .history-time-row { display: flex; align-items: center; justify-content: space-between; color: #f8fafc; font-size: 10px; font-weight: 800; }
+    #history-range { width: 100%; margin: 10px 0 4px; accent-color: #38bdf8; }
+    .history-playback-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .history-hint { color: #64748b; font-size: 9px; }
+    .history-footnote { margin-top: 8px; color: #64748b; font-size: 9px; line-height: 1.4; }
+    .history-empty { color: #fbbf24; }
+    @media (max-width: 480px) {
+      .history-panel { top: 72px; left: 8px; width: calc(100vw - 16px); max-height: calc(100vh - 84px); }
+      .footer-actions { gap: 5px; }
+      .btn-action { padding: 7px 8px; font-size: .68rem; }
+    }
+
     @media (max-width: 480px) {
       .panel-show-button {
         top: 10px;
@@ -674,11 +718,57 @@
       <button class="btn-action btn-layer active" id="btn-paradas" onclick="alternarParadas()" aria-pressed="true">
         <i class="fa-solid fa-location-dot"></i> Paradas
       </button>
+      <button class="btn-action" id="btn-historial" type="button" onclick="abrirHistorial()">
+        <i class="fa-solid fa-clock-rotate-left"></i> Historial
+      </button>
       <button class="btn-action" onclick="centrarEnBus()">
         <i class="fa-solid fa-crosshairs"></i> Encuadrar
       </button>
     </div>
   </div>
+
+  <section class="history-panel" id="history-panel" aria-label="Historial de movimientos" hidden>
+    <div class="history-panel-header">
+      <div>
+        <strong><i class="fa-solid fa-clock-rotate-left"></i> Historial de movimientos</strong>
+        <p>Recorridos guardados en este dispositivo</p>
+      </div>
+      <button class="history-close" id="btn-cerrar-historial" type="button" aria-label="Cerrar historial">×</button>
+    </div>
+    <div class="history-local-notice">
+      <i class="fa-solid fa-hard-drive"></i>
+      El historial empieza a registrarse mientras tienes el mapa abierto. No contiene recorridos anteriores ni se comparte entre dispositivos.
+    </div>
+    <label class="history-label" for="history-vehicle">Vehículo</label>
+    <select id="history-vehicle" class="history-select">
+      <option value="">Esperando vehículos...</option>
+    </select>
+    <label class="history-label" for="history-date">Fecha</label>
+    <input id="history-date" class="history-date" type="date">
+    <div class="history-action-row">
+      <button class="history-action primary" id="btn-cargar-historial" type="button">
+        <i class="fa-solid fa-route"></i> Ver recorrido
+      </button>
+      <button class="history-action" id="btn-limpiar-historial" type="button">
+        <i class="fa-solid fa-eraser"></i> Quitar
+      </button>
+    </div>
+    <div id="history-summary" class="history-summary">Selecciona un vehículo y una fecha.</div>
+    <div class="history-playback">
+      <div class="history-time-row">
+        <span id="history-current-time">--:--:--</span>
+        <span id="history-points-count">0 posiciones</span>
+      </div>
+      <input id="history-range" type="range" min="0" max="0" value="0" step="1" disabled>
+      <div class="history-playback-actions">
+        <button class="history-action" id="btn-reproducir-historial" type="button" disabled>
+          <i class="fa-solid fa-play"></i> Reproducir
+        </button>
+        <span class="history-hint">Un punto cada 0,7 segundos</span>
+      </div>
+    </div>
+    <div class="history-footnote" id="history-storage-status">Preparando almacenamiento local…</div>
+  </section>
 
   <button class="panel-show-button" id="btn-mostrar-panel" type="button"
     title="Mostrar panel de información" aria-label="Mostrar panel de información"
@@ -709,6 +799,16 @@
     let favoritosParadas = leerFavoritos();
     let intervaloAlertasFavoritos = null;
     let herramientasInicializadas = false;
+    let historialDBPromise = null;
+    let ultimaPosicionHistorial = new Map();
+    let puntosHistorial = [];
+    let segmentosHistorial = [];
+    let capaHistorial = null;
+    let lineaProgresoHistorial = null;
+    let marcadorReproduccionHistorial = null;
+    let indiceReproduccionHistorial = 0;
+    let intervaloReproduccionHistorial = null;
+    let historialVehiculos = [];
 
     function escaparHTML(valor) {
       return String(valor ?? '').replace(/[&<>"']/g, caracter => ({
@@ -1290,9 +1390,401 @@
       botonOcultar?.setAttribute('aria-expanded', 'true');
     }
 
+    const DIAS_RETENCION_HISTORIAL = 30;
+    const DISTANCIA_MINIMA_HISTORIAL = 22;
+    const INTERVALO_MINIMO_HISTORIAL = 45;
+
+    function fechaLocalISO(fecha = new Date()) {
+      const anio = fecha.getFullYear();
+      const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+      const dia = String(fecha.getDate()).padStart(2, '0');
+      return anio + '-' + mes + '-' + dia;
+    }
+
+    function distanciaHistorialMetros(a, b) {
+      const rad = valor => valor * Math.PI / 180;
+      const dLat = rad(b.lat - a.lat);
+      const dLon = rad(b.lon - a.lon);
+      const latMedia = rad((a.lat + b.lat) / 2);
+      const x = dLon * 6371000 * Math.cos(latMedia);
+      const y = dLat * 6371000;
+      return Math.hypot(x, y);
+    }
+
+    function abrirBaseHistorial() {
+      if (historialDBPromise) return historialDBPromise;
+      historialDBPromise = new Promise((resolve, reject) => {
+        if (!('indexedDB' in window)) {
+          reject(new Error('Este navegador no admite IndexedDB.'));
+          return;
+        }
+
+        const solicitud = indexedDB.open('MapaTPAHistorial', 1);
+        solicitud.onupgradeneeded = () => {
+          const db = solicitud.result;
+          const puntos = db.objectStoreNames.contains('puntos')
+            ? solicitud.transaction.objectStore('puntos')
+            : db.createObjectStore('puntos', { keyPath: 'id', autoIncrement: true });
+          if (!puntos.indexNames.contains('vehiculo_dia')) {
+            puntos.createIndex('vehiculo_dia', ['vehicleKey', 'day'], { unique: false });
+          }
+          if (!puntos.indexNames.contains('timestamp')) {
+            puntos.createIndex('timestamp', 'timestamp', { unique: false });
+          }
+          if (!db.objectStoreNames.contains('vehiculos')) {
+            db.createObjectStore('vehiculos', { keyPath: 'vehicleKey' });
+          }
+        };
+        solicitud.onsuccess = () => {
+          const db = solicitud.result;
+          db.onversionchange = () => db.close();
+          const tx = db.transaction('vehiculos', 'readonly');
+          const lectura = tx.objectStore('vehiculos').getAll();
+          lectura.onsuccess = () => {
+            (lectura.result || []).forEach(vehiculo => {
+              if (vehiculo.lastPoint) ultimaPosicionHistorial.set(vehiculo.vehicleKey, vehiculo.lastPoint);
+            });
+            resolve(db);
+          };
+          lectura.onerror = () => resolve(db);
+        };
+        solicitud.onerror = () => reject(solicitud.error || new Error('No se pudo abrir el historial local.'));
+      });
+      return historialDBPromise;
+    }
+
+    async function purgarHistorialAntiguo() {
+      const db = await abrirBaseHistorial();
+      const limite = Math.floor(Date.now() / 1000) - DIAS_RETENCION_HISTORIAL * 86400;
+      return new Promise(resolve => {
+        const tx = db.transaction('puntos', 'readwrite');
+        const indice = tx.objectStore('puntos').index('timestamp');
+        const cursor = indice.openCursor(IDBKeyRange.upperBound(limite));
+        cursor.onsuccess = () => {
+          const actual = cursor.result;
+          if (actual) {
+            actual.delete();
+            actual.continue();
+          }
+        };
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      });
+    }
+
+    async function guardarPuntosHistorial(buses) {
+      if (!Array.isArray(buses) || !buses.length) return;
+      const db = await abrirBaseHistorial();
+      const tx = db.transaction(['puntos', 'vehiculos'], 'readwrite');
+      const puntosStore = tx.objectStore('puntos');
+      const vehiculosStore = tx.objectStore('vehiculos');
+
+      buses.forEach(bus => {
+        const vehicleKey = String(bus.id || bus.coche || bus.matricula || '');
+        const lat = Number(bus.lat);
+        const lon = Number(bus.lon);
+        if (!vehicleKey || !Number.isFinite(lat) || !Number.isFinite(lon)) return;
+
+        const timestamp = Number(bus.timestamp) || Math.floor(Date.now() / 1000);
+        const day = fechaLocalISO(new Date(timestamp * 1000));
+        const anterior = ultimaPosicionHistorial.get(vehicleKey);
+        const actual = { lat, lon, timestamp };
+        const distancia = anterior ? distanciaHistorialMetros(anterior, actual) : Infinity;
+        const segundos = anterior ? timestamp - anterior.timestamp : Infinity;
+        const registrar = !anterior ||
+          (segundos > -5 && (distancia >= DISTANCIA_MINIMA_HISTORIAL || segundos >= INTERVALO_MINIMO_HISTORIAL));
+
+        let ultimoGuardado = anterior || actual;
+        if (registrar) {
+          const punto = {
+            vehicleKey,
+            coche: String(bus.coche || bus.id || 'Sin identificar'),
+            matricula: String(bus.matricula || ''),
+            linea: String(bus.linea || 'T05'),
+            tripId: String(bus.trip_id || ''),
+            lat, lon, timestamp, day
+          };
+          puntosStore.add(punto);
+          ultimoGuardado = actual;
+          ultimaPosicionHistorial.set(vehicleKey, actual);
+        }
+
+        vehiculosStore.put({
+          vehicleKey,
+          coche: String(bus.coche || bus.id || 'Sin identificar'),
+          matricula: String(bus.matricula || ''),
+          linea: String(bus.linea || 'T05'),
+          updatedAt: timestamp,
+          lastPoint: ultimoGuardado
+        });
+      });
+
+      return new Promise((resolve, reject) => {
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error || new Error('No se pudieron guardar las posiciones.'));
+        tx.onabort = () => reject(tx.error || new Error('Se canceló el guardado del historial.'));
+      });
+    }
+
+    async function actualizarListaVehiculosHistorial() {
+      const select = document.getElementById('history-vehicle');
+      if (!select) return;
+      const db = await abrirBaseHistorial();
+      const vehiculos = await new Promise((resolve, reject) => {
+        const tx = db.transaction('vehiculos', 'readonly');
+        const solicitud = tx.objectStore('vehiculos').getAll();
+        solicitud.onsuccess = () => resolve(solicitud.result || []);
+        solicitud.onerror = () => reject(solicitud.error);
+      });
+      historialVehiculos = vehiculos.sort((a, b) =>
+        String(a.coche).localeCompare(String(b.coche), 'es', { numeric: true })
+      );
+
+      const anterior = select.value;
+      select.innerHTML = historialVehiculos.length
+        ? historialVehiculos.map(vehiculo => {
+            const etiqueta = [vehiculo.coche, vehiculo.matricula, vehiculo.linea]
+              .filter(Boolean).join(' · ');
+            return '<option value="' + escaparHTML(vehiculo.vehicleKey) + '">' +
+              escaparHTML(etiqueta) + '</option>';
+          }).join('')
+        : '<option value="">Aún no hay vehículos registrados</option>';
+      if (historialVehiculos.some(vehiculo => vehiculo.vehicleKey === anterior)) select.value = anterior;
+    }
+
+    function abrirHistorial() {
+      const panel = document.getElementById('history-panel');
+      panel.hidden = false;
+      const fecha = document.getElementById('history-date');
+      if (!fecha.value) fecha.value = fechaLocalISO();
+      fecha.max = fechaLocalISO();
+      fecha.min = fechaLocalISO(new Date(Date.now() - (DIAS_RETENCION_HISTORIAL - 1) * 86400000));
+      document.getElementById('history-storage-status').textContent =
+        'Guardado local en este navegador · retención máxima: ' + DIAS_RETENCION_HISTORIAL + ' días.';
+      actualizarListaVehiculosHistorial().catch(error => {
+        document.getElementById('history-storage-status').textContent = error.message;
+      });
+    }
+
+    function cerrarHistorial() {
+      detenerReproduccionHistorial();
+      document.getElementById('history-panel').hidden = true;
+    }
+
+    async function cargarHistorialSeleccionado() {
+      detenerReproduccionHistorial();
+      limpiarCapaHistorial();
+      const vehicleKey = document.getElementById('history-vehicle').value;
+      const day = document.getElementById('history-date').value;
+      const resumen = document.getElementById('history-summary');
+      if (!vehicleKey || !day) {
+        resumen.textContent = 'Selecciona un vehículo y una fecha.';
+        return;
+      }
+
+      try {
+        const db = await abrirBaseHistorial();
+        const puntos = await new Promise((resolve, reject) => {
+          const tx = db.transaction('puntos', 'readonly');
+          const rango = IDBKeyRange.only([vehicleKey, day]);
+          const solicitud = tx.objectStore('puntos').index('vehiculo_dia').getAll(rango);
+          solicitud.onsuccess = () => resolve(solicitud.result || []);
+          solicitud.onerror = () => reject(solicitud.error);
+        });
+
+        puntosHistorial = puntos.sort((a, b) => a.timestamp - b.timestamp || a.id - b.id);
+        if (!puntosHistorial.length) {
+          resumen.innerHTML = '<span class="history-empty">No hay movimientos guardados de este vehículo en esa fecha.</span>';
+          document.getElementById('history-range').disabled = true;
+          document.getElementById('btn-reproducir-historial').disabled = true;
+          document.getElementById('history-points-count').textContent = '0 posiciones';
+          document.getElementById('history-current-time').textContent = '--:--:--';
+          return;
+        }
+
+        segmentosHistorial = crearSegmentosHistorial(puntosHistorial);
+        const metros = calcularDistanciaHistorial(segmentosHistorial);
+        const inicio = new Date(puntosHistorial[0].timestamp * 1000);
+        const fin = new Date(puntosHistorial[puntosHistorial.length - 1].timestamp * 1000);
+        const duracionMinutos = Math.max(0, Math.round((fin - inicio) / 60000));
+        const km = (metros / 1000).toFixed(1);
+        resumen.innerHTML =
+          '<b>' + puntosHistorial.length + '</b> posiciones · <b>' +
+          segmentosHistorial.length + '</b> tramo(s) · <b>' + km + ' km</b> aproximados · ' +
+          duracionMinutos + ' min registrados';
+        document.getElementById('history-range').max = String(puntosHistorial.length - 1);
+        document.getElementById('history-range').value = '0';
+        document.getElementById('history-range').disabled = false;
+        document.getElementById('btn-reproducir-historial').disabled = puntosHistorial.length < 2;
+        document.getElementById('history-points-count').textContent = puntosHistorial.length + ' posiciones';
+        dibujarHistorialCompleto();
+        moverMarcadorHistorial(0);
+      } catch (error) {
+        resumen.textContent = 'No se ha podido leer el historial de este vehículo.';
+        console.error('Error leyendo historial:', error);
+      }
+    }
+
+    function crearSegmentosHistorial(puntos) {
+      const segmentos = [];
+      let actual = [];
+      puntos.forEach((punto, indice) => {
+        if (actual.length) {
+          const anterior = actual[actual.length - 1];
+          const saltoTiempo = punto.timestamp - anterior.timestamp;
+          const saltoDistancia = distanciaHistorialMetros(anterior, punto);
+          if (saltoTiempo > 240 || saltoDistancia > 2500 || saltoTiempo < -5) {
+            segmentos.push(actual);
+            actual = [];
+          }
+        }
+        actual.push({ ...punto, indice });
+      });
+      if (actual.length) segmentos.push(actual);
+      return segmentos;
+    }
+
+    function calcularDistanciaHistorial(segmentos) {
+      let total = 0;
+      segmentos.forEach(segmento => {
+        for (let i = 1; i < segmento.length; i++) {
+          total += distanciaHistorialMetros(segmento[i - 1], segmento[i]);
+        }
+      });
+      return total;
+    }
+
+    function limpiarCapaHistorial() {
+      if (map && capaHistorial && map.hasLayer(capaHistorial)) map.removeLayer(capaHistorial);
+      capaHistorial = null;
+      lineaProgresoHistorial = null;
+      marcadorReproduccionHistorial = null;
+    }
+
+    function dibujarHistorialCompleto() {
+      limpiarCapaHistorial();
+      capaHistorial = L.layerGroup();
+      const bounds = [];
+      segmentosHistorial.forEach((segmento, indice) => {
+        const coordenadas = segmento.map(punto => [punto.lat, punto.lon]);
+        coordenadas.forEach(coordenada => bounds.push(coordenada));
+        const color = COLORES_LINEA[segmento[0].linea] || '#2563eb';
+        if (coordenadas.length > 1) {
+          L.polyline(coordenadas, {
+            color, weight: 4, opacity: .88,
+            lineCap: 'round', lineJoin: 'round'
+          }).addTo(capaHistorial);
+        }
+        if (indice === 0) {
+          L.circleMarker(coordenadas[0], {
+            radius: 7, color: '#ffffff', weight: 2, fillColor: '#16a34a', fillOpacity: 1
+          }).bindTooltip('Inicio').addTo(capaHistorial);
+        }
+        if (indice === segmentosHistorial.length - 1) {
+          L.circleMarker(coordenadas[coordenadas.length - 1], {
+            radius: 7, color: '#ffffff', weight: 2, fillColor: '#ef4444', fillOpacity: 1
+          }).bindTooltip('Última posición').addTo(capaHistorial);
+        }
+      });
+
+      const primero = puntosHistorial[0];
+      marcadorReproduccionHistorial = L.circleMarker([primero.lat, primero.lon], {
+        radius: 8, color: '#ffffff', weight: 3, fillColor: '#0f172a', fillOpacity: 1
+      }).bindTooltip('Posición reproducida').addTo(capaHistorial);
+      capaHistorial.addTo(map);
+
+      if (bounds.length === 1) map.flyTo(bounds[0], 15, { duration: .7 });
+      else if (bounds.length > 1) map.flyToBounds(L.latLngBounds(bounds), { padding: [55, 55], duration: .8 });
+    }
+
+    function moverMarcadorHistorial(indice) {
+      if (!puntosHistorial.length || !marcadorReproduccionHistorial) return;
+      const punto = puntosHistorial[Math.max(0, Math.min(indice, puntosHistorial.length - 1))];
+      indiceReproduccionHistorial = punto === undefined ? 0 : Math.max(0, Math.min(indice, puntosHistorial.length - 1));
+      marcadorReproduccionHistorial.setLatLng([punto.lat, punto.lon]);
+
+      if (lineaProgresoHistorial && capaHistorial) capaHistorial.removeLayer(lineaProgresoHistorial);
+      const segmento = segmentosHistorial.find(item =>
+        indiceReproduccionHistorial >= item[0].indice && indiceReproduccionHistorial <= item[item.length - 1].indice
+      );
+      if (segmento) {
+        const recorridas = segmento.filter(item => item.indice <= indiceReproduccionHistorial);
+        if (recorridas.length > 1) {
+          lineaProgresoHistorial = L.polyline(
+            recorridas.map(item => [item.lat, item.lon]),
+            { color: '#f8fafc', weight: 2, opacity: .95, dashArray: '5 5' }
+          ).addTo(capaHistorial);
+        }
+      }
+
+      document.getElementById('history-range').value = String(indiceReproduccionHistorial);
+      document.getElementById('history-current-time').textContent =
+        new Date(punto.timestamp * 1000).toLocaleTimeString('es-ES');
+      marcadorReproduccionHistorial.bindTooltip(
+        '<b>' + escaparHTML(punto.coche) + '</b><br>' +
+        escaparHTML(punto.linea) + ' · ' +
+        new Date(punto.timestamp * 1000).toLocaleString('es-ES'),
+        { direction: 'top' }
+      );
+    }
+
+    function detenerReproduccionHistorial() {
+      if (intervaloReproduccionHistorial) clearInterval(intervaloReproduccionHistorial);
+      intervaloReproduccionHistorial = null;
+      const boton = document.getElementById('btn-reproducir-historial');
+      if (boton) boton.innerHTML = '<i class="fa-solid fa-play"></i> Reproducir';
+    }
+
+    function alternarReproduccionHistorial() {
+      if (intervaloReproduccionHistorial) {
+        detenerReproduccionHistorial();
+        return;
+      }
+      if (puntosHistorial.length < 2) return;
+      if (indiceReproduccionHistorial >= puntosHistorial.length - 1) moverMarcadorHistorial(0);
+      const boton = document.getElementById('btn-reproducir-historial');
+      boton.innerHTML = '<i class="fa-solid fa-pause"></i> Pausar';
+      intervaloReproduccionHistorial = setInterval(() => {
+        if (indiceReproduccionHistorial >= puntosHistorial.length - 1) {
+          detenerReproduccionHistorial();
+          return;
+        }
+        moverMarcadorHistorial(indiceReproduccionHistorial + 1);
+      }, 700);
+    }
+
+    function inicializarControlesHistorial() {
+      document.getElementById('btn-historial')?.addEventListener('click', abrirHistorial);
+      document.getElementById('btn-cerrar-historial')?.addEventListener('click', cerrarHistorial);
+      document.getElementById('btn-cargar-historial')?.addEventListener('click', cargarHistorialSeleccionado);
+      document.getElementById('btn-limpiar-historial')?.addEventListener('click', () => {
+        detenerReproduccionHistorial();
+        puntosHistorial = [];
+        segmentosHistorial = [];
+        limpiarCapaHistorial();
+        document.getElementById('history-summary').textContent = 'Recorrido quitado del mapa.';
+        document.getElementById('history-range').disabled = true;
+        document.getElementById('btn-reproducir-historial').disabled = true;
+        document.getElementById('history-current-time').textContent = '--:--:--';
+        document.getElementById('history-points-count').textContent = '0 posiciones';
+      });
+      document.getElementById('btn-reproducir-historial')?.addEventListener('click', alternarReproduccionHistorial);
+      document.getElementById('history-range')?.addEventListener('input', evento => {
+        detenerReproduccionHistorial();
+        moverMarcadorHistorial(Number(evento.target.value));
+      });
+      document.getElementById('history-vehicle')?.addEventListener('change', cargarHistorialSeleccionado);
+      document.getElementById('history-date')?.addEventListener('change', cargarHistorialSeleccionado);
+    }
+
     function iniciarMapa(linea) {
       lineaActiva = linea;
       inicializarHerramientas();
+      inicializarControlesHistorial();
+      abrirBaseHistorial().then(purgarHistorialAntiguo).then(actualizarListaVehiculosHistorial).catch(error => {
+        const estado = document.getElementById('history-storage-status');
+        if (estado) estado.textContent = error.message;
+      });
       document.getElementById('badge-linea-tag').innerText = linea;
       document.getElementById('pantalla-inicio').style.display = 'none';
       mostrarPanel();
@@ -1319,6 +1811,9 @@
 
       document.getElementById('header-card').style.display = 'none';
       document.getElementById('btn-mostrar-panel').hidden = true;
+      document.getElementById('history-panel').hidden = true;
+      detenerReproduccionHistorial();
+      limpiarCapaHistorial();
       document.getElementById('pantalla-inicio').style.display = 'flex';
     }
 
@@ -1346,6 +1841,10 @@
         if (lineaActiva !== lineaSolicitada) return;
 
         if (Array.isArray(datos) && datos.length > 0) {
+          guardarPuntosHistorial(datos).then(actualizarListaVehiculosHistorial).catch(error => {
+            const estado = document.getElementById('history-storage-status');
+            if (estado) estado.textContent = 'No se puede guardar el historial: ' + error.message;
+          });
           actualizarEstadoConexion('online', 'EN VIVO');
           const idsVivos = new Set();
           const detallesCoches = [];
