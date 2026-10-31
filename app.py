@@ -115,6 +115,22 @@ TRADUCCION_OCUPACION = {
     'NOT_ACCEPTING_PASSENGERS': ('No admite pasajeros', 'red')
 }
 
+def validar_coordenadas(lat, lon):
+    """Devuelve (lat, lon) si son coordenadas geográficas válidas; si no, None."""
+    if lat is None or lon is None:
+        return None
+    try:
+        lat = float(lat)
+        lon = float(lon)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if not (math.isfinite(lat) and math.isfinite(lon)):
+        return None
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        return None
+    return lat, lon
+
+
 def resolver_destino_y_parada(concesion_key, route_id, direction_id, stop_sequence):
     """
     Busca de forma dinámica la línea dentro de la concesión activa.
@@ -308,14 +324,11 @@ def get_buses(linea):
                         if not destino_final or destino_final in ['Desconocido', 'En trayecto']:
                             destino_final = dest_defecto
 
-                        # Las coordenadas 0.0 son válidas; validar presencia, finitud y rango.
-                        if lat is not None and lon is not None:
-                            lat = float(lat)
-                            lon = float(lon)
-                            if not (math.isfinite(lat) and math.isfinite(lon)):
-                                continue
-                            if not (-90 <= lat <= 90 and -180 <= lon <= 180):
-                                continue
+                        # Las coordenadas 0.0 son válidas; descartar datos GPS incorrectos.
+                        coordenadas = validar_coordenadas(lat, lon)
+                        if coordenadas is None:
+                            continue
+                        lat, lon = coordenadas
                             buses.append({
                                 'id': v_id or coche_num,
                                 'coche': coche_num,
