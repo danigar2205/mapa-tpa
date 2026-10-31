@@ -438,6 +438,9 @@
     .stop-date-input { width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 7px; margin: 4px 0 7px; color: #0f172a; font-size: 11px; background: #fff; }
     .stop-schedule { border-top: 1px solid #e2e8f0; margin-top: 10px; padding-top: 2px; }
     .stop-schedule-note { font-size: 9px; color: #94a3b8; padding-top: 5px; }
+    .arrival-status { display: block; font-size: 9px; margin-top: 3px; font-weight: 700; }
+    .arrival-status.live { color: #15803d; }
+    .arrival-status.scheduled { color: #64748b; }
     @media (max-width: 480px) {
       .header-card { top: 8px; left: 8px; right: 8px; max-height: calc(100vh - 16px); padding: 10px; }
       .stop-search-row { gap: 4px; }
@@ -1082,6 +1085,8 @@
         (datos.stops || []).forEach(parada => {
           if (parada.id && !paradasUnicas.has(parada.id)) paradasUnicas.set(parada.id, parada);
         });
+        listaParadas = Array.from(paradasUnicas.values());
+        marcadoresParadas = {};
         paradasUnicas.forEach(parada => {
           const marcador = L.circleMarker([parada.lat, parada.lon], {
             radius: 5, color: '#ffffff', weight: 2,
@@ -1155,9 +1160,11 @@
             direction: 'top', offset: [0, -5], className: 'stop-label'
           });
           marcador.addTo(capasParadas);
+          marcadoresParadas[String(parada.id)] = marcador;
         });
 
         if (paradasVisibles) capasParadas.addTo(map);
+        renderFavoritos();
       } catch (error) {
         console.error('No se pudieron cargar las líneas y paradas GTFS:', error);
       }
@@ -1182,6 +1189,7 @@
 
     function iniciarMapa(linea) {
       lineaActiva = linea;
+      inicializarHerramientas();
       document.getElementById('badge-linea-tag').innerText = linea;
       document.getElementById('pantalla-inicio').style.display = 'none';
       document.getElementById('header-card').style.display = 'block';
@@ -1278,12 +1286,16 @@
             if (marcadoresBuses[idUnico]) {
               marcadoresBuses[idUnico].setLatLng([lat, lon]);
               marcadoresBuses[idUnico].setIcon(iconoBus);
+              marcadoresBuses[idUnico]._lineaBus = lineaBus;
               marcadoresBuses[idUnico].getPopup().setContent(popupContent);
             } else {
-              marcadoresBuses[idUnico] = L.marker([lat, lon], { icon: iconoBus }).addTo(map);
+              marcadoresBuses[idUnico] = L.marker([lat, lon], { icon: iconoBus });
+              marcadoresBuses[idUnico]._lineaBus = lineaBus;
               marcadoresBuses[idUnico].bindPopup(popupContent);
             }
           });
+
+          aplicarFiltrosLineas();
 
           // Eliminar marcadores inactivos
           Object.keys(marcadoresBuses).forEach(id => {
@@ -1329,7 +1341,7 @@
     }
 
     function centrarEnBus() {
-      const marcadores = Object.values(marcadoresBuses);
+      const marcadores = Object.values(marcadoresBuses).filter(marcador => map.hasLayer(marcador));
       if (marcadores.length === 1) {
         map.flyTo(marcadores[0].getLatLng(), 16, { duration: 1.2 });
       } else if (marcadores.length > 1) {
