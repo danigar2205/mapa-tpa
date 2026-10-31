@@ -645,6 +645,282 @@
       'T05-20': '#0F766E', // Verde azulado
       'T05-50': '#C2410C'  // Terracota
     };
+
+    function leerFavoritos() {
+      try {
+        const almacenados = JSON.parse(localStorage.getItem(CLAVE_FAVORITOS) || '[]');
+        return Array.isArray(almacenados) ? almacenados : [];
+      } catch (_) {
+        return [];
+      }
+    }
+
+    function guardarFavoritos() {
+      try {
+        localStorage.setItem(CLAVE_FAVORITOS, JSON.stringify(favoritosParadas));
+      } catch (error) {
+        console.warn('No se pudieron guardar los favoritos en este navegador:', error);
+      }
+      renderFavoritos();
+    }
+
+    function normalizarTexto(valor) {
+      return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    }
+
+    function distanciaEntrePuntos(lat1, lon1, lat2, lon2) {
+      const rad = grados => grados * Math.PI / 180;
+      const dLat = rad(lat2 - lat1);
+      const dLon = rad(lon2 - lon1);
+      const a = Math.sin(dLat / 2) ** 2 +
+        Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLon / 2) ** 2;
+      return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    function seleccionarParada(stopId) {
+      const marcador = marcadoresParadas[String(stopId)];
+      if (!marcador || !map) return;
+      if (!paradasVisibles) alternarParadas();
+      map.flyTo(marcador.getLatLng(), 16, { duration: 0.8 });
+      marcador.openPopup();
+      const resultados = document.getElementById('resultados-paradas');
+      if (resultados) resultados.hidden = true;
+      const buscador = document.getElementById('buscador-paradas');
+      if (buscador) buscador.value = '';
+    }
+
+    function mostrarResultadosParadas(paradas, detalle = '') {
+      const contenedor = document.getElementById('resultados-paradas');
+      if (!contenedor) return;
+      if (!paradas.length) {
+        contenedor.innerHTML = '<div class="search-empty">' +
+          escaparHTML(detalle || 'No se han encontrado paradas.') + '</div>';
+        contenedor.hidden = false;
+        return;
+      }
+      contenedor.innerHTML = paradas.slice(0, 8).map(parada => {
+        const lineas = (parada.lineas || []).join(' · ');
+        const distancia = Number.isFinite(parada.distancia)
+          ? (parada.distancia < 1000 ? Math.round(parada.distancia) + ' m' : (parada.distancia / 1000).toFixed(1) + ' km')
+          : lineas;
+        return '<button type="button" class="search-result" data-stop-id="' + escaparHTML(parada.id) + '">' +
+          '<span class="search-result-name">' + escaparHTML(parada.name) + '</span>' +
+          '<span class="search-result-meta">' + escaparHTML(distancia) + '</span>' +
+        '</button>';
+      }).join('');
+      contenedor.hidden = false;
+    }
+
+    function buscarParadasCercanas() {
+      if (!navigator.geolocation) {
+        mostrarResultadosParadas([], 'Este navegador no permite consultar tu ubicación.');
+        return;
+      }
+      const boton = document.getElementById('btn-paradas-cercanas');
+      if (boton) boton.disabled = true;
+      navigator.geolocation.getCurrentPosition(posicion => {
+        if (boton) boton.disabled = false;
+        const { latitude, longitude } = posicion.coords;
+        const cercanas = listaParadas.map(parada => ({
+          ...parada,
+          distancia: distanciaEntrePuntos(latitude, longitude, Number(parada.lat), Number(parada.lon))
+        })).sort((a, b) => a.distancia - b.distancia);
+        map.setView([latitude, longitude], 14);
+        mostrarResultadosParadas(cercanas, 'No hay paradas cargadas.');
+      }, error => {
+        if (boton) boton.disabled = false;
+        const mensaje = error.code === 1
+          ? 'No has permitido el acceso a la ubicación.'
+          : 'No se ha podido obtener tu ubicación. Comprueba el GPS e inténtalo de nuevo.';
+        mostrarResultadosParadas([], mensaje);
+      }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+    }
+
+    function actualizarBotonFavorito(boton, stopId) {
+      if (!boton) return;
+      const guardado = favoritosParadas.some(favorito => String(favorito.id) === String(stopId));
+      boton.classList.toggle('saved', guardado);
+      boton.innerHTML = guardado
+        ? '<i class="fa-solid fa-star"></i> Guardada'
+        : '<i class="fa-regular fa-star"></i> Guardar';
+    }
+
+    function alternarFavorito(parada) {
+      const indice = favoritosParadas.findIndex(favorito => String(favorito.id) === String(parada.id));
+      if (indice >= 0) {
+        favoritosParadas.splice(indice, 1);
+      } else {
+        favoritosParadas.push({
+          id: String(parada.id),
+          nombre: parada.name,
+          lat: Number(parada.lat),
+          lon: Number(parada.lon),
+          avisos: false,
+          notificados: []
+        });
+      }
+      guardarFavoritos();
+    }
+
+    function renderFavoritos() {
+      const contenedor = document.getElementById('lista-favoritos');
+      const contador = document.getElementById('contador-favoritos');
+      if (contador) contador.textContent = String(favoritosParadas.length);
+      if (!contenedor) return;
+      if (!favoritosParadas.length) {
+        contenedor.innerHTML = '<div class="search-empty">Todavía no has guardado ninguna parada. Pulsa la estrella al abrir una parada.</div>';
+        return;
+      }
+      contenedor.innerHTML = favoritosParadas.map(favorito =>
+        '<div class="favorite-row">' +
+          '<button type="button" class="favorite-go" data-fav-action="go" data-stop-id="' + escaparHTML(favorito.id) + '">' +
+            escaparHTML(favorito.nombre) +
+          '</button>' +
+          '<button type="button" class="favorite-action ' + (favorito.avisos ? 'enabled' : '') +
+            '" data-fav-action="alerts" data-stop-id="' + escaparHTML(favorito.id) + '">' +
+            (favorito.avisos ? 'Avisos ON' : 'Avisos OFF') +
+          '</button>' +
+          '<button type="button" class="favorite-action" data-fav-action="remove" data-stop-id="' + escaparHTML(favorito.id) + '" aria-label="Eliminar favorito">' +
+            '<i class="fa-solid fa-trash"></i>' +
+          '</button>' +
+        '</div>'
+      ).join('');
+    }
+
+    async function alternarAvisosFavorito(stopId) {
+      const favorito = favoritosParadas.find(item => String(item.id) === String(stopId));
+      if (!favorito) return;
+      if (favorito.avisos) {
+        favorito.avisos = false;
+        guardarFavoritos();
+        return;
+      }
+      if (!('Notification' in window)) {
+        alert('Este navegador no admite notificaciones web.');
+        return;
+      }
+      let permiso = Notification.permission;
+      if (permiso !== 'granted') {
+        try {
+          permiso = await Notification.requestPermission();
+        } catch (_) {
+          permiso = 'denied';
+        }
+      }
+      if (permiso === 'granted') {
+        favorito.avisos = true;
+        guardarFavoritos();
+        comprobarAlertasFavoritos();
+      } else {
+        alert('No se han autorizado las notificaciones. Puedes activarlas desde los ajustes del navegador.');
+      }
+    }
+
+    let consultaAlertasEnCurso = false;
+    async function comprobarAlertasFavoritos() {
+      if (consultaAlertasEnCurso || !('Notification' in window) || Notification.permission !== 'granted') return;
+      const activos = favoritosParadas.filter(favorito => favorito.avisos);
+      if (!activos.length) return;
+      consultaAlertasEnCurso = true;
+      try {
+        for (const favorito of activos) {
+          const respuesta = await fetch('/api/paradas/' + encodeURIComponent(favorito.id) + '/llegadas', { cache: 'no-store' });
+          if (!respuesta.ok) continue;
+          const datos = await respuesta.json();
+          for (const llegada of (datos.llegadas || [])) {
+            const minutos = Number(llegada.minutos);
+            if (!Number.isFinite(minutos) || minutos < 0 || minutos > 10) continue;
+            const clave = String(llegada.trip_id || llegada.linea) + ':' + String(llegada.timestamp);
+            favorito.notificados = Array.isArray(favorito.notificados) ? favorito.notificados : [];
+            if (favorito.notificados.includes(clave)) continue;
+
+            const textoMinutos = minutos <= 0 ? 'está llegando' : 'llega en ' + minutos + ' minutos';
+            new Notification(llegada.linea + ' · ' + favorito.nombre, {
+              body: 'Dirección ' + llegada.destino + ': ' + textoMinutos + '.',
+              tag: 't05-' + favorito.id + '-' + clave
+            });
+            favorito.notificados.push(clave);
+            favorito.notificados = favorito.notificados.slice(-30);
+          }
+        }
+        guardarFavoritos();
+      } catch (error) {
+        console.warn('No se pudieron comprobar los avisos de favoritos:', error);
+      } finally {
+        consultaAlertasEnCurso = false;
+      }
+    }
+
+    function inicializarHerramientas() {
+      if (herramientasInicializadas) return;
+      herramientasInicializadas = true;
+
+      const buscador = document.getElementById('buscador-paradas');
+      const resultados = document.getElementById('resultados-paradas');
+      buscador?.addEventListener('input', () => {
+        const consulta = normalizarTexto(buscador.value);
+        if (consulta.length < 2) {
+          resultados.hidden = true;
+          return;
+        }
+        const coincidencias = listaParadas.filter(parada =>
+          normalizarTexto(parada.name).includes(consulta)
+        ).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+        mostrarResultadosParadas(coincidencias, 'No hay ninguna parada con ese nombre.');
+      });
+
+      resultados?.addEventListener('click', evento => {
+        const boton = evento.target.closest('[data-stop-id]');
+        if (boton) seleccionarParada(boton.dataset.stopId);
+      });
+      document.getElementById('btn-paradas-cercanas')?.addEventListener('click', buscarParadasCercanas);
+      document.getElementById('btn-mostrar-favoritos')?.addEventListener('click', () => {
+        const panel = document.getElementById('panel-favoritos');
+        panel.hidden = !panel.hidden;
+        renderFavoritos();
+      });
+      document.getElementById('btn-cerrar-favoritos')?.addEventListener('click', () => {
+        document.getElementById('panel-favoritos').hidden = true;
+      });
+      document.getElementById('lista-favoritos')?.addEventListener('click', evento => {
+        const boton = evento.target.closest('[data-fav-action]');
+        if (!boton) return;
+        const { favAction, stopId } = boton.dataset;
+        if (favAction === 'go') seleccionarParada(stopId);
+        if (favAction === 'alerts') alternarAvisosFavorito(stopId);
+        if (favAction === 'remove') {
+          favoritosParadas = favoritosParadas.filter(favorito => String(favorito.id) !== String(stopId));
+          guardarFavoritos();
+        }
+      });
+      document.querySelectorAll('[data-line-filter]').forEach(boton => {
+        boton.addEventListener('click', () => toggleFiltroLinea(boton.dataset.lineFilter));
+      });
+
+      renderFavoritos();
+      if (!intervaloAlertasFavoritos) {
+        intervaloAlertasFavoritos = setInterval(comprobarAlertasFavoritos, 60000);
+      }
+    }
+
+    function toggleFiltroLinea(linea) {
+      filtrosLineas[linea] = !filtrosLineas[linea];
+      const boton = document.querySelector('[data-line-filter="' + linea + '"]');
+      if (boton) {
+        boton.classList.toggle('active', filtrosLineas[linea]);
+        boton.setAttribute('aria-pressed', String(filtrosLineas[linea]));
+      }
+      aplicarFiltrosLineas();
+    }
+
+    function aplicarFiltrosLineas() {
+      Object.values(marcadoresBuses).forEach(marcador => {
+        const visible = filtrosLineas[marcador._lineaBus] !== false;
+        if (visible && !map.hasLayer(marcador)) marcador.addTo(map);
+        else if (!visible && map.hasLayer(marcador)) map.removeLayer(marcador);
+      });
+    }
+
     const iconosBus = {};
 
     function obtenerIconoBus(linea) {
