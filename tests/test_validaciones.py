@@ -134,9 +134,30 @@ class CapasMapaGTFSTests(unittest.TestCase):
         lugarico = next(parada for parada in datos["stops"] if parada["name"] == "Lugarico de Cerdán")
         self.assertEqual(set(lugarico["lineas"]), {"T05-01", "T05-20"})
 
-    def test_otras_concesiones_no_reciben_datos_t05(self):
+    def test_otra_concesion_sin_datos_no_recibe_datos_t05(self):
         datos = self.client.get("/api/mapa/t13").get_json()
-        self.assertEqual(datos, {"routes": [], "stops": []})
+        self.assertEqual(datos["routes"], [])
+        self.assertEqual(datos["stops"], [])
+        self.assertEqual(datos["concesion"], "T13")
+        self.assertFalse(datos["funciones"]["tiempo_real"])
+
+    def test_catalogo_indica_capacidades_reales_por_concesion(self):
+        catalogo = self.client.get("/api/concesiones").get_json()["concesiones"]
+        por_codigo = {item["codigo"]: item for item in catalogo}
+        self.assertEqual(len(por_codigo), 15)
+        self.assertTrue(por_codigo["T05"]["disponible"])
+        self.assertTrue(por_codigo["T05"]["funciones"]["paradas"])
+        self.assertTrue(por_codigo["T05"]["funciones"]["horarios"])
+        self.assertTrue(por_codigo["T05"]["funciones"]["tiempo_real"])
+        self.assertFalse(por_codigo["T01"]["disponible"])
+        self.assertFalse(por_codigo["T01"]["funciones"]["tiempo_real"])
+
+    def test_endpoint_de_buses_no_consulta_concesiones_sin_feed_rt(self):
+        with patch("app.obtener_respuesta_cacheada") as consulta:
+            respuesta = self.client.get("/api/buses/t13")
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.get_json(), [])
+        consulta.assert_not_called()
 
     def test_identifica_numero_de_linea_por_route_id(self):
         self.assertEqual(len(T05_ROUTE_NAMES), 3)
