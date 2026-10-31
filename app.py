@@ -610,6 +610,7 @@ def get_horarios_parada(stop_id):
             "hora": instante.strftime("%H:%M"),
             "timestamp": int(instante.timestamp()),
             "direccion": str(registro.get("direction_id", "")),
+            "trip_id": registro.get("trip_id"),
             "fuente": "Horario oficial"
         })
 
