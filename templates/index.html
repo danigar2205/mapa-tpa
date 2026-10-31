@@ -623,10 +623,10 @@
     let marcadoresParadas = {};
     let listaParadas = [];
     let filtrosLineas = { 'T05-01': true, 'T05-20': true, 'T05-50': true };
+    const CLAVE_FAVORITOS = 'mapa-tpa-favoritos-v1';
     let favoritosParadas = leerFavoritos();
     let intervaloAlertasFavoritos = null;
     let herramientasInicializadas = false;
-    const CLAVE_FAVORITOS = 'mapa-tpa-favoritos-v1';
 
     function escaparHTML(valor) {
       return String(valor ?? '').replace(/[&<>"']/g, caracter => ({
@@ -679,54 +679,115 @@
       }).addTo(map);
     }
 
-    async function cargarLlegadasParada(stopId, popup) {
-      const contenedor = popup.getElement()?.querySelector('.llegadas-parada');
+    function fechaLocalISO(fecha = new Date()) {
+      const anio = fecha.getFullYear();
+      const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+      const dia = String(fecha.getDate()).padStart(2, '0');
+      return anio + '-' + mes + '-' + dia;
+    }
+
+    function desplazarFechaISO(fechaISO, dias) {
+      const [anio, mes, dia] = fechaISO.split('-').map(Number);
+      const fecha = new Date(anio, mes - 1, dia);
+      fecha.setDate(fecha.getDate() + dias);
+      return fechaLocalISO(fecha);
+    }
+
+    async function cargarLlegadasParada(stopId, popup, fecha = fechaLocalISO()) {
+      const elementoPopup = popup.getElement();
+      const contenedor = elementoPopup?.querySelector('.llegadas-parada');
+      const selectorFecha = elementoPopup?.querySelector('.stop-date-input');
       if (!contenedor) return;
 
-      if (!contenedor.dataset.cargado) {
-        contenedor.innerHTML = 'Consultando predicciones en tiempo real...';
-      }
+      if (selectorFecha && selectorFecha.value !== fecha) selectorFecha.value = fecha;
+      contenedor.innerHTML = 'Consultando horario oficial y predicciones...';
 
       try {
-        const respuesta = await fetch(
-          '/api/paradas/' + encodeURIComponent(stopId) + '/llegadas',
-          { cache: 'no-store' }
-        );
-        const datos = await respuesta.json();
-        if (!respuesta.ok) throw new Error(datos.error || 'No se pudieron obtener las llegadas.');
+        const [respuestaRT, respuestaHorario] = await Promise.all([
+          fetch('/api/paradas/' + encodeURIComponent(stopId) + '/llegadas', { cache: 'no-store' }),
+          fetch('/api/paradas/' + encodeURIComponent(stopId) + '/horarios?fecha=' + encodeURIComponent(fecha), { cache: 'no-store' })
+        ]);
+        const [datosRT, datosHorario] = await Promise.all([
+          respuestaRT.json(),
+          respuestaHorario.json()
+        ]);
 
-        const llegadas = Array.isArray(datos.llegadas) ? datos.llegadas : [];
-        if (!llegadas.length) {
-          contenedor.innerHTML = datos.tiempo_real_disponible
-            ? 'Ahora mismo no hay predicciones de llegada para esta parada.'
-            : 'El servicio de predicciones en tiempo real no está disponible.';
-          contenedor.dataset.cargado = 'true';
+        if (!respuestaHorario.ok) throw new Error(datosHorario.error || 'No se pudo cargar el horario.');
+        const programadas = Array.isArray(datosHorario.horarios) ? datosHorario.horarios : [];
+        const tiempoReal = respuestaRT.ok && Array.isArray(datosRT.llegadas) ? datosRT.llegadas : [];
+        const tiempoRealPorViaje = new Map(
+          tiempoReal.filter(item => item.trip_id).map(item => [item.trip_id, item])
+        );
+
+        const elementos = programadas.map(item => {
+          const prediccion = tiempoRealPorViaje.get(item.trip_id);
+          return {
+            ...item,
+            horaMostrada: prediccion?.hora || item.hora,
+            timestampMostrado: prediccion?.timestamp || item.timestamp,
+            minutos: prediccion?.minutos,
+            estado: prediccion ? 'En vivo' : 'Programado',
+            delta: prediccion ? Number(prediccion.timestamp) - Number(item.timestamp) : null
+          };
+        });
+
+        const idsIncluidos = new Set(programadas.map(item => item.trip_id).filter(Boolean));
+        tiempoReal.filter(item => !item.trip_id || !idsIncluidos.has(item.trip_id)).forEach(item => {
+          elementos.push({
+            ...item,
+            horaMostrada: item.hora,
+            timestampMostrado: item.timestamp,
+            estado: 'En vivo',
+            delta: null
+          });
+        });
+        elementos.sort((a, b) => Number(a.timestampMostrado || 0) - Number(b.timestampMostrado || 0));
+
+        if (!elementos.length) {
+          const mensajes = [];
+          if (datosHorario.mensaje) mensajes.push(escaparHTML(datosHorario.mensaje));
+          if (!respuestaRT.ok || !datosRT.tiempo_real_disponible) {
+            mensajes.push('No hay conexión con las predicciones en tiempo real.');
+          } else if (!tiempoReal.length) {
+            mensajes.push('Ahora mismo no hay predicciones en tiempo real para esta parada.');
+          }
+          if (datosHorario.vigencia_gtfs_hasta) {
+            mensajes.push('El fichero GTFS disponible llega hasta ' + escaparHTML(datosHorario.vigencia_gtfs_hasta) + '.');
+          }
+          contenedor.innerHTML = '<div class="stop-arrival-state">' + mensajes.join('<br>') + '</div>';
           return;
         }
 
-        contenedor.innerHTML = llegadas.map(llegada => {
-          const color = {
-            'T05-01': '#2563EB',
-            'T05-20': '#0F766E',
-            'T05-50': '#C2410C'
-          }[llegada.linea] || '#475569';
-          const minutos = Number(llegada.minutos);
-          const cuentaAtras = minutos <= 0 ? 'Llegando' : 'en ' + minutos + ' min';
+        const html = elementos.slice(0, 20).map(item => {
+          const color = COLORES_LINEA[item.linea] || '#475569';
+          const estado = item.estado === 'En vivo'
+            ? (Number(item.minutos) <= 0 ? 'Llegando' : 'en ' + Number(item.minutos) + ' min')
+            : 'Horario oficial';
+          const diferencia = item.estado === 'En vivo' && item.delta !== null
+            ? (item.delta > 60 ? ' · +' + Math.round(item.delta / 60) + ' min' : item.delta < -60 ? ' · ' + Math.round(item.delta / 60) + ' min' : '')
+            : '';
           return '<div class="stop-arrival-row">' +
-            '<span class="stop-arrival-line" style="color:' + color + ';">' +
-              escaparHTML(llegada.linea) + '</span>' +
-            '<span class="stop-arrival-destination">' + escaparHTML(llegada.destino) + '</span>' +
-            '<span class="stop-arrival-time"><strong>' + escaparHTML(llegada.hora) +
-              '</strong><small>' + escaparHTML(cuentaAtras) + '</small></span>' +
+            '<span class="stop-arrival-line" style="color:' + color + ';">' + escaparHTML(item.linea) + '</span>' +
+            '<span class="stop-arrival-destination">' + escaparHTML(item.destino) +
+              '<small class="arrival-status ' + (item.estado === 'En vivo' ? 'live' : 'scheduled') + '">' +
+                escaparHTML(item.estado + diferencia) + '</small></span>' +
+            '<span class="stop-arrival-time"><strong>' + escaparHTML(item.horaMostrada) +
+              '</strong><small>' + escaparHTML(estado) + '</small></span>' +
           '</div>';
-        }).join('') +
-        '<div class="stop-arrival-source">Predicciones en tiempo real</div>' +
-        '<div class="stop-arrival-updated">Actualizado a las ' +
-          escaparHTML(datos.actualizado || '--:--:--') + ' · Se actualiza cada 30 s</div>';
-        contenedor.dataset.cargado = 'true';
+        }).join('');
+
+        const avisoVigencia = datosHorario.vigencia_gtfs_hasta
+          ? '<div class="stop-arrival-updated">Horario GTFS disponible hasta ' + escaparHTML(datosHorario.vigencia_gtfs_hasta) + '</div>'
+          : '';
+        const actualizado = datosRT.actualizado
+          ? '<div class="stop-arrival-updated">Tiempo real consultado a las ' + escaparHTML(datosRT.actualizado) + ' · actualización cada 30 s</div>'
+          : '';
+        contenedor.innerHTML = html +
+          '<div class="stop-arrival-source">En vivo = predicción GTFS-RT · Programado = horario oficial</div>' +
+          actualizado + avisoVigencia;
       } catch (error) {
-        contenedor.innerHTML = 'No se han podido cargar las llegadas. Vuelve a abrir la parada para intentarlo de nuevo.';
-        console.error('Error consultando llegadas de la parada:', error);
+        contenedor.innerHTML = 'No se han podido cargar los horarios y llegadas de esta parada.';
+        console.error('Error consultando horarios de la parada:', error);
       }
     }
 
@@ -773,25 +834,40 @@
                 (insigniasLineas || '<span class="stop-arrival-state">Sin líneas identificadas</span>') +
               '</div>' +
               '<div class="stop-arrivals">' +
-                '<span class="stop-popup-label">Predicciones en tiempo real</span>' +
-                '<div class="llegadas-parada stop-arrival-state">Consultando predicciones...</div>' +
-              '</div>' +
-              '<div class="stop-schedule">' +
-                '<span class="stop-popup-label">Horario programado</span>' +
-                '<input type="date" class="stop-date-input" aria-label="Fecha del horario">' +
-                '<div class="horarios-parada stop-arrival-state">Consultando horario...</div>' +
-                '<div class="stop-schedule-note">Horario oficial GTFS · se muestra separado de las predicciones</div>' +
+                '<span class="stop-popup-label">Próximas salidas · horario y tiempo real</span>' +
+                '<input type="date" class="stop-date-input" aria-label="Fecha de las salidas">' +
+                '<div class="llegadas-parada stop-arrival-state">Consultando horarios y predicciones...</div>' +
+                '<div class="stop-schedule-note">“En vivo” utiliza una predicción GTFS-RT; “Programado” corresponde al horario oficial GTFS.</div>' +
               '</div>' +
             '</div>',
             { maxWidth: 310 }
           );
           marcador.on('popupopen', evento => {
             if (intervaloLlegadasParada) clearInterval(intervaloLlegadasParada);
-            cargarLlegadasParada(parada.id, evento.popup);
-            intervaloLlegadasParada = setInterval(
-              () => cargarLlegadasParada(parada.id, evento.popup),
-              30000
-            );
+            const elemento = evento.popup.getElement();
+            const selectorFecha = elemento?.querySelector('.stop-date-input');
+            const hoy = fechaLocalISO();
+            if (selectorFecha) {
+              selectorFecha.min = hoy;
+              selectorFecha.max = desplazarFechaISO(hoy, 14);
+              selectorFecha.value = hoy;
+              selectorFecha.addEventListener('change', () => {
+                cargarLlegadasParada(parada.id, evento.popup, selectorFecha.value);
+              });
+            }
+
+            const botonFavorito = elemento?.querySelector('.stop-favorite-button');
+            actualizarBotonFavorito(botonFavorito, parada.id);
+            botonFavorito?.addEventListener('click', () => {
+              alternarFavorito(parada);
+              actualizarBotonFavorito(botonFavorito, parada.id);
+            });
+
+            cargarLlegadasParada(parada.id, evento.popup, hoy);
+            intervaloLlegadasParada = setInterval(() => {
+              const fechaActual = selectorFecha?.value || hoy;
+              cargarLlegadasParada(parada.id, evento.popup, fechaActual);
+            }, 30000);
           });
           marcador.on('popupclose', () => {
             if (intervaloLlegadasParada) {
