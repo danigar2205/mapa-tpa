@@ -196,6 +196,16 @@ TRADUCCION_OCUPACION = {
     'NOT_ACCEPTING_PASSENGERS': ('No admite pasajeros', 'red')
 }
 
+def obtener_timestamp_posicion(vehicle_position, fallback=None):
+    """Devuelve el timestamp GTFS-RT de la posición o una hora de respaldo."""
+    try:
+        if vehicle_position.HasField("timestamp"):
+            return int(vehicle_position.timestamp)
+    except (AttributeError, ValueError):
+        pass
+    return int(fallback or time.time())
+
+
 def validar_coordenadas(lat, lon):
     """Devuelve (lat, lon) si son coordenadas geográficas válidas; si no, None."""
     if lat is None or lon is None:
@@ -705,7 +715,10 @@ def get_buses(linea):
                             continue
                         lat, lon = coordenadas
                         buses.append({
-                                'id': v_id or coche_num,
+                                'id': v_id or coche_num or trip_id,
+                                'trip_id': trip_id,
+                                'route_id': r_id,
+                                'timestamp': obtener_timestamp_posicion(v, int(time.time())),
                                 'linea': T05_ROUTE_NAMES.get(r_id, linea_objetivo),
                                 'coche': coche_num,
                                 'matricula': matricula,
