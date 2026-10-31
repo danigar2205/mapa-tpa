@@ -1,7 +1,7 @@
 import math
 import unittest
 
-from app import validar_coordenadas
+from app import validar_coordenadas, resolver_destino_y_parada
 
 
 class ValidarCoordenadasTests(unittest.TestCase):
@@ -28,6 +28,32 @@ class ValidarCoordenadasTests(unittest.TestCase):
 
     def test_rechaza_texto_no_numerico(self):
         self.assertIsNone(validar_coordenadas("norte", "oeste"))
+
+
+class ProximaParadaGTFSTests(unittest.TestCase):
+    ROUTE_T05_01 = "d3efc296-1916-41c3-90c2-166ff0e8e4fb"
+
+    def test_resuelve_parada_por_viaje_y_secuencia(self):
+        destino, parada = resolver_destino_y_parada(
+            "T05", self.ROUTE_T05_01, 0, 0,
+            trip_id="0a56e2eb-d7a1-408a-8840-8852d372babc"
+        )
+        self.assertEqual(destino, "Zaragoza")
+        self.assertEqual(parada, "Fraga. Estación")
+
+    def test_resuelve_parada_por_stop_id(self):
+        destino, parada = resolver_destino_y_parada(
+            "T05", self.ROUTE_T05_01, 0, None,
+            stop_id="51d66e5a-5e4f-45e5-96b2-da375c2ff9ee"
+        )
+        self.assertEqual(parada, "Fraga. Estación")
+
+    def test_no_inventa_nombre_si_no_hay_coincidencia(self):
+        _, parada = resolver_destino_y_parada(
+            "T05", self.ROUTE_T05_01, 0, 999,
+            trip_id="viaje-inexistente"
+        )
+        self.assertEqual(parada, "Parada sin identificar")
 
 
 if __name__ == "__main__":

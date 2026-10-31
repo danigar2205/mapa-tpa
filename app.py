@@ -9,6 +9,8 @@ import gzip
 import time
 import ssl
 import math
+import base64
+import json
 from requests.adapters import HTTPAdapter
 from urllib3.poolmanager import PoolManager
 
@@ -16,6 +18,17 @@ from urllib3.poolmanager import PoolManager
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
+
+# Índice GTFS estático oficial para resolver stop_id / trip_id + stop_sequence.
+# El fichero se genera desde routes.txt, trips.txt, stop_times.txt y stops.txt.
+GTFS_T05_LOOKUP = {"stops": {}, "trips": {}}
+try:
+    lookup_path = os.path.join(os.path.dirname(__file__), "data", "gtfs_t05_lookup.json.gz.b64")
+    with open(lookup_path, "rt", encoding="ascii") as lookup_file:
+        lookup_compressed = base64.b64decode(lookup_file.read())
+    GTFS_T05_LOOKUP = json.loads(gzip.decompress(lookup_compressed).decode("utf-8"))
+except (OSError, ValueError, gzip.BadGzipFile) as exc:
+    print(f"[GTFS STATIC] No se pudo cargar el índice T05: {exc}")
 
 # Adaptador SSL permisivo
 class LegacySSLAdapter(HTTPAdapter):
@@ -131,7 +144,7 @@ def validar_coordenadas(lat, lon):
     return lat, lon
 
 
-def resolver_destino_y_parada(concesion_key, route_id, direction_id, stop_sequence):
+def resolver_destino_y_parada(concesion_key, route_id, direction_id, stop_sequence, stop_id=None, trip_id=None):
     """
     Busca de forma dinámica la línea dentro de la concesión activa.
     """
@@ -151,15 +164,17 @@ def resolver_destino_y_parada(concesion_key, route_id, direction_id, stop_sequen
                 paradas = info[dir_key]["paradas"]
             break
 
-    # GTFS-RT stop_sequence no es un índice garantizado de las listas locales.
-    # Sin el GTFS estático correspondiente, evitamos asignar un nombre incorrecto.
-    nombre_parada = "Próxima parada"
-    if stop_sequence is not None:
-        try:
-            seq = int(stop_sequence)
-            nombre_parada = f"Próxima parada (secuencia {seq})"
-        except (ValueError, TypeError):
-            pass
+    # Primero usar stop_id de GTFS-RT; si falta, resolver trip_id + stop_sequence
+    # contra stop_times.txt del GTFS estático oficial.
+    nombre_parada = None
+    if stop_id:
+        nombre_parada = GTFS_T05_LOOKUP.get("stops", {}).get(str(stop_id))
+    if not nombre_parada and trip_id and stop_sequence is not None:
+        stop_id_estatico = GTFS_T05_LOOKUP.get("trips", {}).get(str(trip_id), {}).get(str(int(stop_sequence)))
+        if stop_id_estatico:
+            nombre_parada = GTFS_T05_LOOKUP.get("stops", {}).get(str(stop_id_estatico))
+    if not nombre_parada:
+        nombre_parada = "Parada sin identificar"
 
     return destino, nombre_parada
 
@@ -221,20 +236,44 @@ def obtener_estimaciones_tripupdates(linea_objetivo):
                         
                         destino, _ = resolver_destino_y_parada(linea_objetivo, r_id, direction_id, None)
 
+                        # Priorizar la primera parada futura con hora prevista.
+                        # Las paradas SKIPPED no deben mostrarse como próxima parada.
+                        actualizaciones_parada = []
                         for stu in tu.stop_time_update:
-                            arr_time = stu.arrival.time if stu.HasField('arrival') else (stu.departure.time if stu.HasField('departure') else 0)
-                            if arr_time > ahora or arr_time == 0:
-                                minutos = max(0, int((arr_time - ahora) / 60)) if arr_time > 0 else None
-                                stop_seq = stu.stop_sequence if stu.HasField('stop_sequence') else None
+                            if stu.HasField('schedule_relationship') and stu.schedule_relationship == gtfs_realtime_pb2.TripUpdate.StopTimeUpdate.SKIPPED:
+                                continue
+                            tiene_hora = (
+                                (stu.HasField('arrival') and stu.arrival.HasField('time')) or
+                                (stu.HasField('departure') and stu.departure.HasField('time'))
+                            )
+                            arr_time = (
+                                stu.arrival.time if stu.HasField('arrival') and stu.arrival.HasField('time')
+                                else stu.departure.time if stu.HasField('departure') and stu.departure.HasField('time')
+                                else 0
+                            )
+                            if arr_time > ahora:
+                                actualizaciones_parada.append((stu, arr_time, True))
+                            elif not tiene_hora:
+                                actualizaciones_parada.append((stu, 0, False))
 
-                                _, nombre_parada = resolver_destino_y_parada(linea_objetivo, r_id, direction_id, stop_seq)
-                                proxima_parada = f"{nombre_parada}" + (f" ({minutos} min)" if minutos is not None else "")
+                        # Las actualizaciones suelen venir ordenadas por secuencia.
+                        futura = next((item for item in actualizaciones_parada if item[2]), None)
+                        elegida = futura or next((item for item in actualizaciones_parada if not item[2]), None)
+                        if elegida:
+                            stu, arr_time, tiene_hora_futura = elegida
+                            minutos = max(0, int((arr_time - ahora) / 60)) if tiene_hora_futura else None
+                            stop_seq = stu.stop_sequence if stu.HasField('stop_sequence') else None
+                            stop_id = stu.stop_id if stu.HasField('stop_id') and stu.stop_id else None
 
-                                if stu.HasField('arrival') and stu.arrival.HasField('delay'):
-                                    delay_sec = stu.arrival.delay
-                                elif stu.HasField('departure') and stu.departure.HasField('delay'):
-                                    delay_sec = stu.departure.delay
-                                break
+                            _, nombre_parada = resolver_destino_y_parada(
+                                linea_objetivo, r_id, direction_id, stop_seq, stop_id, trip_id
+                            )
+                            proxima_parada = f"{nombre_parada}" + (f" ({minutos} min)" if minutos is not None else "")
+
+                            if stu.HasField('arrival') and stu.arrival.HasField('delay'):
+                                delay_sec = stu.arrival.delay
+                            elif stu.HasField('departure') and stu.departure.HasField('delay'):
+                                delay_sec = stu.departure.delay
 
                         if abs(delay_sec) < 30:
                             texto_retraso = "En hora"
