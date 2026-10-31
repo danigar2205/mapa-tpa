@@ -329,7 +329,7 @@ def get_buses(linea):
                         if coordenadas is None:
                             continue
                         lat, lon = coordenadas
-                            buses.append({
+                        buses.append({
                                 'id': v_id or coche_num,
                                 'coche': coche_num,
                                 'matricula': matricula,
