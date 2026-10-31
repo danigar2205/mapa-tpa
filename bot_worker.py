@@ -312,12 +312,6 @@ class TelegramBot:
         )
         return resultado is not None
 
-    def es_administrador(self, chat_id: str, user_id: int) -> bool:
-        miembro = self.llamar(
-            "getChatMember", {"chat_id": chat_id, "user_id": user_id}
-        )
-        return bool(miembro and miembro.get("status") in {"creator", "administrator"})
-
     def procesar_comando(self, mensaje: dict) -> None:
         chat = mensaje.get("chat") or {}
         chat_id = str(chat.get("id", ""))
@@ -331,11 +325,11 @@ class TelegramBot:
         if comando in {"/start", "/ayuda", "/help"}:
             self.enviar(
                 chat_id,
-                "🤖 <b>Bot de Mapa TPA</b>\n"
-                "Aviso automático de servicios T05 localizados.\n\n"
-                "<code>/vincular</code> — vincular este grupo (administradores).\n"
-                "<code>/estado</code> — comprobar la vinculación.\n"
-                "<code>/prueba</code> — enviar un mensaje de prueba.\n"
+                "🤖 <b>Bot de Mapa TPA</b>\\n"
+                "Aviso automático de servicios T05 localizados.\\n\\n"
+                "<code>/vincular</code> — vincular este grupo.\\n"
+                "<code>/estado</code> — comprobar la vinculación.\\n"
+                "<code>/prueba</code> — enviar un mensaje de prueba.\\n"
                 "<code>/desvincular</code> — detener los avisos en este grupo.",
             )
             return
@@ -354,29 +348,42 @@ class TelegramBot:
             return
 
         user_id = usuario.get("id")
-        if not user_id or not self.es_administrador(chat_id, int(user_id)):
-            self.enviar(chat_id, "Solo un administrador del grupo puede utilizar este comando.")
+        if not user_id:
+            self.enviar(chat_id, "No he podido identificar al usuario que ejecuta el comando.")
             return
 
         destino_actual = obtener_config(self.conexion, "chat_id")
+        responsable = obtener_config(self.conexion, "owner_user_id")
+
         if comando == "/vincular":
             if destino_actual and destino_actual != chat_id:
                 self.enviar(
                     chat_id,
-                    "Ya hay otro grupo vinculado. Desvincúlalo primero con /desvincular desde ese grupo.",
+                    "Ya hay otro grupo vinculado. El responsable actual debe ejecutar /desvincular allí antes de cambiarlo.",
                 )
                 return
+            if destino_actual == chat_id:
+                self.enviar(chat_id, "ℹ️ Este grupo ya está vinculado.")
+                return
+
             guardar_config(self.conexion, "chat_id", chat_id)
+            guardar_config(self.conexion, "owner_user_id", str(user_id))
             self.enviar(
                 chat_id,
-                "✅ <b>Grupo vinculado correctamente.</b>\n"
-                "A partir de ahora avisaré una vez cuando detecte un nuevo servicio T05.",
+                "✅ <b>Grupo vinculado correctamente.</b>\\n"
+                "A partir de ahora avisaré una vez cuando detecte un nuevo servicio T05.\\n"
+                "Quien ha ejecutado /vincular queda como responsable para desvincularlo.",
             )
         elif comando == "/desvincular":
             if destino_actual != chat_id:
                 self.enviar(chat_id, "Este grupo no está vinculado.")
                 return
+            if str(user_id) != responsable:
+                self.enviar(chat_id, "Solo la persona que vinculó este grupo puede desvincularlo.")
+                return
+
             guardar_config(self.conexion, "chat_id", None)
+            guardar_config(self.conexion, "owner_user_id", None)
             self.enviar(chat_id, "🔕 Grupo desvinculado. Ya no se enviarán avisos aquí.")
         elif comando == "/prueba":
             if destino_actual != chat_id:
