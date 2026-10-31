@@ -453,9 +453,9 @@
           <p>Localización en tiempo real</p>
         </div>
       </div>
-      <div class="live-status">
-        <div class="pulse-dot"></div>
-        <span>EN VIVO</span>
+      <div class="live-status" id="live-status">
+        <div class="pulse-dot" id="live-dot"></div>
+        <span id="live-status-text">CONECTANDO</span>
       </div>
     </div>
 
@@ -491,6 +491,17 @@
     let primeraCarga = true;
     let lineaActiva = null;
     let intervaloTimer = null;
+    let solicitudEnCurso = false;
+
+    function escaparHTML(valor) {
+      return String(valor ?? '').replace(/[&<>"']/g, caracter => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      })[caracter]);
+    }
 
     const busIcon = L.divIcon({
       className: 'custom-bus-icon',
@@ -544,14 +555,31 @@
       document.getElementById('pantalla-inicio').style.display = 'flex';
     }
 
-    async function actualizarBus() {
-      if (!lineaActiva) return;
+    function actualizarEstadoConexion(estado, texto) {
+      const indicador = document.getElementById('live-status');
+      const punto = document.getElementById('live-dot');
+      const etiqueta = document.getElementById('live-status-text');
+      if (!indicador || !punto || !etiqueta) return;
+      etiqueta.innerText = texto;
+      indicador.dataset.estado = estado;
+      punto.style.backgroundColor = estado === 'online' ? '#22c55e' : (estado === 'offline' ? '#ef4444' : '#f59e0b');
+      punto.style.animation = estado === 'online' ? 'pulse-green 2s infinite' : 'none';
+    }
 
+    async function actualizarBus() {
+      if (!lineaActiva || solicitudEnCurso) return;
+
+      const lineaSolicitada = lineaActiva;
+      solicitudEnCurso = true;
       try {
-        const respuesta = await fetch('/api/buses/' + lineaActiva.toLowerCase());
+        const respuesta = await fetch('/api/buses/' + lineaSolicitada.toLowerCase());
+        if (!respuesta.ok) throw new Error(`HTTP ${respuesta.status}`);
         const datos = await respuesta.json();
+        // Ignorar respuestas antiguas si el usuario ha cambiado de concesión.
+        if (lineaActiva !== lineaSolicitada) return;
 
         if (Array.isArray(datos) && datos.length > 0) {
+          actualizarEstadoConexion('online', 'EN VIVO');
           const idsVivos = new Set();
           const detallesCoches = [];
           const puntosLatLng = [];
@@ -574,18 +602,18 @@
 
             const popupContent = `
               <div style="text-align: center; font-family: sans-serif; padding: 6px; min-width: 180px;">
-                <b style="font-size: 1.1rem; color: #2563eb;">Concesión ${lineaActiva}</b><br>
-                <span style="font-size: 0.95rem; font-weight: bold; color: #1e293b;">Nº Coche: ${coche}</span><br>
-                ${matricula ? `<span style="font-size: 0.8rem; color: #64748b;">Matrícula: ${matricula}</span><br>` : ''}
+                <b style="font-size: 1.1rem; color: #2563eb;">Concesión ${escaparHTML(lineaSolicitada)}</b><br>
+                <span style="font-size: 0.95rem; font-weight: bold; color: #1e293b;">Nº Coche: ${escaparHTML(coche)}</span><br>
+                ${matricula ? `<span style="font-size: 0.8rem; color: #64748b;">Matrícula: ${escaparHTML(matricula)}</span><br>` : ''}
                 
                 <div style="margin: 8px 0; padding: 6px 8px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 0.78rem; text-align: left;">
-                  <div style="margin-bottom: 3px;"><i class="fa-solid fa-route" style="color: #8b5cf6; width: 16px;"></i> <b>Destino:</b> ${destino}</div>
-                  <div style="margin-bottom: 3px;"><i class="fa-solid fa-clock" style="color: #2563eb; width: 16px;"></i> <b>Estado:</b> ${retraso}</div>
-                  <div><i class="fa-solid fa-location-dot" style="color: #ef4444; width: 16px;"></i> <b>Próxima:</b> ${proximaParada}</div>
+                  <div style="margin-bottom: 3px;"><i class="fa-solid fa-route" style="color: #8b5cf6; width: 16px;"></i> <b>Destino:</b> ${escaparHTML(destino)}</div>
+                  <div style="margin-bottom: 3px;"><i class="fa-solid fa-clock" style="color: #2563eb; width: 16px;"></i> <b>Estado:</b> ${escaparHTML(retraso)}</div>
+                  <div><i class="fa-solid fa-location-dot" style="color: #ef4444; width: 16px;"></i> <b>Próxima:</b> ${escaparHTML(proximaParada)}</div>
                 </div>
 
                 <div class="occ-badge occ-${occColor}">
-                  <i class="fa-solid fa-users" style="margin-right: 4px;"></i>${ocupacion}
+                  <i class="fa-solid fa-users" style="margin-right: 4px;"></i>${escaparHTML(ocupacion)}
                 </div>
               </div>
             `;
@@ -622,11 +650,23 @@
             primeraCarga = false;
           }
         } else {
+          actualizarEstadoConexion('empty', 'SIN VEHÍCULOS');
+          // Si la API no devuelve vehículos, no dejar autobuses antiguos en el mapa.
+          Object.keys(marcadoresBuses).forEach(id => {
+            map.removeLayer(marcadoresBuses[id]);
+            delete marcadoresBuses[id];
+          });
           document.getElementById('vehicle-title').innerText = "Sin servicio";
           document.getElementById('bus-info').innerText = "Sin señal de bus";
         }
       } catch (error) {
+        actualizarEstadoConexion('offline', 'SIN CONEXIÓN');
         console.error('Error cargando datos:', error);
+        if (lineaActiva === lineaSolicitada) {
+          document.getElementById('bus-info').innerText = "No se han podido actualizar los datos";
+        }
+      } finally {
+        solicitudEnCurso = false;
       }
     }
 

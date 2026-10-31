@@ -8,6 +8,7 @@ import urllib3
 import gzip
 import time
 import ssl
+import math
 from requests.adapters import HTTPAdapter
 from urllib3.poolmanager import PoolManager
 
@@ -114,6 +115,22 @@ TRADUCCION_OCUPACION = {
     'NOT_ACCEPTING_PASSENGERS': ('No admite pasajeros', 'red')
 }
 
+def validar_coordenadas(lat, lon):
+    """Devuelve (lat, lon) si son coordenadas geográficas válidas; si no, None."""
+    if lat is None or lon is None:
+        return None
+    try:
+        lat = float(lat)
+        lon = float(lon)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if not (math.isfinite(lat) and math.isfinite(lon)):
+        return None
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        return None
+    return lat, lon
+
+
 def resolver_destino_y_parada(concesion_key, route_id, direction_id, stop_sequence):
     """
     Busca de forma dinámica la línea dentro de la concesión activa.
@@ -134,16 +151,15 @@ def resolver_destino_y_parada(concesion_key, route_id, direction_id, stop_sequen
                 paradas = info[dir_key]["paradas"]
             break
 
-    nombre_parada = "En trayecto"
-    if stop_sequence is not None and paradas:
+    # GTFS-RT stop_sequence no es un índice garantizado de las listas locales.
+    # Sin el GTFS estático correspondiente, evitamos asignar un nombre incorrecto.
+    nombre_parada = "Próxima parada"
+    if stop_sequence is not None:
         try:
             seq = int(stop_sequence)
-            if 0 <= seq < len(paradas):
-                nombre_parada = paradas[seq]
-            else:
-                nombre_parada = f"Parada nº {seq}"
+            nombre_parada = f"Próxima parada (secuencia {seq})"
         except (ValueError, TypeError):
-            nombre_parada = "Próxima parada"
+            pass
 
     return destino, nombre_parada
 
@@ -197,7 +213,7 @@ def obtener_estimaciones_tripupdates(linea_objetivo):
                     direction_id = tu.trip.direction_id if (tu.HasField('trip') and tu.trip.HasField('direction_id')) else None
 
                     # Filtro estricto por concesión activa
-                    es_linea_bus = any(rid in r_id for rid in rutas_validas) or (linea_objetivo in r_id.upper())
+                    es_linea_bus = any(str(rid).lower() in r_id.lower() for rid in rutas_validas) or (linea_objetivo in r_id.upper())
 
                     if es_linea_bus:
                         delay_sec = tu.delay if tu.HasField('delay') else 0
@@ -281,7 +297,7 @@ def get_buses(linea):
                     direction_id = v.trip.direction_id if (v.HasField('trip') and v.trip.HasField('direction_id')) else None
 
                     # Garantiza que SOLO se carguen los buses de la concesión pulsada
-                    es_linea_bus = any(rid in r_id for rid in rutas_validas) or (linea_objetivo in r_id.upper())
+                    es_linea_bus = any(str(rid).lower() in r_id.lower() for rid in rutas_validas) or (linea_objetivo in r_id.upper())
 
                     if es_linea_bus:
                         lat = v.position.latitude if v.HasField('position') else None
@@ -308,8 +324,12 @@ def get_buses(linea):
                         if not destino_final or destino_final in ['Desconocido', 'En trayecto']:
                             destino_final = dest_defecto
 
-                        if lat and lon:
-                            buses.append({
+                        # Las coordenadas 0.0 son válidas; descartar datos GPS incorrectos.
+                        coordenadas = validar_coordenadas(lat, lon)
+                        if coordenadas is None:
+                            continue
+                        lat, lon = coordenadas
+                        buses.append({
                                 'id': v_id or coche_num,
                                 'coche': coche_num,
                                 'matricula': matricula,
@@ -331,4 +351,5 @@ def get_buses(linea):
     return jsonify([])
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # El modo debug solo se activa explícitamente en desarrollo local.
+    app.run(host='0.0.0.0', port=5000, debug=os.environ.get('FLASK_DEBUG') == '1')
