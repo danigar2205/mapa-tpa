@@ -372,7 +372,7 @@ def obtener_llegadas_en_tiempo_real(stop_id):
                 continue
 
             contenido = respuesta.content
-            if contenido.startswith(b"\\x1f\\x8b"):
+            if contenido.startswith(b"\x1f\x8b"):
                 try:
                     contenido = gzip.decompress(contenido)
                 except (OSError, EOFError):
