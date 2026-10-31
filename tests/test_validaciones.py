@@ -137,7 +137,7 @@ class HorariosGTFSTests(unittest.TestCase):
             "has_schedules": True,
             "has_realtime": True,
         }
-        feed_vacio = SimpleNamespace(status_code=200, content=b"\\x12\\x00")
+        feed_vacio = SimpleNamespace(status_code=200, content=bytes([0x12, 0x00]))
         with patch("app.obtener_dataset_gtfs", return_value=dataset), \
              patch("app.obtener_respuesta_cacheada", return_value=feed_vacio) as consulta:
             respuesta = app.test_client().get(
