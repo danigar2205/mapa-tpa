@@ -13,6 +13,7 @@ import base64
 import gzip
 import json
 import logging
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -40,11 +41,41 @@ CATALOGO_CONCESIONES: dict[str, dict[str, str]] = {
 # No se debe inferir disponibilidad RT de la mera existencia de un feed GTFS.
 CONCESIONES_CON_TIEMPO_REAL = frozenset({"T05"})
 
+# Coordenadas verificadas por el usuario para las dos paradas de la N-II.
+# Se aplican al cargar el mapa para que también sobrevivan a futuras
+# reimportaciones del GTFS mientras el proveedor mantenga mal sus coordenadas.
+COORDENADAS_CORREGIDAS_T05 = {
+    "lugarico": (41.649452, -0.790304),
+    "condado": (41.59113888888889, -0.66819444444444),
+}
+
 MAPA_VACIO: dict[str, Any] = {"routes": {}, "shapes": {}, "stops": {}}
 LOOKUP_VACIO: dict[str, Any] = {"stops": {}, "trips": {}}
 HORARIOS_VACIOS: dict[str, Any] = {
     "routes": {}, "services": {}, "exceptions": [], "stop_times": []
 }
+
+
+def _normalizar_nombre_parada(nombre: Any) -> str:
+    """Normaliza un nombre para localizar paradas sin depender de tildes."""
+    texto = unicodedata.normalize("NFKD", str(nombre or "").casefold())
+    return "".join(caracter for caracter in texto if not unicodedata.combining(caracter))
+
+
+def _corregir_coordenadas_t05(mapa: dict[str, Any]) -> None:
+    """Corrige las coordenadas de Lugarico y El Condado en todas las líneas T05."""
+    for paradas in mapa.get("stops", {}).values():
+        if not isinstance(paradas, list):
+            continue
+        for parada in paradas:
+            nombre = _normalizar_nombre_parada(parada.get("name"))
+            coordenadas = None
+            if "lugarico" in nombre:
+                coordenadas = COORDENADAS_CORREGIDAS_T05["lugarico"]
+            elif "condado" in nombre:
+                coordenadas = COORDENADAS_CORREGIDAS_T05["condado"]
+            if coordenadas is not None:
+                parada["lat"], parada["lon"] = coordenadas
 
 
 def _leer_json_gzip_b64(ruta: Path, valor_vacio: dict[str, Any]) -> dict[str, Any]:
@@ -77,6 +108,9 @@ def cargar_datasets_gtfs(data_dir: str | Path) -> dict[str, dict[str, Any]]:
         horarios = _leer_json_gzip_b64(
             Path(f"{prefijo}_timetable.json.gz.b64"), HORARIOS_VACIOS
         )
+
+        if codigo == "T05":
+            _corregir_coordenadas_t05(mapa)
 
         # Un mapa solo se considera disponible si contiene rutas y paradas.
         tiene_mapa = bool(mapa.get("routes")) and any(
