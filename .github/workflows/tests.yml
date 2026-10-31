@@ -20,6 +20,40 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+      - name: Comprobar sintaxis JavaScript del mapa
+        run: |
+          python - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+
+          class InlineScripts(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.scripts = []
+                  self.current = []
+                  self.capture = False
+
+              def handle_starttag(self, tag, attrs):
+                  if tag == "script":
+                      self.capture = not any(key == "src" for key, _ in attrs)
+                      self.current = []
+
+              def handle_data(self, data):
+                  if self.capture:
+                      self.current.append(data)
+
+              def handle_endtag(self, tag):
+                  if tag == "script" and self.capture:
+                      self.scripts.append("".join(self.current))
+                      self.capture = False
+
+          parser = InlineScripts()
+          parser.feed(Path("templates/index.html").read_text(encoding="utf-8"))
+          if not parser.scripts:
+              raise SystemExit("No se encontró JavaScript inline para comprobar.")
+          Path("/tmp/mapa-tpa-inline.js").write_text(parser.scripts[-1], encoding="utf-8")
+          PY
+          node --check /tmp/mapa-tpa-inline.js
       - name: Ejecutar pruebas
         env:
           PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python

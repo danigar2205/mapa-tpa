@@ -401,6 +401,52 @@
     .stop-arrival-source { display: inline-block; margin-top: 5px; color: #15803d; font-size: 10px; font-weight: 700; }
     .stop-arrival-state { color: #64748b; font-size: 11px; line-height: 1.4; padding: 8px 0; }
     .stop-arrival-updated { color: #94a3b8; font-size: 9px; padding-top: 6px; }
+
+    .header-card { max-height: calc(100vh - 32px); overflow-y: auto; }
+    .map-tools { margin-top: 10px; }
+    .stop-search-row { display: flex; align-items: center; gap: 6px; }
+    #buscador-paradas { min-width: 0; flex: 1; height: 36px; border: 1px solid rgba(255,255,255,.13); border-radius: 9px; background: rgba(255,255,255,.08); color: #f8fafc; padding: 0 10px; font-size: 12px; outline: none; }
+    #buscador-paradas::placeholder { color: #94a3b8; }
+    #buscador-paradas:focus { border-color: #60a5fa; box-shadow: 0 0 0 2px rgba(96,165,250,.14); }
+    .tool-button { height: 36px; border: 1px solid rgba(255,255,255,.14); border-radius: 9px; padding: 0 10px; background: rgba(255,255,255,.09); color: #e2e8f0; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 11px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+    .tool-button:hover { background: rgba(255,255,255,.16); }
+    .favorite-count { display: inline-flex; min-width: 17px; height: 17px; align-items: center; justify-content: center; border-radius: 99px; background: #f59e0b; color: #1e293b; font-size: 10px; }
+    .search-results { max-height: 190px; overflow-y: auto; margin-top: 5px; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; background: #172338; box-shadow: 0 8px 22px rgba(0,0,0,.25); }
+    .search-results[hidden], .favorites-panel[hidden] { display: none; }
+    .search-result { width: 100%; border: 0; border-bottom: 1px solid rgba(255,255,255,.07); background: transparent; color: #e2e8f0; text-align: left; padding: 9px 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .search-result:last-child { border-bottom: 0; }
+    .search-result:hover { background: rgba(255,255,255,.08); }
+    .search-result-name { font-size: 11px; font-weight: 700; }
+    .search-result-meta { font-size: 10px; color: #94a3b8; white-space: nowrap; }
+    .search-empty { padding: 10px; font-size: 11px; color: #94a3b8; }
+    .line-filter-row { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+    .filter-caption { color: #94a3b8; font-size: 10px; text-transform: uppercase; font-weight: 800; letter-spacing: .05em; margin-right: 2px; }
+    .line-filter { display: inline-flex; align-items: center; gap: 4px; border: 1px solid rgba(255,255,255,.12); border-radius: 99px; padding: 4px 7px; background: rgba(255,255,255,.04); color: #94a3b8; font-size: 10px; font-weight: 800; cursor: pointer; }
+    .line-filter.active { color: #f8fafc; background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.25); }
+    .filter-dot { width: 7px; height: 7px; display: inline-block; border-radius: 50%; }
+    .favorites-panel { margin-top: 8px; padding: 10px; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; background: #172338; }
+    .favorites-panel-heading { display: flex; align-items: center; justify-content: space-between; color: #f8fafc; font-size: 12px; margin-bottom: 7px; }
+    .tool-close { border: 0; background: transparent; color: #cbd5e1; font-size: 21px; cursor: pointer; line-height: 1; }
+    .favorite-row { display: flex; align-items: center; gap: 5px; padding: 6px 0; border-top: 1px solid rgba(255,255,255,.07); }
+    .favorite-go { flex: 1; min-width: 0; border: 0; background: none; color: #e2e8f0; text-align: left; cursor: pointer; font-size: 11px; font-weight: 700; }
+    .favorite-action { border: 1px solid rgba(255,255,255,.13); border-radius: 6px; background: rgba(255,255,255,.07); color: #cbd5e1; padding: 5px 7px; cursor: pointer; font-size: 10px; white-space: nowrap; }
+    .favorite-action.enabled { color: #fbbf24; border-color: rgba(251,191,36,.4); }
+    .favorites-note { margin-top: 7px; color: #94a3b8; font-size: 9px; line-height: 1.35; }
+    .stop-popup-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .stop-favorite-button { flex: 0 0 auto; border: 1px solid #e2e8f0; border-radius: 7px; background: #fff; padding: 5px 7px; color: #64748b; cursor: pointer; font-size: 10px; font-weight: 700; }
+    .stop-favorite-button.saved { color: #b45309; border-color: #fcd34d; background: #fffbeb; }
+    .stop-date-input { width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 7px; margin: 4px 0 7px; color: #0f172a; font-size: 11px; background: #fff; }
+    .stop-schedule { border-top: 1px solid #e2e8f0; margin-top: 10px; padding-top: 2px; }
+    .stop-schedule-note { font-size: 9px; color: #94a3b8; padding-top: 5px; }
+    .arrival-status { display: block; font-size: 9px; margin-top: 3px; font-weight: 700; }
+    .arrival-status.live { color: #15803d; }
+    .arrival-status.scheduled { color: #64748b; }
+    @media (max-width: 480px) {
+      .header-card { top: 8px; left: 8px; right: 8px; max-height: calc(100vh - 16px); padding: 10px; }
+      .stop-search-row { gap: 4px; }
+      .tool-button { padding: 0 7px; font-size: 10px; }
+      #buscador-paradas { font-size: 11px; }
+    }
     @media (max-width: 480px) {
       .header-card { padding: 12px; }
       .footer-actions { gap: 5px; flex-wrap: nowrap; }
@@ -514,6 +560,41 @@
       </div>
     </div>
 
+    <div class="map-tools">
+      <div class="stop-search-row">
+        <input id="buscador-paradas" type="search" autocomplete="off"
+          placeholder="Buscar parada..." aria-label="Buscar parada">
+        <button class="tool-button" id="btn-paradas-cercanas" type="button" title="Ver paradas cercanas">
+          <i class="fa-solid fa-location-crosshairs"></i>
+        </button>
+        <button class="tool-button" id="btn-mostrar-favoritos" type="button">
+          <i class="fa-solid fa-star"></i> <span>Favoritos</span>
+          <span class="favorite-count" id="contador-favoritos">0</span>
+        </button>
+      </div>
+      <div class="search-results" id="resultados-paradas" hidden></div>
+      <div class="line-filter-row">
+        <span class="filter-caption">Autobuses</span>
+        <button class="line-filter active" type="button" data-line-filter="T05-01" aria-pressed="true">
+          <span class="filter-dot" style="background:#2563EB"></span>T05-01
+        </button>
+        <button class="line-filter active" type="button" data-line-filter="T05-20" aria-pressed="true">
+          <span class="filter-dot" style="background:#0F766E"></span>T05-20
+        </button>
+        <button class="line-filter active" type="button" data-line-filter="T05-50" aria-pressed="true">
+          <span class="filter-dot" style="background:#C2410C"></span>T05-50
+        </button>
+      </div>
+      <div class="favorites-panel" id="panel-favoritos" hidden>
+        <div class="favorites-panel-heading">
+          <strong>Mis paradas favoritas</strong>
+          <button class="tool-close" id="btn-cerrar-favoritos" type="button" aria-label="Cerrar favoritos">×</button>
+        </div>
+        <div id="lista-favoritos"></div>
+        <p class="favorites-note">Los avisos requieren permiso del navegador y que el mapa permanezca abierto.</p>
+      </div>
+    </div>
+
     <div class="footer-actions">
       <button class="btn-action btn-menu-back" onclick="volverAlMenu()">
         <i class="fa-solid fa-bars"></i> Menú
@@ -542,6 +623,13 @@
     let intervaloTimer = null;
     let solicitudEnCurso = false;
     let intervaloLlegadasParada = null;
+    let marcadoresParadas = {};
+    let listaParadas = [];
+    let filtrosLineas = { 'T05-01': true, 'T05-20': true, 'T05-50': true };
+    const CLAVE_FAVORITOS = 'mapa-tpa-favoritos-v1';
+    let favoritosParadas = leerFavoritos();
+    let intervaloAlertasFavoritos = null;
+    let herramientasInicializadas = false;
 
     function escaparHTML(valor) {
       return String(valor ?? '').replace(/[&<>"']/g, caracter => ({
@@ -560,6 +648,282 @@
       'T05-20': '#0F766E', // Verde azulado
       'T05-50': '#C2410C'  // Terracota
     };
+
+    function leerFavoritos() {
+      try {
+        const almacenados = JSON.parse(localStorage.getItem(CLAVE_FAVORITOS) || '[]');
+        return Array.isArray(almacenados) ? almacenados : [];
+      } catch (_) {
+        return [];
+      }
+    }
+
+    function guardarFavoritos() {
+      try {
+        localStorage.setItem(CLAVE_FAVORITOS, JSON.stringify(favoritosParadas));
+      } catch (error) {
+        console.warn('No se pudieron guardar los favoritos en este navegador:', error);
+      }
+      renderFavoritos();
+    }
+
+    function normalizarTexto(valor) {
+      return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    }
+
+    function distanciaEntrePuntos(lat1, lon1, lat2, lon2) {
+      const rad = grados => grados * Math.PI / 180;
+      const dLat = rad(lat2 - lat1);
+      const dLon = rad(lon2 - lon1);
+      const a = Math.sin(dLat / 2) ** 2 +
+        Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLon / 2) ** 2;
+      return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    function seleccionarParada(stopId) {
+      const marcador = marcadoresParadas[String(stopId)];
+      if (!marcador || !map) return;
+      if (!paradasVisibles) alternarParadas();
+      map.flyTo(marcador.getLatLng(), 16, { duration: 0.8 });
+      marcador.openPopup();
+      const resultados = document.getElementById('resultados-paradas');
+      if (resultados) resultados.hidden = true;
+      const buscador = document.getElementById('buscador-paradas');
+      if (buscador) buscador.value = '';
+    }
+
+    function mostrarResultadosParadas(paradas, detalle = '') {
+      const contenedor = document.getElementById('resultados-paradas');
+      if (!contenedor) return;
+      if (!paradas.length) {
+        contenedor.innerHTML = '<div class="search-empty">' +
+          escaparHTML(detalle || 'No se han encontrado paradas.') + '</div>';
+        contenedor.hidden = false;
+        return;
+      }
+      contenedor.innerHTML = paradas.slice(0, 8).map(parada => {
+        const lineas = (parada.lineas || []).join(' · ');
+        const distancia = Number.isFinite(parada.distancia)
+          ? (parada.distancia < 1000 ? Math.round(parada.distancia) + ' m' : (parada.distancia / 1000).toFixed(1) + ' km')
+          : lineas;
+        return '<button type="button" class="search-result" data-stop-id="' + escaparHTML(parada.id) + '">' +
+          '<span class="search-result-name">' + escaparHTML(parada.name) + '</span>' +
+          '<span class="search-result-meta">' + escaparHTML(distancia) + '</span>' +
+        '</button>';
+      }).join('');
+      contenedor.hidden = false;
+    }
+
+    function buscarParadasCercanas() {
+      if (!navigator.geolocation) {
+        mostrarResultadosParadas([], 'Este navegador no permite consultar tu ubicación.');
+        return;
+      }
+      const boton = document.getElementById('btn-paradas-cercanas');
+      if (boton) boton.disabled = true;
+      navigator.geolocation.getCurrentPosition(posicion => {
+        if (boton) boton.disabled = false;
+        const { latitude, longitude } = posicion.coords;
+        const cercanas = listaParadas.map(parada => ({
+          ...parada,
+          distancia: distanciaEntrePuntos(latitude, longitude, Number(parada.lat), Number(parada.lon))
+        })).sort((a, b) => a.distancia - b.distancia);
+        map.setView([latitude, longitude], 14);
+        mostrarResultadosParadas(cercanas, 'No hay paradas cargadas.');
+      }, error => {
+        if (boton) boton.disabled = false;
+        const mensaje = error.code === 1
+          ? 'No has permitido el acceso a la ubicación.'
+          : 'No se ha podido obtener tu ubicación. Comprueba el GPS e inténtalo de nuevo.';
+        mostrarResultadosParadas([], mensaje);
+      }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+    }
+
+    function actualizarBotonFavorito(boton, stopId) {
+      if (!boton) return;
+      const guardado = favoritosParadas.some(favorito => String(favorito.id) === String(stopId));
+      boton.classList.toggle('saved', guardado);
+      boton.innerHTML = guardado
+        ? '<i class="fa-solid fa-star"></i> Guardada'
+        : '<i class="fa-regular fa-star"></i> Guardar';
+    }
+
+    function alternarFavorito(parada) {
+      const indice = favoritosParadas.findIndex(favorito => String(favorito.id) === String(parada.id));
+      if (indice >= 0) {
+        favoritosParadas.splice(indice, 1);
+      } else {
+        favoritosParadas.push({
+          id: String(parada.id),
+          nombre: parada.name,
+          lat: Number(parada.lat),
+          lon: Number(parada.lon),
+          avisos: false,
+          notificados: []
+        });
+      }
+      guardarFavoritos();
+    }
+
+    function renderFavoritos() {
+      const contenedor = document.getElementById('lista-favoritos');
+      const contador = document.getElementById('contador-favoritos');
+      if (contador) contador.textContent = String(favoritosParadas.length);
+      if (!contenedor) return;
+      if (!favoritosParadas.length) {
+        contenedor.innerHTML = '<div class="search-empty">Todavía no has guardado ninguna parada. Pulsa la estrella al abrir una parada.</div>';
+        return;
+      }
+      contenedor.innerHTML = favoritosParadas.map(favorito =>
+        '<div class="favorite-row">' +
+          '<button type="button" class="favorite-go" data-fav-action="go" data-stop-id="' + escaparHTML(favorito.id) + '">' +
+            escaparHTML(favorito.nombre) +
+          '</button>' +
+          '<button type="button" class="favorite-action ' + (favorito.avisos ? 'enabled' : '') +
+            '" data-fav-action="alerts" data-stop-id="' + escaparHTML(favorito.id) + '">' +
+            (favorito.avisos ? 'Avisos ON' : 'Avisos OFF') +
+          '</button>' +
+          '<button type="button" class="favorite-action" data-fav-action="remove" data-stop-id="' + escaparHTML(favorito.id) + '" aria-label="Eliminar favorito">' +
+            '<i class="fa-solid fa-trash"></i>' +
+          '</button>' +
+        '</div>'
+      ).join('');
+    }
+
+    async function alternarAvisosFavorito(stopId) {
+      const favorito = favoritosParadas.find(item => String(item.id) === String(stopId));
+      if (!favorito) return;
+      if (favorito.avisos) {
+        favorito.avisos = false;
+        guardarFavoritos();
+        return;
+      }
+      if (!('Notification' in window)) {
+        alert('Este navegador no admite notificaciones web.');
+        return;
+      }
+      let permiso = Notification.permission;
+      if (permiso !== 'granted') {
+        try {
+          permiso = await Notification.requestPermission();
+        } catch (_) {
+          permiso = 'denied';
+        }
+      }
+      if (permiso === 'granted') {
+        favorito.avisos = true;
+        guardarFavoritos();
+        comprobarAlertasFavoritos();
+      } else {
+        alert('No se han autorizado las notificaciones. Puedes activarlas desde los ajustes del navegador.');
+      }
+    }
+
+    let consultaAlertasEnCurso = false;
+    async function comprobarAlertasFavoritos() {
+      if (consultaAlertasEnCurso || !('Notification' in window) || Notification.permission !== 'granted') return;
+      const activos = favoritosParadas.filter(favorito => favorito.avisos);
+      if (!activos.length) return;
+      consultaAlertasEnCurso = true;
+      try {
+        for (const favorito of activos) {
+          const respuesta = await fetch('/api/paradas/' + encodeURIComponent(favorito.id) + '/llegadas', { cache: 'no-store' });
+          if (!respuesta.ok) continue;
+          const datos = await respuesta.json();
+          for (const llegada of (datos.llegadas || [])) {
+            const minutos = Number(llegada.minutos);
+            if (!Number.isFinite(minutos) || minutos < 0 || minutos > 10) continue;
+            const clave = fechaLocalISO() + ':' + String(llegada.trip_id || llegada.linea + ':' + llegada.timestamp);
+            favorito.notificados = Array.isArray(favorito.notificados) ? favorito.notificados : [];
+            if (favorito.notificados.includes(clave)) continue;
+
+            const textoMinutos = minutos <= 0 ? 'está llegando' : 'llega en ' + minutos + ' minutos';
+            new Notification(llegada.linea + ' · ' + favorito.nombre, {
+              body: 'Dirección ' + llegada.destino + ': ' + textoMinutos + '.',
+              tag: 't05-' + favorito.id + '-' + clave
+            });
+            favorito.notificados.push(clave);
+            favorito.notificados = favorito.notificados.slice(-30);
+          }
+        }
+        guardarFavoritos();
+      } catch (error) {
+        console.warn('No se pudieron comprobar los avisos de favoritos:', error);
+      } finally {
+        consultaAlertasEnCurso = false;
+      }
+    }
+
+    function inicializarHerramientas() {
+      if (herramientasInicializadas) return;
+      herramientasInicializadas = true;
+
+      const buscador = document.getElementById('buscador-paradas');
+      const resultados = document.getElementById('resultados-paradas');
+      buscador?.addEventListener('input', () => {
+        const consulta = normalizarTexto(buscador.value);
+        if (consulta.length < 2) {
+          resultados.hidden = true;
+          return;
+        }
+        const coincidencias = listaParadas.filter(parada =>
+          normalizarTexto(parada.name).includes(consulta)
+        ).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+        mostrarResultadosParadas(coincidencias, 'No hay ninguna parada con ese nombre.');
+      });
+
+      resultados?.addEventListener('click', evento => {
+        const boton = evento.target.closest('[data-stop-id]');
+        if (boton) seleccionarParada(boton.dataset.stopId);
+      });
+      document.getElementById('btn-paradas-cercanas')?.addEventListener('click', buscarParadasCercanas);
+      document.getElementById('btn-mostrar-favoritos')?.addEventListener('click', () => {
+        const panel = document.getElementById('panel-favoritos');
+        panel.hidden = !panel.hidden;
+        renderFavoritos();
+      });
+      document.getElementById('btn-cerrar-favoritos')?.addEventListener('click', () => {
+        document.getElementById('panel-favoritos').hidden = true;
+      });
+      document.getElementById('lista-favoritos')?.addEventListener('click', evento => {
+        const boton = evento.target.closest('[data-fav-action]');
+        if (!boton) return;
+        const { favAction, stopId } = boton.dataset;
+        if (favAction === 'go') seleccionarParada(stopId);
+        if (favAction === 'alerts') alternarAvisosFavorito(stopId);
+        if (favAction === 'remove') {
+          favoritosParadas = favoritosParadas.filter(favorito => String(favorito.id) !== String(stopId));
+          guardarFavoritos();
+        }
+      });
+      document.querySelectorAll('[data-line-filter]').forEach(boton => {
+        boton.addEventListener('click', () => toggleFiltroLinea(boton.dataset.lineFilter));
+      });
+
+      renderFavoritos();
+      if (!intervaloAlertasFavoritos) {
+        intervaloAlertasFavoritos = setInterval(comprobarAlertasFavoritos, 60000);
+      }
+    }
+
+    function toggleFiltroLinea(linea) {
+      filtrosLineas[linea] = !filtrosLineas[linea];
+      const boton = document.querySelector('[data-line-filter="' + linea + '"]');
+      if (boton) {
+        boton.classList.toggle('active', filtrosLineas[linea]);
+        boton.setAttribute('aria-pressed', String(filtrosLineas[linea]));
+      }
+      aplicarFiltrosLineas();
+    }
+
+    function aplicarFiltrosLineas() {
+      Object.values(marcadoresBuses).forEach(marcador => {
+        const visible = filtrosLineas[marcador._lineaBus] !== false;
+        if (visible && !map.hasLayer(marcador)) marcador.addTo(map);
+        else if (!visible && map.hasLayer(marcador)) map.removeLayer(marcador);
+      });
+    }
+
     const iconosBus = {};
 
     function obtenerIconoBus(linea) {
@@ -594,54 +958,115 @@
       }).addTo(map);
     }
 
-    async function cargarLlegadasParada(stopId, popup) {
-      const contenedor = popup.getElement()?.querySelector('.llegadas-parada');
+    function fechaLocalISO(fecha = new Date()) {
+      const anio = fecha.getFullYear();
+      const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+      const dia = String(fecha.getDate()).padStart(2, '0');
+      return anio + '-' + mes + '-' + dia;
+    }
+
+    function desplazarFechaISO(fechaISO, dias) {
+      const [anio, mes, dia] = fechaISO.split('-').map(Number);
+      const fecha = new Date(anio, mes - 1, dia);
+      fecha.setDate(fecha.getDate() + dias);
+      return fechaLocalISO(fecha);
+    }
+
+    async function cargarLlegadasParada(stopId, popup, fecha = fechaLocalISO()) {
+      const elementoPopup = popup.getElement();
+      const contenedor = elementoPopup?.querySelector('.llegadas-parada');
+      const selectorFecha = elementoPopup?.querySelector('.stop-date-input');
       if (!contenedor) return;
 
-      if (!contenedor.dataset.cargado) {
-        contenedor.innerHTML = 'Consultando predicciones en tiempo real...';
-      }
+      if (selectorFecha && selectorFecha.value !== fecha) selectorFecha.value = fecha;
+      contenedor.innerHTML = 'Consultando horario oficial y predicciones...';
 
       try {
-        const respuesta = await fetch(
-          '/api/paradas/' + encodeURIComponent(stopId) + '/llegadas',
-          { cache: 'no-store' }
-        );
-        const datos = await respuesta.json();
-        if (!respuesta.ok) throw new Error(datos.error || 'No se pudieron obtener las llegadas.');
+        const [respuestaRT, respuestaHorario] = await Promise.all([
+          fetch('/api/paradas/' + encodeURIComponent(stopId) + '/llegadas', { cache: 'no-store' }),
+          fetch('/api/paradas/' + encodeURIComponent(stopId) + '/horarios?fecha=' + encodeURIComponent(fecha), { cache: 'no-store' })
+        ]);
+        const [datosRT, datosHorario] = await Promise.all([
+          respuestaRT.json(),
+          respuestaHorario.json()
+        ]);
 
-        const llegadas = Array.isArray(datos.llegadas) ? datos.llegadas : [];
-        if (!llegadas.length) {
-          contenedor.innerHTML = datos.tiempo_real_disponible
-            ? 'Ahora mismo no hay predicciones de llegada para esta parada.'
-            : 'El servicio de predicciones en tiempo real no está disponible.';
-          contenedor.dataset.cargado = 'true';
+        if (!respuestaHorario.ok) throw new Error(datosHorario.error || 'No se pudo cargar el horario.');
+        const programadas = Array.isArray(datosHorario.horarios) ? datosHorario.horarios : [];
+        const tiempoReal = respuestaRT.ok && Array.isArray(datosRT.llegadas) ? datosRT.llegadas : [];
+        const tiempoRealPorViaje = new Map(
+          tiempoReal.filter(item => item.trip_id).map(item => [item.trip_id, item])
+        );
+
+        const elementos = programadas.map(item => {
+          const prediccion = tiempoRealPorViaje.get(item.trip_id);
+          return {
+            ...item,
+            horaMostrada: prediccion?.hora || item.hora,
+            timestampMostrado: prediccion?.timestamp || item.timestamp,
+            minutos: prediccion?.minutos,
+            estado: prediccion ? 'En vivo' : 'Programado',
+            delta: prediccion ? Number(prediccion.timestamp) - Number(item.timestamp) : null
+          };
+        });
+
+        const idsIncluidos = new Set(programadas.map(item => item.trip_id).filter(Boolean));
+        tiempoReal.filter(item => !item.trip_id || !idsIncluidos.has(item.trip_id)).forEach(item => {
+          elementos.push({
+            ...item,
+            horaMostrada: item.hora,
+            timestampMostrado: item.timestamp,
+            estado: 'En vivo',
+            delta: null
+          });
+        });
+        elementos.sort((a, b) => Number(a.timestampMostrado || 0) - Number(b.timestampMostrado || 0));
+
+        if (!elementos.length) {
+          const mensajes = [];
+          if (datosHorario.mensaje) mensajes.push(escaparHTML(datosHorario.mensaje));
+          if (!respuestaRT.ok || !datosRT.tiempo_real_disponible) {
+            mensajes.push('No hay conexión con las predicciones en tiempo real.');
+          } else if (!tiempoReal.length) {
+            mensajes.push('Ahora mismo no hay predicciones en tiempo real para esta parada.');
+          }
+          if (datosHorario.vigencia_gtfs_hasta) {
+            mensajes.push('El fichero GTFS disponible llega hasta ' + escaparHTML(datosHorario.vigencia_gtfs_hasta) + '.');
+          }
+          contenedor.innerHTML = '<div class="stop-arrival-state">' + mensajes.join('<br>') + '</div>';
           return;
         }
 
-        contenedor.innerHTML = llegadas.map(llegada => {
-          const color = {
-            'T05-01': '#2563EB',
-            'T05-20': '#0F766E',
-            'T05-50': '#C2410C'
-          }[llegada.linea] || '#475569';
-          const minutos = Number(llegada.minutos);
-          const cuentaAtras = minutos <= 0 ? 'Llegando' : 'en ' + minutos + ' min';
+        const html = elementos.slice(0, 20).map(item => {
+          const color = COLORES_LINEA[item.linea] || '#475569';
+          const estado = item.estado === 'En vivo'
+            ? (Number(item.minutos) <= 0 ? 'Llegando' : 'en ' + Number(item.minutos) + ' min')
+            : 'Horario oficial';
+          const diferencia = item.estado === 'En vivo' && item.delta !== null
+            ? (item.delta > 60 ? ' · +' + Math.round(item.delta / 60) + ' min' : item.delta < -60 ? ' · ' + Math.round(item.delta / 60) + ' min' : '')
+            : '';
           return '<div class="stop-arrival-row">' +
-            '<span class="stop-arrival-line" style="color:' + color + ';">' +
-              escaparHTML(llegada.linea) + '</span>' +
-            '<span class="stop-arrival-destination">' + escaparHTML(llegada.destino) + '</span>' +
-            '<span class="stop-arrival-time"><strong>' + escaparHTML(llegada.hora) +
-              '</strong><small>' + escaparHTML(cuentaAtras) + '</small></span>' +
+            '<span class="stop-arrival-line" style="color:' + color + ';">' + escaparHTML(item.linea) + '</span>' +
+            '<span class="stop-arrival-destination">' + escaparHTML(item.destino) +
+              '<small class="arrival-status ' + (item.estado === 'En vivo' ? 'live' : 'scheduled') + '">' +
+                escaparHTML(item.estado + diferencia) + '</small></span>' +
+            '<span class="stop-arrival-time"><strong>' + escaparHTML(item.horaMostrada) +
+              '</strong><small>' + escaparHTML(estado) + '</small></span>' +
           '</div>';
-        }).join('') +
-        '<div class="stop-arrival-source">Predicciones en tiempo real</div>' +
-        '<div class="stop-arrival-updated">Actualizado a las ' +
-          escaparHTML(datos.actualizado || '--:--:--') + ' · Se actualiza cada 30 s</div>';
-        contenedor.dataset.cargado = 'true';
+        }).join('');
+
+        const avisoVigencia = datosHorario.vigencia_gtfs_hasta
+          ? '<div class="stop-arrival-updated">Horario GTFS disponible hasta ' + escaparHTML(datosHorario.vigencia_gtfs_hasta) + '</div>'
+          : '';
+        const actualizado = datosRT.actualizado
+          ? '<div class="stop-arrival-updated">Tiempo real consultado a las ' + escaparHTML(datosRT.actualizado) + ' · actualización cada 30 s</div>'
+          : '';
+        contenedor.innerHTML = html +
+          '<div class="stop-arrival-source">En vivo = predicción GTFS-RT · Programado = horario oficial</div>' +
+          actualizado + avisoVigencia;
       } catch (error) {
-        contenedor.innerHTML = 'No se han podido cargar las llegadas. Vuelve a abrir la parada para intentarlo de nuevo.';
-        console.error('Error consultando llegadas de la parada:', error);
+        contenedor.innerHTML = 'No se han podido cargar los horarios y llegadas de esta parada.';
+        console.error('Error consultando horarios de la parada:', error);
       }
     }
 
@@ -660,6 +1085,8 @@
         (datos.stops || []).forEach(parada => {
           if (parada.id && !paradasUnicas.has(parada.id)) paradasUnicas.set(parada.id, parada);
         });
+        listaParadas = Array.from(paradasUnicas.values());
+        marcadoresParadas = {};
         paradasUnicas.forEach(parada => {
           const marcador = L.circleMarker([parada.lat, parada.lon], {
             radius: 5, color: '#ffffff', weight: 2,
@@ -679,25 +1106,49 @@
 
           marcador.bindPopup(
             '<div class="stop-popup">' +
-              '<b class="stop-popup-title">' + escaparHTML(parada.name) + '</b>' +
+              '<div class="stop-popup-top">' +
+                '<b class="stop-popup-title">' + escaparHTML(parada.name) + '</b>' +
+                '<button type="button" class="stop-favorite-button"><i class="fa-regular fa-star"></i> Guardar</button>' +
+              '</div>' +
               '<span class="stop-popup-label">Líneas que paran aquí</span>' +
               '<div class="stop-line-list">' +
                 (insigniasLineas || '<span class="stop-arrival-state">Sin líneas identificadas</span>') +
               '</div>' +
               '<div class="stop-arrivals">' +
-                '<span class="stop-popup-label">Próximas llegadas</span>' +
-                '<div class="llegadas-parada stop-arrival-state">Consultando predicciones...</div>' +
+                '<span class="stop-popup-label">Próximas salidas · horario y tiempo real</span>' +
+                '<input type="date" class="stop-date-input" aria-label="Fecha de las salidas">' +
+                '<div class="llegadas-parada stop-arrival-state">Consultando horarios y predicciones...</div>' +
+                '<div class="stop-schedule-note">“En vivo” utiliza una predicción GTFS-RT; “Programado” corresponde al horario oficial GTFS.</div>' +
               '</div>' +
             '</div>',
             { maxWidth: 310 }
           );
           marcador.on('popupopen', evento => {
             if (intervaloLlegadasParada) clearInterval(intervaloLlegadasParada);
-            cargarLlegadasParada(parada.id, evento.popup);
-            intervaloLlegadasParada = setInterval(
-              () => cargarLlegadasParada(parada.id, evento.popup),
-              30000
-            );
+            const elemento = evento.popup.getElement();
+            const selectorFecha = elemento?.querySelector('.stop-date-input');
+            const hoy = fechaLocalISO();
+            if (selectorFecha) {
+              selectorFecha.min = hoy;
+              selectorFecha.max = desplazarFechaISO(hoy, 14);
+              selectorFecha.value = hoy;
+              selectorFecha.addEventListener('change', () => {
+                cargarLlegadasParada(parada.id, evento.popup, selectorFecha.value);
+              });
+            }
+
+            const botonFavorito = elemento?.querySelector('.stop-favorite-button');
+            actualizarBotonFavorito(botonFavorito, parada.id);
+            botonFavorito?.addEventListener('click', () => {
+              alternarFavorito(parada);
+              actualizarBotonFavorito(botonFavorito, parada.id);
+            });
+
+            cargarLlegadasParada(parada.id, evento.popup, hoy);
+            intervaloLlegadasParada = setInterval(() => {
+              const fechaActual = selectorFecha?.value || hoy;
+              cargarLlegadasParada(parada.id, evento.popup, fechaActual);
+            }, 30000);
           });
           marcador.on('popupclose', () => {
             if (intervaloLlegadasParada) {
@@ -709,9 +1160,11 @@
             direction: 'top', offset: [0, -5], className: 'stop-label'
           });
           marcador.addTo(capasParadas);
+          marcadoresParadas[String(parada.id)] = marcador;
         });
 
         if (paradasVisibles) capasParadas.addTo(map);
+        renderFavoritos();
       } catch (error) {
         console.error('No se pudieron cargar las líneas y paradas GTFS:', error);
       }
@@ -736,6 +1189,7 @@
 
     function iniciarMapa(linea) {
       lineaActiva = linea;
+      inicializarHerramientas();
       document.getElementById('badge-linea-tag').innerText = linea;
       document.getElementById('pantalla-inicio').style.display = 'none';
       document.getElementById('header-card').style.display = 'block';
@@ -832,12 +1286,16 @@
             if (marcadoresBuses[idUnico]) {
               marcadoresBuses[idUnico].setLatLng([lat, lon]);
               marcadoresBuses[idUnico].setIcon(iconoBus);
+              marcadoresBuses[idUnico]._lineaBus = lineaBus;
               marcadoresBuses[idUnico].getPopup().setContent(popupContent);
             } else {
-              marcadoresBuses[idUnico] = L.marker([lat, lon], { icon: iconoBus }).addTo(map);
+              marcadoresBuses[idUnico] = L.marker([lat, lon], { icon: iconoBus });
+              marcadoresBuses[idUnico]._lineaBus = lineaBus;
               marcadoresBuses[idUnico].bindPopup(popupContent);
             }
           });
+
+          aplicarFiltrosLineas();
 
           // Eliminar marcadores inactivos
           Object.keys(marcadoresBuses).forEach(id => {
@@ -883,7 +1341,7 @@
     }
 
     function centrarEnBus() {
-      const marcadores = Object.values(marcadoresBuses);
+      const marcadores = Object.values(marcadoresBuses).filter(marcador => map.hasLayer(marcador));
       if (marcadores.length === 1) {
         map.flyTo(marcadores[0].getLatLng(), 16, { duration: 1.2 });
       } else if (marcadores.length > 1) {

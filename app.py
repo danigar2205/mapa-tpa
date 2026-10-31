@@ -2,7 +2,7 @@ import os
 # Desactivar extensión C de Protobuf para compatibilidad con Python 3.11+
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request
 import requests
 import urllib3
 import gzip
@@ -12,8 +12,10 @@ import math
 import base64
 import json
 from requests.adapters import HTTPAdapter
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
+import threading
+from types import SimpleNamespace
 from urllib3.poolmanager import PoolManager
 
 # Desactivar avisos de certificados SSL
@@ -42,6 +44,16 @@ try:
     GTFS_T05_MAP = json.loads(gzip.decompress(map_compressed).decode("utf-8"))
 except (OSError, ValueError, gzip.BadGzipFile) as exc:
     print(f"[GTFS MAP] No se pudo cargar el mapa estático T05: {exc}")
+
+# Horarios oficiales y calendarios GTFS de las rutas T05.
+GTFS_T05_SCHEDULE = {"routes": {}, "services": {}, "exceptions": [], "stop_times": []}
+try:
+    schedule_path = os.path.join(os.path.dirname(__file__), "data", "gtfs_t05_timetable.json.gz.b64")
+    with open(schedule_path, "rt", encoding="ascii") as schedule_file:
+        schedule_compressed = base64.b64decode(schedule_file.read())
+    GTFS_T05_SCHEDULE = json.loads(gzip.decompress(schedule_compressed).decode("utf-8"))
+except (OSError, ValueError, gzip.BadGzipFile) as exc:
+    print(f"[GTFS HORARIOS] No se pudo cargar el horario T05: {exc}")
 
 T05_ROUTE_NAMES = {
     route_id: info.get("short_name", "T05")
@@ -77,6 +89,44 @@ TRIPUPDATES_ENDPOINTS = [
     "https://tpaits.gmv.com/gtfsrtapi/api/tripupdates",
     "https://sintram.consorciozaragoza.es/api/gtfs-rt/trip-updates"
 ]
+
+# Caché compartida por las rutas Flask dentro de cada proceso Gunicorn.
+# Evita descargar los mismos feeds por cada navegador y cada parada abierta.
+CACHE_RESPUESTAS_GTFSRT = {}
+CACHE_GTFSRT_LOCK = threading.Lock()
+
+
+def obtener_respuesta_cacheada(url, familia, ttl_segundos, headers, timeout):
+    clave = (familia, url)
+    ahora_monotonic = time.monotonic()
+
+    with CACHE_GTFSRT_LOCK:
+        cacheada = CACHE_RESPUESTAS_GTFSRT.get(clave)
+        if cacheada and ahora_monotonic - cacheada["timestamp"] < ttl_segundos:
+            return SimpleNamespace(
+                status_code=cacheada["status_code"],
+                content=cacheada["content"]
+            )
+
+        try:
+            respuesta = session.get(url, headers=headers, timeout=timeout, verify=False)
+            resultado = SimpleNamespace(
+                status_code=respuesta.status_code,
+                content=respuesta.content
+            )
+        except requests.RequestException as exc:
+            print(f"[GTFS-RT {familia.upper()} ERROR {url}]: {exc}")
+            return SimpleNamespace(status_code=0, content=b"")
+
+        if resultado.status_code == 200 and resultado.content:
+            CACHE_RESPUESTAS_GTFSRT[clave] = {
+                "timestamp": ahora_monotonic,
+                "status_code": resultado.status_code,
+                "content": resultado.content
+            }
+
+        return resultado
+
 
 # --- LISTAS DE PARADAS ---
 
@@ -222,7 +272,7 @@ def obtener_estimaciones_tripupdates(linea_objetivo):
 
     for url in TRIPUPDATES_ENDPOINTS:
         try:
-            res = session.get(url, headers=headers, timeout=8, verify=False)
+            res = obtener_respuesta_cacheada(url, "tripupdates", 15, headers, 8)
             if res.status_code != 200 or not res.content:
                 continue
 
@@ -367,7 +417,7 @@ def obtener_llegadas_en_tiempo_real(stop_id):
 
     for url in TRIPUPDATES_ENDPOINTS:
         try:
-            respuesta = session.get(url, headers=headers, timeout=7, verify=False)
+            respuesta = obtener_respuesta_cacheada(url, "tripupdates", 15, headers, 7)
             if respuesta.status_code != 200 or not respuesta.content:
                 continue
 
@@ -481,6 +531,111 @@ def get_llegadas_parada(stop_id):
     return jsonify(obtener_llegadas_en_tiempo_real(stop_id))
 
 
+def servicio_activo_gtfs(service_id, fecha):
+    """Aplica calendar.txt y calendar_dates.txt para una fecha de servicio."""
+    fecha_gtfs = fecha.strftime("%Y%m%d")
+    for excepcion in GTFS_T05_SCHEDULE.get("exceptions", []):
+        if excepcion.get("service_id") == service_id and excepcion.get("date") == fecha_gtfs:
+            return str(excepcion.get("exception_type")) == "1"
+
+    servicio = GTFS_T05_SCHEDULE.get("services", {}).get(service_id)
+    if not servicio:
+        return False
+
+    inicio = datetime.strptime(servicio["start_date"], "%Y%m%d").date()
+    fin = datetime.strptime(servicio["end_date"], "%Y%m%d").date()
+    if not inicio <= fecha <= fin:
+        return False
+
+    campos_dias = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+    return str(servicio.get(campos_dias[fecha.weekday()], "0")) == "1"
+
+
+def segundos_horario_gtfs(valor):
+    """Convierte una hora GTFS, admitiendo horas superiores a 24:00."""
+    try:
+        horas, minutos, segundos = (int(parte) for parte in str(valor).split(":"))
+        if horas < 0 or minutos not in range(60) or segundos not in range(60):
+            return None
+        return horas * 3600 + minutos * 60 + segundos
+    except (TypeError, ValueError):
+        return None
+
+
+@app.route('/api/paradas/<stop_id>/horarios')
+def get_horarios_parada(stop_id):
+    """Devuelve salidas programadas en esta parada para la fecha de servicio."""
+    parada_existe = any(
+        str(parada.get("id") or parada.get("stop_id") or "") == str(stop_id)
+        for paradas in GTFS_T05_MAP.get("stops", {}).values()
+        for parada in paradas
+    )
+    if not parada_existe:
+        return jsonify({"error": "Parada no encontrada", "horarios": []}), 404
+
+    fecha_texto = request.args.get("fecha")
+    try:
+        fecha = (
+            datetime.strptime(fecha_texto, "%Y-%m-%d").date()
+            if fecha_texto else datetime.now(ZONA_HORARIA).date()
+        )
+    except ValueError:
+        return jsonify({"error": "Fecha no válida", "horarios": []}), 400
+
+    hoy = datetime.now(ZONA_HORARIA).date()
+    if fecha < hoy or fecha > hoy + timedelta(days=14):
+        return jsonify({"error": "Solo se pueden consultar hoy y los próximos 14 días", "horarios": []}), 400
+
+    ahora = datetime.now(ZONA_HORARIA)
+    horarios = []
+    for registro in GTFS_T05_SCHEDULE.get("stop_times", []):
+        if str(registro.get("stop_id")) != str(stop_id):
+            continue
+        service_id = registro.get("service_id")
+        if not servicio_activo_gtfs(service_id, fecha):
+            continue
+
+        segundos = segundos_horario_gtfs(registro.get("departure_time") or registro.get("arrival_time"))
+        if segundos is None:
+            continue
+
+        instante = datetime.combine(fecha, datetime.min.time(), tzinfo=ZONA_HORARIA) + timedelta(seconds=segundos)
+        if fecha == hoy and instante < ahora - timedelta(minutes=1):
+            continue
+
+        info_ruta = GTFS_T05_SCHEDULE.get("routes", {}).get(registro.get("route_id"), {})
+        horarios.append({
+            "linea": info_ruta.get("short_name", "T05"),
+            "destino": registro.get("headsign") or info_ruta.get("long_name", "Destino no disponible"),
+            "hora": instante.strftime("%H:%M"),
+            "timestamp": int(instante.timestamp()),
+            "direccion": str(registro.get("direction_id", "")),
+            "trip_id": registro.get("trip_id"),
+            "fuente": "Horario oficial"
+        })
+
+    horarios.sort(key=lambda item: item["timestamp"])
+    ultima_fecha = []
+    for servicio in GTFS_T05_SCHEDULE.get("services", {}).values():
+        try:
+            ultima_fecha.append(datetime.strptime(servicio.get("end_date", ""), "%Y%m%d").date())
+        except ValueError:
+            pass
+    for excepcion in GTFS_T05_SCHEDULE.get("exceptions", []):
+        try:
+            ultima_fecha.append(datetime.strptime(excepcion.get("date", ""), "%Y%m%d").date())
+        except ValueError:
+            pass
+
+    vigencia_hasta = max(ultima_fecha).isoformat() if ultima_fecha else None
+    return jsonify({
+        "fecha": fecha.isoformat(),
+        "horarios": horarios[:20],
+        "vigencia_gtfs_hasta": vigencia_hasta,
+        "mensaje": None if horarios else "El GTFS no contiene salidas para esta parada en la fecha seleccionada."
+    })
+
+
 @app.route('/api/buses/<linea>')
 def get_buses(linea):
     linea_objetivo = linea.upper()
@@ -492,7 +647,7 @@ def get_buses(linea):
 
     for url in VEHICLES_ENDPOINTS:
         try:
-            res = session.get(url, headers=headers, timeout=8, verify=False)
+            res = obtener_respuesta_cacheada(url, "vehiclepositions", 5, headers, 8)
             if res.status_code != 200 or not res.content:
                 continue
 
