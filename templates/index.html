@@ -693,6 +693,18 @@
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
+    // El historial local anterior se ha retirado; eliminar su base IndexedDB
+    // sin tocar los favoritos, que se guardan en localStorage.
+    if ('indexedDB' in window) {
+      const borrarHistorialAnterior = indexedDB.deleteDatabase('MapaTPAHistorial');
+      borrarHistorialAnterior.onerror = () => {
+        console.warn('No se pudo eliminar el historial local anterior.');
+      };
+      borrarHistorialAnterior.onblocked = () => {
+        console.warn('Cierra las pestañas antiguas de Mapa TPA para completar la eliminación del historial local.');
+      };
+    }
+
     let map = null;
     let marcadoresBuses = {};
     let capasParadas = null;
