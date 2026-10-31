@@ -811,7 +811,20 @@
       return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
-    function seleccionarParada(stopId) {
+    function seleccionarParada(stopId, concesion = lineaActiva) {
+      const codigo = String(concesion || lineaActiva || 'T05').toUpperCase();
+      if (lineaActiva && codigo !== lineaActiva) {
+        if (!catalogoConcesiones[codigo]?.disponible) return;
+        iniciarMapa(codigo);
+        let intentos = 0;
+        const esperarParada = () => {
+          if (lineaActiva !== codigo) return;
+          if (marcadoresParadas[String(stopId)]) seleccionarParada(stopId, codigo);
+          else if (intentos++ < 40) setTimeout(esperarParada, 125);
+        };
+        setTimeout(esperarParada, 125);
+        return;
+      }
       const marcador = marcadoresParadas[String(stopId)];
       if (!marcador || !map) return;
       if (!paradasVisibles) alternarParadas();
