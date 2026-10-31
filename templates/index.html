@@ -833,7 +833,7 @@
           for (const llegada of (datos.llegadas || [])) {
             const minutos = Number(llegada.minutos);
             if (!Number.isFinite(minutos) || minutos < 0 || minutos > 10) continue;
-            const clave = String(llegada.trip_id || llegada.linea) + ':' + String(llegada.timestamp);
+            const clave = fechaLocalISO() + ':' + String(llegada.trip_id || llegada.linea + ':' + llegada.timestamp);
             favorito.notificados = Array.isArray(favorito.notificados) ? favorito.notificados : [];
             if (favorito.notificados.includes(clave)) continue;
 
