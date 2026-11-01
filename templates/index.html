@@ -1161,7 +1161,7 @@
       return fechaLocalISO(fecha);
     }
 
-    async function cargarLlegadasParada(stopId, popup, fecha = fechaLocalISO()) {
+    async function cargarLlegadasParada(stopId, popup, fecha = fechaLocalISO(), stopIds = null) {
       const elementoPopup = popup.getElement();
       const contenedor = elementoPopup?.querySelector('.llegadas-parada');
       const selectorFecha = elementoPopup?.querySelector('.stop-date-input');
@@ -1173,13 +1173,15 @@
       try {
         const funciones = configuracionConcesionActiva?.funciones || {};
         const codigo = encodeURIComponent(lineaActiva || 'T05');
+        const idsParada = Array.isArray(stopIds) && stopIds.length ? stopIds : [stopId];
+        const parametroIds = '&stop_ids=' + encodeURIComponent(idsParada.join(','));
         const consultas = await Promise.all([
           funciones.tiempo_real
-            ? fetch('/api/paradas/' + encodeURIComponent(stopId) + '/llegadas?concesion=' + codigo, { cache: 'no-store' })
+            ? fetch('/api/paradas/' + encodeURIComponent(stopId) + '/llegadas?concesion=' + codigo + parametroIds, { cache: 'no-store' })
             : Promise.resolve(null),
           funciones.horarios
             ? fetch('/api/paradas/' + encodeURIComponent(stopId) + '/horarios?concesion=' + codigo +
-                '&fecha=' + encodeURIComponent(fecha), { cache: 'no-store' })
+                '&fecha=' + encodeURIComponent(fecha) + parametroIds, { cache: 'no-store' })
             : Promise.resolve(null)
         ]);
         const respuestaRT = consultas[0], respuestaHorario = consultas[1];
@@ -1351,7 +1353,7 @@
               selectorFecha.max = desplazarFechaISO(hoy, 14);
               selectorFecha.value = hoy;
               selectorFecha.addEventListener('change', () => {
-                cargarLlegadasParada(parada.id, evento.popup, selectorFecha.value);
+                cargarLlegadasParada(parada.id, evento.popup, selectorFecha.value, parada.stop_ids);
               });
             }
 
@@ -1364,10 +1366,10 @@
 
             const funciones = configuracionConcesionActiva?.funciones || {};
             if (funciones.horarios || funciones.tiempo_real) {
-              cargarLlegadasParada(parada.id, evento.popup, hoy);
+              cargarLlegadasParada(parada.id, evento.popup, hoy, parada.stop_ids);
               intervaloLlegadasParada = setInterval(() => {
                 const fechaActual = selectorFecha?.value || hoy;
-                cargarLlegadasParada(parada.id, evento.popup, fechaActual);
+                cargarLlegadasParada(parada.id, evento.popup, fechaActual, parada.stop_ids);
               }, 30000);
             } else {
               const llegadas = elemento?.querySelector('.llegadas-parada');
