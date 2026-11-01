@@ -101,6 +101,9 @@ class OcupacionYVelocidadGTFSRTTests(unittest.TestCase):
 
         route_id = next(iter(GTFS_DATASETS["T05"]["map"]["routes"]))
         feed = gtfs_realtime_pb2.FeedMessage()
+        feed.header.gtfs_realtime_version = "2.0"
+        feed.header.incrementality = 0  # FULL_DATASET
+        feed.header.timestamp = 1800000000
         entidad = feed.entity.add()
         entidad.id = "vehiculo-prueba"
         vehiculo = entidad.vehicle
@@ -132,6 +135,9 @@ class OcupacionYVelocidadGTFSRTTests(unittest.TestCase):
 
         route_id = next(iter(GTFS_DATASETS["T05"]["map"]["routes"]))
         feed = gtfs_realtime_pb2.FeedMessage()
+        feed.header.gtfs_realtime_version = "2.0"
+        feed.header.incrementality = 0  # FULL_DATASET
+        feed.header.timestamp = 1800000000
         entidad = feed.entity.add()
         entidad.id = "vehiculo-sin-datos"
         vehiculo = entidad.vehicle
