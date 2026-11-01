@@ -551,6 +551,14 @@ class CapasMapaGTFSTests(unittest.TestCase):
         self.assertFalse(datos["funciones"]["tiempo_real"])
 
 
+    def test_selector_de_fecha_usa_vigencia_gtfs_y_ofrece_proximo_servicio(self):
+        html = app.test_client().get("/").get_data(as_text=True)
+        self.assertIn("selectorFecha.removeAttribute('max')", html)
+        self.assertNotIn("selectorFecha.max = desplazarFechaISO(hoy, 14)", html)
+        self.assertIn("datosHorario.vigencia_gtfs_hasta", html)
+        self.assertIn("datosHorario.proxima_fecha_disponible", html)
+        self.assertIn("stop-next-service-button", html)
+
     def test_solo_t05_se_habilita_en_el_menu_inicial(self):
         html = app.test_client().get("/").get_data(as_text=True)
         codigos = ["T01", "T02", "T03", "T04"] + [
