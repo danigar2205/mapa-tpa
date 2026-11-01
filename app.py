@@ -531,6 +531,12 @@ def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05"):
                 viaje = actualizacion.trip
                 route_id = str(viaje.route_id or "")
                 trip_id = str(viaje.trip_id or "")
+                entity_id = str(entidad.id or "")
+                vehicle_id = (
+                    str(actualizacion.vehicle.id)
+                    if actualizacion.HasField("vehicle") and actualizacion.vehicle.id
+                    else ""
+                )
                 info_ruta = mapa.get("routes", {}).get(route_id)
                 if not info_ruta:
                     continue
@@ -585,7 +591,9 @@ def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05"):
                         "minutos": minutos,
                         "timestamp": instante,
                         "fuente": "Tiempo real",
-                        "trip_id": trip_id
+                        "trip_id": trip_id,
+                        "vehicle_id": vehicle_id,
+                        "entity_id": entity_id
                     })
 
             if llegadas:
@@ -597,14 +605,19 @@ def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05"):
     unicas = []
     vistos = set()
     for llegada in llegadas:
-        clave = (llegada["trip_id"], llegada["linea"], llegada["timestamp"])
+        identificador = (
+            llegada.get("trip_id") or
+            llegada.get("vehicle_id") or
+            llegada.get("entity_id")
+        )
+        clave = (identificador, llegada["linea"], llegada["timestamp"])
         if clave in vistos:
             continue
         vistos.add(clave)
         unicas.append(llegada)
 
     return {
-        "llegadas": unicas[:8],
+        "llegadas": unicas,
         "tiempo_real_disponible": feed_disponible,
         "actualizado": datetime.now(ZONA_HORARIA).strftime("%H:%M:%S")
     }
@@ -982,7 +995,12 @@ def get_buses(linea):
                     trip_id = str(v.trip.trip_id) if v.HasField('trip') else ""
                     coche_num = str(v.vehicle.label) if (v.HasField('vehicle') and v.vehicle.label) else ""
                     matricula = str(v.vehicle.license_plate) if (v.HasField('vehicle') and hasattr(v.vehicle, 'license_plate')) else ""
-                    v_id = str(v.vehicle.id) if (v.HasField('vehicle') and v.vehicle.id) else coche_num
+                    entity_id = str(entity.id or "")
+                    v_id = (
+                        str(v.vehicle.id)
+                        if (v.HasField('vehicle') and v.vehicle.id)
+                        else coche_num or entity_id
+                    )
                     direction_id = v.trip.direction_id if (v.HasField('trip') and v.trip.HasField('direction_id')) else None
 
                     # Garantiza que SOLO se carguen los buses de la concesión pulsada
@@ -1021,7 +1039,7 @@ def get_buses(linea):
                             continue
                         lat, lon = coordenadas
                         buses.append({
-                                'id': v_id or coche_num,
+                                'id': v_id or coche_num or entity_id,
                                 'linea': nombres_rutas.get(r_id, linea_objetivo),
                                 'coche': coche_num,
                                 'matricula': matricula,
