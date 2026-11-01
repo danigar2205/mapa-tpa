@@ -193,11 +193,13 @@ class CapasMapaGTFSTests(unittest.TestCase):
         lugarico = next(parada for parada in datos["stops"] if parada["name"] == "Lugarico de Cerdán")
         self.assertEqual(set(lugarico["lineas"]), {"T05-01", "T05-20"})
 
-    def test_otra_concesion_sin_datos_no_recibe_datos_t05(self):
+    def test_t13_muestra_sus_datos_sin_confundirse_con_t05(self):
         datos = self.client.get("/api/mapa/t13").get_json()
-        self.assertEqual(datos["routes"], [])
-        self.assertEqual(datos["stops"], [])
-        self.assertEqual(datos["concesion"], "T13")
+        nombres = {ruta["short_name"] for ruta in datos["routes"]}
+        self.assertTrue(nombres)
+        self.assertTrue(all(nombre.startswith("T13-") for nombre in nombres))
+        self.assertTrue(datos["stops"])
+        self.assertTrue(all(parada["concesion"] == "T13" for parada in datos["stops"]))
         self.assertFalse(datos["funciones"]["tiempo_real"])
 
     def test_catalogo_indica_capacidades_reales_por_concesion(self):
@@ -221,6 +223,21 @@ class CapasMapaGTFSTests(unittest.TestCase):
     def test_identifica_numero_de_linea_por_route_id(self):
         self.assertEqual(len(T05_ROUTE_NAMES), 3)
         self.assertEqual(set(T05_ROUTE_NAMES.values()), {"T05-01", "T05-20", "T05-50"})
+
+
+class CorreccionesCoordenadasT11Tests(unittest.TestCase):
+    def test_t11_usa_las_dos_coordenadas_corregidas(self):
+        datos = app.test_client().get("/api/mapa/T11").get_json()
+        por_nombre = {parada["name"]: parada for parada in datos["stops"]}
+
+        violante = por_nombre["C/ Violante De Hungría (Escuela de Idiomas)"]
+        self.assertEqual((violante["lat"], violante["lon"]), (41.642076, -0.905206))
+
+        cutanda = por_nombre["Cutanda. Marquesina C/ Mayor Nº 2"]
+        self.assertEqual((cutanda["lat"], cutanda["lon"]), (40.934940, -1.184232))
+
+        self.assertTrue(violante["lineas"])
+        self.assertTrue(cutanda["lineas"])
 
 
 if __name__ == "__main__":

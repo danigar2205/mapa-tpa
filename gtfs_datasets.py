@@ -49,6 +49,13 @@ COORDENADAS_CORREGIDAS_T05 = {
     "condado": (41.59113888888889, -0.66819444444444),
 }
 
+# Coordenadas verificadas por el usuario para dos paradas de la T11.
+# Se aplican al cargar el mapa, sin alterar el GTFS original ni otras concesiones.
+COORDENADAS_CORREGIDAS_T11 = {
+    "c/ violante de hungria (escuela de idiomas)": (41.642076, -0.905206),
+    "cutanda. marquesina c/ mayor no 2": (40.934940, -1.184232),
+}
+
 MAPA_VACIO: dict[str, Any] = {"routes": {}, "shapes": {}, "stops": {}}
 LOOKUP_VACIO: dict[str, Any] = {"stops": {}, "trips": {}}
 HORARIOS_VACIOS: dict[str, Any] = {
@@ -74,6 +81,18 @@ def _corregir_coordenadas_t05(mapa: dict[str, Any]) -> None:
                 coordenadas = COORDENADAS_CORREGIDAS_T05["lugarico"]
             elif "condado" in nombre:
                 coordenadas = COORDENADAS_CORREGIDAS_T05["condado"]
+            if coordenadas is not None:
+                parada["lat"], parada["lon"] = coordenadas
+
+
+def _corregir_coordenadas_t11(mapa: dict[str, Any]) -> None:
+    """Corrige dos paradas de la T11 con las coordenadas confirmadas por el usuario."""
+    for paradas in mapa.get("stops", {}).values():
+        if not isinstance(paradas, list):
+            continue
+        for parada in paradas:
+            nombre = " ".join(_normalizar_nombre_parada(parada.get("name")).split())
+            coordenadas = COORDENADAS_CORREGIDAS_T11.get(nombre)
             if coordenadas is not None:
                 parada["lat"], parada["lon"] = coordenadas
 
@@ -111,6 +130,8 @@ def cargar_datasets_gtfs(data_dir: str | Path) -> dict[str, dict[str, Any]]:
 
         if codigo == "T05":
             _corregir_coordenadas_t05(mapa)
+        elif codigo == "T11":
+            _corregir_coordenadas_t11(mapa)
 
         # Un mapa solo se considera disponible si contiene rutas y paradas.
         tiene_mapa = bool(mapa.get("routes")) and any(
