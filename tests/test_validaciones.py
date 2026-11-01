@@ -154,8 +154,10 @@ class OcupacionYVelocidadGTFSRTTests(unittest.TestCase):
             status_code=200,
             content=feed.SerializeToString(),
         )
-        with patch("app.obtener_estimaciones_tripupdates", return_value={}), \\
-             patch("app.obtener_respuesta_cacheada", return_value=respuesta_feed):
+        with (
+            patch("app.obtener_estimaciones_tripupdates", return_value={}),
+            patch("app.obtener_respuesta_cacheada", return_value=respuesta_feed),
+        ):
             respuesta = app.test_client().get("/api/buses/t05")
 
         self.assertEqual(respuesta.status_code, 200)
@@ -640,13 +642,18 @@ class HorariosGTFSTests(unittest.TestCase):
             actualizacion.trip.route_id = route_id
             actualizacion.trip.trip_id = identificadores[-1]
             parada = actualizacion.stop_time_update.add()
-            parada.stop_id = "parada-prueba"
+            parada.stop_id = (
+                "parada-prueba" if indice % 2 == 0 else "parada-secundaria"
+            )
             parada.arrival.time = ahora + (indice + 1) * 60
 
         dataset = {
             "map": {
                 "routes": {route_id: {"short_name": "T05-01", "long_name": "Zaragoza - Fraga"}},
-                "stops": {"T05-01": [{"id": "parada-prueba"}]},
+                "stops": {"T05-01": [{
+                    "id": "parada-prueba",
+                    "stop_ids": ["parada-prueba", "parada-secundaria"],
+                }]},
             },
             "lookup": {"stops": {}, "trips": {}},
             "schedule": {"routes": {}, "services": {}, "exceptions": [], "stop_times": []},
@@ -658,11 +665,14 @@ class HorariosGTFSTests(unittest.TestCase):
             status_code=200,
             content=feed.SerializeToString(),
         )
-        with patch("app.obtener_dataset_gtfs", return_value=dataset), \\
-             patch("app.obtener_respuesta_cacheada", return_value=respuesta_feed), \\
-             patch("app.time.time", return_value=ahora):
+        with (
+            patch("app.obtener_dataset_gtfs", return_value=dataset),
+            patch("app.obtener_respuesta_cacheada", return_value=respuesta_feed),
+            patch("app.time.time", return_value=ahora),
+        ):
             respuesta = app.test_client().get(
                 "/api/paradas/parada-prueba/llegadas?concesion=T05"
+                "&stop_ids=parada-prueba,parada-secundaria"
             )
 
         self.assertEqual(respuesta.status_code, 200)
