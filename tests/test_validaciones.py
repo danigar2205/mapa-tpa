@@ -223,5 +223,20 @@ class CapasMapaGTFSTests(unittest.TestCase):
         self.assertEqual(set(T05_ROUTE_NAMES.values()), {"T05-01", "T05-20", "T05-50"})
 
 
+class CorreccionesCoordenadasT11Tests(unittest.TestCase):
+    def test_t11_usa_las_dos_coordenadas_corregidas(self):
+        datos = app.test_client().get("/api/mapa/T11").get_json()
+        por_nombre = {parada["name"]: parada for parada in datos["stops"]}
+
+        violante = por_nombre["C/ Violante De Hungría (Escuela de Idiomas)"]
+        self.assertEqual((violante["lat"], violante["lon"]), (41.642076, -0.905206))
+
+        cutanda = por_nombre["Cutanda. Marquesina C/ Mayor Nº 2"]
+        self.assertEqual((cutanda["lat"], cutanda["lon"]), (40.934940, -1.184232))
+
+        self.assertTrue(violante["lineas"])
+        self.assertTrue(cutanda["lineas"])
+
+
 if __name__ == "__main__":
     unittest.main()
