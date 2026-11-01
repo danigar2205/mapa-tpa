@@ -951,12 +951,20 @@
           const configuracion = catalogoConcesiones[codigo];
           if (!configuracion) return;
           const subtitulo = boton.querySelector('.btn-subtitle');
-          const disponible = !!configuracion.disponible;
+
+          // Por ahora, la selección pública solo permite entrar en T05.
+          // Las demás concesiones conservan sus datos y endpoints, pero no se
+          // habilitan en el menú hasta que se autorice expresamente su apertura.
+          const disponible = codigo === 'T05' && !!configuracion.disponible;
+          const estadoInterfaz = codigo === 'T05'
+            ? (configuracion.estado || 'Disponible')
+            : 'Próximamente';
+
           boton.disabled = !disponible;
           boton.classList.toggle('btn-deshabilitado', !disponible);
-          boton.title = configuracion.estado || '';
+          boton.title = estadoInterfaz;
           if (subtitulo) subtitulo.innerHTML = escaparHTML(configuracion.descripcion) +
-            '<small class="concession-status">' + escaparHTML(configuracion.estado) + '</small>';
+            '<small class="concession-status">' + escaparHTML(estadoInterfaz) + '</small>';
           boton.onclick = disponible ? () => iniciarMapa(codigo) : null;
         });
       } catch (error) {
