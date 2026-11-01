@@ -479,8 +479,12 @@ def get_concesiones():
     return jsonify({"concesiones": construir_catalogo_publico(GTFS_DATASETS)})
 
 
-def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05"):
-    """Consulta GTFS-RT y devuelve predicciones para una parada concreta."""
+def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05", stop_ids=None):
+    """Consulta GTFS-RT y devuelve predicciones para una o varias paradas fusionadas."""
+    ids_parada_objetivo = {str(stop_id)}
+    ids_parada_objetivo.update(
+        str(valor) for valor in (stop_ids or []) if valor
+    )
     codigo = str(concesion or "").upper()
     dataset = obtener_dataset_gtfs(codigo)
     fuentes = FUENTES_GTFSRT_POR_CONCESION.get(codigo, {})
@@ -531,6 +535,12 @@ def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05"):
                 viaje = actualizacion.trip
                 route_id = str(viaje.route_id or "")
                 trip_id = str(viaje.trip_id or "")
+                entity_id = str(entidad.id or "")
+                vehicle_id = (
+                    str(actualizacion.vehicle.id)
+                    if actualizacion.HasField("vehicle") and actualizacion.vehicle.id
+                    else ""
+                )
                 info_ruta = mapa.get("routes", {}).get(route_id)
                 if not info_ruta:
                     continue
@@ -559,7 +569,7 @@ def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05"):
                             .get(str(int(actualizacion_parada.stop_sequence)), "")
                         )
 
-                    if stop_id_actualizacion != str(stop_id):
+                    if stop_id_actualizacion not in ids_parada_objetivo:
                         continue
                     if es_ultima_parada_viaje_gtfs(dataset, {
                         "trip_id": trip_id,
@@ -585,7 +595,9 @@ def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05"):
                         "minutos": minutos,
                         "timestamp": instante,
                         "fuente": "Tiempo real",
-                        "trip_id": trip_id
+                        "trip_id": trip_id,
+                        "vehicle_id": vehicle_id,
+                        "entity_id": entity_id
                     })
 
             if llegadas:
@@ -597,14 +609,19 @@ def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05"):
     unicas = []
     vistos = set()
     for llegada in llegadas:
-        clave = (llegada["trip_id"], llegada["linea"], llegada["timestamp"])
+        identificador = (
+            llegada.get("trip_id") or
+            llegada.get("vehicle_id") or
+            llegada.get("entity_id")
+        )
+        clave = (identificador, llegada["linea"], llegada["timestamp"])
         if clave in vistos:
             continue
         vistos.add(clave)
         unicas.append(llegada)
 
     return {
-        "llegadas": unicas[:8],
+        "llegadas": unicas,
         "tiempo_real_disponible": feed_disponible,
         "actualizado": datetime.now(ZONA_HORARIA).strftime("%H:%M:%S")
     }
@@ -615,15 +632,27 @@ def get_llegadas_parada(stop_id):
     """Próximas llegadas para una parada de una concesión."""
     concesion = request.args.get("concesion", "T05").upper()
     dataset = obtener_dataset_gtfs(concesion)
-    parada_existe = any(
-        str(parada.get("id") or parada.get("stop_id") or "") == str(stop_id)
-        for paradas in dataset["map"].get("stops", {}).values()
-        for parada in paradas
-    )
-    if not parada_existe:
+    ids_disponibles = set()
+    for paradas in dataset["map"].get("stops", {}).values():
+        for parada in paradas:
+            ids_disponibles.update(
+                str(valor) for valor in (parada.get("stop_ids") or [
+                    parada.get("id") or parada.get("stop_id") or ""
+                ]) if valor
+            )
+
+    if str(stop_id) not in ids_disponibles:
         return jsonify({"error": "Parada no encontrada", "llegadas": []}), 404
 
-    return jsonify(obtener_llegadas_en_tiempo_real(stop_id, concesion))
+    ids_solicitados = {str(stop_id)}
+    ids_parametro = request.args.get("stop_ids", "")
+    ids_solicitados.update(
+        valor.strip() for valor in ids_parametro.split(",") if valor.strip()
+    )
+    ids_consultados = ids_solicitados.intersection(ids_disponibles)
+    return jsonify(obtener_llegadas_en_tiempo_real(
+        stop_id, concesion, ids_consultados
+    ))
 
 
 def servicio_activo_gtfs(service_id, fecha, horario=None):
@@ -982,7 +1011,12 @@ def get_buses(linea):
                     trip_id = str(v.trip.trip_id) if v.HasField('trip') else ""
                     coche_num = str(v.vehicle.label) if (v.HasField('vehicle') and v.vehicle.label) else ""
                     matricula = str(v.vehicle.license_plate) if (v.HasField('vehicle') and hasattr(v.vehicle, 'license_plate')) else ""
-                    v_id = str(v.vehicle.id) if (v.HasField('vehicle') and v.vehicle.id) else coche_num
+                    entity_id = str(entity.id or "")
+                    v_id = (
+                        str(v.vehicle.id)
+                        if (v.HasField('vehicle') and v.vehicle.id)
+                        else coche_num or entity_id
+                    )
                     direction_id = v.trip.direction_id if (v.HasField('trip') and v.trip.HasField('direction_id')) else None
 
                     # Garantiza que SOLO se carguen los buses de la concesión pulsada
@@ -1021,7 +1055,7 @@ def get_buses(linea):
                             continue
                         lat, lon = coordenadas
                         buses.append({
-                                'id': v_id or coche_num,
+                                'id': v_id or coche_num or entity_id,
                                 'linea': nombres_rutas.get(r_id, linea_objetivo),
                                 'coche': coche_num,
                                 'matricula': matricula,
