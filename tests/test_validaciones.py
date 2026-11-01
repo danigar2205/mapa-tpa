@@ -211,8 +211,9 @@ class FusionParadasYTerminalesTests(unittest.TestCase):
         )
         self.assertEqual(respuesta.status_code, 200)
         horas = [item["hora"] for item in respuesta.get_json()["horarios"]]
-        self.assertIn("08:09", horas)
-        self.assertNotIn("08:22", horas)
+        self.assertIn("08:13", horas)  # Inicio de un servicio hacia otro destino.
+        self.assertNotIn("08:09", horas)  # El viaje vuelve a terminar en esta misma estación.
+        self.assertNotIn("08:22", horas)  # La llamada terminal no se anuncia como llegada a sí misma.
 
     def test_identifica_la_terminal_y_no_una_pasada_intermedia(self):
         dataset = GTFS_DATASETS["T04"]
