@@ -598,6 +598,91 @@ def servicio_activo_gtfs(service_id, fecha, horario=None):
     return str(servicio.get(campos_dias[fecha.weekday()], "0")) == "1"
 
 
+
+
+
+def obtener_vigencia_gtfs(horario):
+    """Devuelve la última fecha cubierta por los calendarios y excepciones GTFS."""
+    fechas = []
+    for servicio in horario.get("services", {}).values():
+        try:
+            fechas.append(datetime.strptime(
+                str(servicio.get("end_date", "")), "%Y%m%d"
+            ).date())
+        except (TypeError, ValueError):
+            pass
+    for excepcion in horario.get("exceptions", []):
+        try:
+            fechas.append(datetime.strptime(
+                str(excepcion.get("date", "")), "%Y%m%d"
+            ).date())
+        except (TypeError, ValueError):
+            pass
+    return max(fechas) if fechas else None
+
+
+def obtener_proxima_fecha_servicio_gtfs(horario, service_ids, fecha_inicio, fecha_fin):
+    """
+    Busca el primer día posterior con servicio para alguno de los calendarios
+    asociados a esta parada. Aplica calendar_dates.txt antes del calendario semanal.
+    """
+    ids = {str(service_id) for service_id in service_ids if service_id}
+    if not ids or fecha_inicio > fecha_fin:
+        return None
+
+    excepciones = {}
+    for excepcion in horario.get("exceptions", []):
+        clave = (
+            str(excepcion.get("service_id", "")),
+            str(excepcion.get("date", ""))
+        )
+        # Mantener la primera coincidencia, igual que servicio_activo_gtfs.
+        if clave not in excepciones:
+            excepciones[clave] = str(excepcion.get("exception_type", ""))
+
+    campos_dias = (
+        "monday", "tuesday", "wednesday", "thursday",
+        "friday", "saturday", "sunday"
+    )
+    servicios_preparados = {}
+    for service_id in ids:
+        servicio = horario.get("services", {}).get(service_id)
+        if not servicio:
+            servicios_preparados[service_id] = None
+            continue
+        try:
+            inicio = datetime.strptime(
+                str(servicio.get("start_date", "")), "%Y%m%d"
+            ).date()
+            fin = datetime.strptime(
+                str(servicio.get("end_date", "")), "%Y%m%d"
+            ).date()
+            servicios_preparados[service_id] = (servicio, inicio, fin)
+        except (TypeError, ValueError):
+            servicios_preparados[service_id] = None
+
+    fecha = fecha_inicio
+    while fecha <= fecha_fin:
+        fecha_gtfs = fecha.strftime("%Y%m%d")
+        for service_id in ids:
+            excepcion = excepciones.get((service_id, fecha_gtfs))
+            if excepcion is not None:
+                if excepcion == "1":
+                    return fecha
+                continue
+
+            preparado = servicios_preparados.get(service_id)
+            if not preparado:
+                continue
+            servicio, inicio, fin = preparado
+            if inicio <= fecha <= fin and str(
+                servicio.get(campos_dias[fecha.weekday()], "0")
+            ) == "1":
+                return fecha
+        fecha += timedelta(days=1)
+
+    return None
+
 def normalizar_nombre_parada_gtfs(valor):
     """Normaliza nombres para comparar el destino con la parada seleccionada."""
     texto = unicodedata.normalize("NFKD", str(valor or "").casefold())
@@ -711,6 +796,9 @@ def get_horarios_parada(stop_id):
                     normalizar_nombre_parada_gtfs(parada.get("name"))
                 )
 
+    vigencia_fecha = obtener_vigencia_gtfs(horario)
+    vigencia_hasta = vigencia_fecha.isoformat() if vigencia_fecha else None
+
     fecha_texto = request.args.get("fecha")
     try:
         fecha = (
@@ -718,30 +806,41 @@ def get_horarios_parada(stop_id):
             if fecha_texto else datetime.now(ZONA_HORARIA).date()
         )
     except ValueError:
-        return jsonify({"error": "Fecha no válida", "horarios": []}), 400
+        return jsonify({
+            "error": "Fecha no válida",
+            "horarios": [],
+            "vigencia_gtfs_hasta": vigencia_hasta
+        }), 400
 
     hoy = datetime.now(ZONA_HORARIA).date()
-    if fecha < hoy or fecha > hoy + timedelta(days=14):
-        return jsonify({"error": "Solo se pueden consultar hoy y los próximos 14 días", "horarios": []}), 400
+    fecha_fuera_de_vigencia = (
+        fecha > vigencia_fecha if vigencia_fecha else fecha > hoy
+    )
+    if fecha < hoy or fecha_fuera_de_vigencia:
+        limite = (
+            " El horario GTFS está disponible hasta " + vigencia_hasta + "."
+            if vigencia_hasta else " No hay una vigencia futura de horarios disponible."
+        )
+        return jsonify({
+            "error": "La fecha debe estar entre hoy y el final de la vigencia GTFS." + limite,
+            "horarios": [],
+            "vigencia_gtfs_hasta": vigencia_hasta
+        }), 400
 
     ahora = datetime.now(ZONA_HORARIA)
     horarios = []
+    servicios_en_parada = set()
     for registro in horario.get("stop_times", []):
         if str(registro.get("stop_id")) not in ids_consultados:
             continue
         # La última parada de cada expedición no es una salida hacia sí misma.
         if es_ultima_parada_viaje_gtfs(dataset, registro):
             continue
-        service_id = registro.get("service_id")
-        if not servicio_activo_gtfs(service_id, fecha, horario):
-            continue
 
-        segundos = segundos_horario_gtfs(registro.get("departure_time") or registro.get("arrival_time"))
+        segundos = segundos_horario_gtfs(
+            registro.get("departure_time") or registro.get("arrival_time")
+        )
         if segundos is None:
-            continue
-
-        instante = datetime.combine(fecha, datetime.min.time(), tzinfo=ZONA_HORARIA) + timedelta(seconds=segundos)
-        if fecha == hoy and instante < ahora - timedelta(minutes=1):
             continue
 
         info_ruta = horario.get("routes", {}).get(registro.get("route_id"), {})
@@ -749,6 +848,18 @@ def get_horarios_parada(stop_id):
             concesion, registro, info_ruta, dataset
         )
         if normalizar_nombre_parada_gtfs(destino) in nombres_parada_marcada:
+            continue
+
+        service_id = registro.get("service_id")
+        if service_id:
+            servicios_en_parada.add(str(service_id))
+        if not servicio_activo_gtfs(service_id, fecha, horario):
+            continue
+
+        instante = datetime.combine(
+            fecha, datetime.min.time(), tzinfo=ZONA_HORARIA
+        ) + timedelta(seconds=segundos)
+        if fecha == hoy and instante < ahora - timedelta(minutes=1):
             continue
 
         horarios.append({
@@ -762,23 +873,22 @@ def get_horarios_parada(stop_id):
         })
 
     horarios.sort(key=lambda item: item["timestamp"])
-    ultima_fecha = []
-    for servicio in horario.get("services", {}).values():
-        try:
-            ultima_fecha.append(datetime.strptime(servicio.get("end_date", ""), "%Y%m%d").date())
-        except ValueError:
-            pass
-    for excepcion in horario.get("exceptions", []):
-        try:
-            ultima_fecha.append(datetime.strptime(excepcion.get("date", ""), "%Y%m%d").date())
-        except ValueError:
-            pass
+    proxima_fecha = None
+    if not horarios and vigencia_fecha and fecha < vigencia_fecha:
+        proxima_fecha = obtener_proxima_fecha_servicio_gtfs(
+            horario,
+            servicios_en_parada,
+            fecha + timedelta(days=1),
+            vigencia_fecha
+        )
 
-    vigencia_hasta = max(ultima_fecha).isoformat() if ultima_fecha else None
     return jsonify({
         "fecha": fecha.isoformat(),
         "horarios": horarios,
         "vigencia_gtfs_hasta": vigencia_hasta,
+        "proxima_fecha_disponible": (
+            proxima_fecha.isoformat() if proxima_fecha else None
+        ),
         "mensaje": None if horarios else "El GTFS no contiene salidas para esta parada en la fecha seleccionada."
     })
 
