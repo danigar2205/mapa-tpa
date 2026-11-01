@@ -53,7 +53,7 @@ COORDENADAS_CORREGIDAS_T05 = {
 # Se aplican al cargar el mapa, sin alterar el GTFS original ni otras concesiones.
 COORDENADAS_CORREGIDAS_T11 = {
     "c/ violante de hungria (escuela de idiomas)": (41.642076, -0.905206),
-    "cutanda. marquesina c/ mayor nº 2": (40.934940, -1.184232),
+    "cutanda. marquesina c/ mayor no 2": (40.934940, -1.184232),
 }
 
 MAPA_VACIO: dict[str, Any] = {"routes": {}, "shapes": {}, "stops": {}}
