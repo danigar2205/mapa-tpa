@@ -1465,16 +1465,25 @@
       const selectorFecha = elementoPopup?.querySelector('.stop-date-input');
       if (!contenedor) return;
 
+      // Solo la consulta del día actual puede mezclar predicciones GTFS-RT.
+      // Cada recarga invalida las anteriores para evitar que una respuesta lenta
+      // de otra fecha sobrescriba la selección más reciente.
+      const numeroSolicitud = (popup._solicitudLlegadasParada || 0) + 1;
+      popup._solicitudLlegadasParada = numeroSolicitud;
+
       if (selectorFecha && selectorFecha.value !== fecha) selectorFecha.value = fecha;
       contenedor.innerHTML = 'Consultando información de servicio...';
 
       try {
         const funciones = configuracionConcesionActiva?.funciones || {};
+        const consultarTiempoReal = Boolean(
+          funciones.tiempo_real && fecha === fechaLocalISO()
+        );
         const codigo = encodeURIComponent(lineaActiva || 'T05');
         const idsParada = Array.isArray(stopIds) && stopIds.length ? stopIds : [stopId];
         const parametroIds = '&stop_ids=' + encodeURIComponent(idsParada.join(','));
         const consultas = await Promise.all([
-          funciones.tiempo_real
+          consultarTiempoReal
             ? fetch('/api/paradas/' + encodeURIComponent(stopId) + '/llegadas?concesion=' + codigo + parametroIds, { cache: 'no-store' })
             : Promise.resolve(null),
           funciones.horarios
@@ -1487,6 +1496,12 @@
           { llegadas: [], tiempo_real_disponible: false, actualizado: null };
         const datosHorario = respuestaHorario ? await respuestaHorario.json() :
           { horarios: [], mensaje: 'Esta concesión todavía no tiene horarios oficiales incorporados.' };
+
+        // Descarta resultados antiguos y respuestas recibidas después de cerrar el popup.
+        if (
+          popup._solicitudLlegadasParada !== numeroSolicitud ||
+          !popup.getElement()
+        ) return;
 
         if (respuestaHorario && !respuestaHorario.ok) throw new Error(datosHorario.error || 'No se pudo cargar el horario.');
         if (selectorFecha && funciones.horarios) {
@@ -1501,7 +1516,9 @@
           }
         }
         const programadas = Array.isArray(datosHorario.horarios) ? datosHorario.horarios : [];
-        const tiempoReal = respuestaRT?.ok && Array.isArray(datosRT.llegadas) ? datosRT.llegadas : [];
+        const tiempoReal = consultarTiempoReal && respuestaRT?.ok && Array.isArray(datosRT.llegadas)
+          ? datosRT.llegadas
+          : [];
         const tiempoRealPorViaje = new Map(
           tiempoReal.filter(item => item.trip_id).map(item => [item.trip_id, item])
         );
@@ -1533,9 +1550,9 @@
         if (!elementos.length) {
           const mensajes = [];
           if (datosHorario.mensaje) mensajes.push(escaparHTML(datosHorario.mensaje));
-          if (funciones.tiempo_real && (!respuestaRT?.ok || !datosRT.tiempo_real_disponible)) {
+          if (consultarTiempoReal && (!respuestaRT?.ok || !datosRT.tiempo_real_disponible)) {
             mensajes.push('No hay conexión con las predicciones en tiempo real.');
-          } else if (funciones.tiempo_real && !tiempoReal.length) {
+          } else if (consultarTiempoReal && !tiempoReal.length) {
             mensajes.push('Ahora mismo no hay predicciones en tiempo real para esta parada.');
           }
           if (datosHorario.vigencia_gtfs_hasta) {
@@ -1618,16 +1635,22 @@
         const avisoVigencia = datosHorario.vigencia_gtfs_hasta
           ? '<div class="stop-arrival-updated">Horario GTFS disponible hasta ' + escaparHTML(datosHorario.vigencia_gtfs_hasta) + '</div>'
           : '';
-        const actualizado = datosRT.actualizado
+        const actualizado = consultarTiempoReal && datosRT.actualizado
           ? '<div class="stop-arrival-updated">Tiempo real consultado a las ' + escaparHTML(datosRT.actualizado) + ' · actualización cada 30 s</div>'
           : '';
-        const fuenteTexto = funciones.tiempo_real
+        const fuenteTexto = consultarTiempoReal
           ? 'En vivo = predicción GTFS-RT · Programado = horario oficial'
-          : 'Programado = horario oficial GTFS';
+          : funciones.tiempo_real
+            ? 'Otra fecha: se muestra el horario oficial, sin mezclar predicciones de hoy'
+            : 'Programado = horario oficial GTFS';
         contenedor.innerHTML = resumenSalidas + html +
           '<div class="stop-arrival-source">' + fuenteTexto + '</div>' +
           actualizado + avisoVigencia;
       } catch (error) {
+        if (
+          popup._solicitudLlegadasParada !== numeroSolicitud ||
+          !popup.getElement()
+        ) return;
         contenedor.innerHTML = '<div class="stop-arrival-state">' +
           escaparHTML(error?.message || 'No se han podido cargar los horarios y llegadas de esta parada.') +
           '</div>';
@@ -1742,7 +1765,11 @@
               if (llegadas) llegadas.textContent = 'Todavía no hay horarios ni predicciones disponibles para esta concesión.';
             }
           });
-          marcador.on('popupclose', () => {
+          marcador.on('popupclose', (eventoCierre) => {
+            if (eventoCierre.popup) {
+              eventoCierre.popup._solicitudLlegadasParada =
+                (eventoCierre.popup._solicitudLlegadasParada || 0) + 1;
+            }
             if (intervaloLlegadasParada) {
               clearInterval(intervaloLlegadasParada);
               intervaloLlegadasParada = null;
