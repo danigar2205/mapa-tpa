@@ -129,6 +129,41 @@ class OcupacionYVelocidadGTFSRTTests(unittest.TestCase):
         self.assertEqual(datos[0]["ocupacion"], "Pocos asientos")
         self.assertEqual(datos[0]["velocidad_kmh"], 36.0)
 
+    def test_api_buses_devuelve_varios_autobuses_con_identificadores_distintos(self):
+        from types import SimpleNamespace
+        from google.transit import gtfs_realtime_pb2
+
+        route_id = next(iter(GTFS_DATASETS["T05"]["map"]["routes"]))
+        feed = gtfs_realtime_pb2.FeedMessage()
+        feed.header.gtfs_realtime_version = "2.0"
+        feed.header.incrementality = 0
+        feed.header.timestamp = 1800000000
+        ids = []
+        for indice in range(3):
+            entidad = feed.entity.add()
+            entidad.id = "feed-vehicle-" + str(indice)
+            ids.append(entidad.id)
+            vehiculo = entidad.vehicle
+            vehiculo.trip.route_id = route_id
+            # Deliberadamente sin VehicleDescriptor.id ni label:
+            # el identificador de FeedEntity debe mantenerlos separados.
+            vehiculo.position.latitude = 41.0 + indice * 0.01
+            vehiculo.position.longitude = -1.0 - indice * 0.01
+
+        respuesta_feed = SimpleNamespace(
+            status_code=200,
+            content=feed.SerializeToString(),
+        )
+        with patch("app.obtener_estimaciones_tripupdates", return_value={}), \\
+             patch("app.obtener_respuesta_cacheada", return_value=respuesta_feed):
+            respuesta = app.test_client().get("/api/buses/t05")
+
+        self.assertEqual(respuesta.status_code, 200)
+        datos = respuesta.get_json()
+        self.assertEqual(len(datos), 3)
+        self.assertEqual({bus["id"] for bus in datos}, set(ids))
+        self.assertEqual(len({bus["id"] for bus in datos}), 3)
+
     def test_api_buses_no_inventa_ocupacion_ni_velocidad_ausentes(self):
         from types import SimpleNamespace
         from google.transit import gtfs_realtime_pb2
@@ -586,6 +621,60 @@ class HorariosGTFSTests(unittest.TestCase):
             respuesta.get_json()["vigencia_gtfs_hasta"], vigencia.isoformat()
         )
 
+    def test_api_de_llegadas_t05_devuelve_mas_de_ocho_autobuses_simultaneos(self):
+        from types import SimpleNamespace
+        from google.transit import gtfs_realtime_pb2
+
+        route_id = next(iter(GTFS_DATASETS["T05"]["map"]["routes"]))
+        ahora = 1800000000
+        feed = gtfs_realtime_pb2.FeedMessage()
+        feed.header.gtfs_realtime_version = "2.0"
+        feed.header.incrementality = 0
+        feed.header.timestamp = ahora
+        identificadores = []
+        for indice in range(12):
+            entidad = feed.entity.add()
+            entidad.id = "entidad-" + str(indice)
+            identificadores.append("viaje-" + str(indice))
+            actualizacion = entidad.trip_update
+            actualizacion.trip.route_id = route_id
+            actualizacion.trip.trip_id = identificadores[-1]
+            parada = actualizacion.stop_time_update.add()
+            parada.stop_id = "parada-prueba"
+            parada.arrival.time = ahora + (indice + 1) * 60
+
+        dataset = {
+            "map": {
+                "routes": {route_id: {"short_name": "T05-01", "long_name": "Zaragoza - Fraga"}},
+                "stops": {"T05-01": [{"id": "parada-prueba"}]},
+            },
+            "lookup": {"stops": {}, "trips": {}},
+            "schedule": {"routes": {}, "services": {}, "exceptions": [], "stop_times": []},
+            "has_map": True,
+            "has_schedules": True,
+            "has_realtime": True,
+        }
+        respuesta_feed = SimpleNamespace(
+            status_code=200,
+            content=feed.SerializeToString(),
+        )
+        with patch("app.obtener_dataset_gtfs", return_value=dataset), \\
+             patch("app.obtener_respuesta_cacheada", return_value=respuesta_feed), \\
+             patch("app.time.time", return_value=ahora):
+            respuesta = app.test_client().get(
+                "/api/paradas/parada-prueba/llegadas?concesion=T05"
+            )
+
+        self.assertEqual(respuesta.status_code, 200)
+        datos = respuesta.get_json()
+        self.assertTrue(datos["tiempo_real_disponible"])
+        self.assertEqual(len(datos["llegadas"]), 12)
+        self.assertEqual(
+            {llegada["trip_id"] for llegada in datos["llegadas"]},
+            set(identificadores),
+        )
+        self.assertTrue(all(llegada["minutos"] >= 0 for llegada in datos["llegadas"]))
+
     def test_api_de_llegadas_t05_responde_con_feed_gtfsrt_vacio(self):
         from types import SimpleNamespace
 
@@ -669,6 +758,20 @@ class CapasMapaGTFSTests(unittest.TestCase):
         self.assertIn("L.DomEvent.stop(evento);", html)
         self.assertIn("cargarLlegadasParada(stopId, popup, fechaSiguiente, stopIds);", html)
         self.assertIn("selectorFecha.value = fechaSiguiente;", html)
+
+    def test_horarios_de_otras_fechas_no_consultan_ni_mezclan_tiempo_real(self):
+        html = app.test_client().get("/").get_data(as_text=True)
+        self.assertIn("fecha === fechaLocalISO()", html)
+        self.assertIn("consultarTiempoReal ? fetch(", html)
+        self.assertIn("const tiempoReal = consultarTiempoReal &&", html)
+        self.assertIn("Otra fecha: se muestra el horario oficial", html)
+        self.assertIn("popup._solicitudLlegadasParada", html)
+
+    def test_el_mapa_procesa_todos_los_autobuses_devuelto_por_la_api(self):
+        html = app.test_client().get("/").get_data(as_text=True)
+        self.assertIn("datos.forEach((bus)", html)
+        self.assertIn("idsVivos.add(idUnico)", html)
+        self.assertIn("marcadoresBuses[idUnico]", html)
 
     def test_popup_de_autobus_muestra_velocidad_y_distingue_sin_dato(self):
         html = app.test_client().get("/").get_data(as_text=True)
