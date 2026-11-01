@@ -13,6 +13,8 @@ from app import (
     servicio_activo_gtfs,
     segundos_horario_gtfs,
     obtener_destino_final_viaje_gtfs,
+    obtener_ultima_parada_id_viaje_gtfs,
+    es_ultima_parada_viaje_gtfs,
     resolver_destino_horario_gtfs,
     obtener_respuesta_cacheada,
     CACHE_RESPUESTAS_GTFSRT,
@@ -157,6 +159,78 @@ class DestinoSentidoGTFSTests(unittest.TestCase):
         destino = resolver_destino_horario_gtfs("T11", registro, info_ruta, dataset)
         self.assertTrue(destino)
         self.assertNotEqual(destino.casefold(), info_ruta["long_name"].casefold())
+
+
+class FusionParadasYTerminalesTests(unittest.TestCase):
+    def setUp(self):
+        self.client = app.test_client()
+
+    def _paradas_por_nombre(self, concesion, nombre):
+        datos = self.client.get(f"/api/mapa/{concesion}").get_json()
+        return [parada for parada in datos["stops"] if parada["name"] == nombre]
+
+    def test_huesca_estacion_es_un_solo_marcador_en_t04(self):
+        paradas = self._paradas_por_nombre("T04", "Huesca. Estación de Autobuses")
+        self.assertEqual(len(paradas), 1)
+        self.assertEqual(
+            set(paradas[0]["stop_ids"]),
+            {
+                "daaf50c8-4c5c-4667-955d-9f0fe0e26ade",
+                "2954b4ec-9b28-4e0b-8150-a8323af99a20",
+            },
+        )
+
+    def test_delicias_es_un_solo_marcador_en_todas_las_concesiones(self):
+        concesiones = ("T04", "T05", "T06", "T11", "T12", "T13", "T14", "T15")
+        coordenadas = []
+        for concesion in concesiones:
+            paradas = self._paradas_por_nombre(concesion, "Zaragoza. Estación Intermodal")
+            self.assertEqual(len(paradas), 1, concesion)
+            coordenadas.append((paradas[0]["lat"], paradas[0]["lon"]))
+        self.assertTrue(all(punto == coordenadas[0] for punto in coordenadas))
+
+    def test_fusiona_los_dos_registros_de_delicias_en_t06(self):
+        parada = self._paradas_por_nombre("T06", "Zaragoza. Estación Intermodal")[0]
+        self.assertEqual(len(parada["stop_ids"]), 2)
+        self.assertIn("a27f8e1d-8040-499c-bbdf-3d2d4d1ebdcf", parada["stop_ids"])
+        self.assertIn("c419a8d4-6637-4deb-8f90-001d2a66f734", parada["stop_ids"])
+
+    def test_ejea_estacion_es_un_solo_marcador_en_t15(self):
+        paradas = self._paradas_por_nombre(
+            "T15", "Ejea de los Caballeros. Estación de Autobuses"
+        )
+        self.assertEqual(len(paradas), 1)
+        self.assertEqual(len(paradas[0]["stop_ids"]), 2)
+
+    def test_horarios_fusionados_conservan_pasada_intermedia(self):
+        parada = self._paradas_por_nombre("T04", "Huesca. Estación de Autobuses")[0]
+        ids = ",".join(parada["stop_ids"])
+        respuesta = self.client.get(
+            "/api/paradas/" + parada["id"] + "/horarios"
+            "?concesion=T04&fecha=2026-11-03&stop_ids=" + ids
+        )
+        self.assertEqual(respuesta.status_code, 200)
+        horas = [item["hora"] for item in respuesta.get_json()["horarios"]]
+        self.assertIn("08:13", horas)  # Inicio de un servicio hacia otro destino.
+        self.assertNotIn("08:09", horas)  # El viaje vuelve a terminar en esta misma estación.
+        self.assertNotIn("08:22", horas)  # La llamada terminal no se anuncia como llegada a sí misma.
+
+    def test_identifica_la_terminal_y_no_una_pasada_intermedia(self):
+        dataset = GTFS_DATASETS["T04"]
+        trip_id = "8003bcd6-6a89-48e2-b535-05b4f45b2735"
+        secuencias = dataset["lookup"]["trips"][trip_id]
+        self.assertEqual(
+            obtener_ultima_parada_id_viaje_gtfs(dataset, trip_id),
+            secuencias["20"],
+        )
+        self.assertFalse(es_ultima_parada_viaje_gtfs(dataset, {
+            "trip_id": trip_id,
+            "stop_id": "2954b4ec-9b28-4e0b-8150-a8323af99a20",
+        }))
+        self.assertTrue(es_ultima_parada_viaje_gtfs(dataset, {
+            "trip_id": trip_id,
+            "stop_id": "daaf50c8-4c5c-4667-955d-9f0fe0e26ade",
+        }))
 
 
 class HorariosGTFSTests(unittest.TestCase):
