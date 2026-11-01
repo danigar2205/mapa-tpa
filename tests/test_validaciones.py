@@ -193,11 +193,13 @@ class CapasMapaGTFSTests(unittest.TestCase):
         lugarico = next(parada for parada in datos["stops"] if parada["name"] == "Lugarico de Cerdán")
         self.assertEqual(set(lugarico["lineas"]), {"T05-01", "T05-20"})
 
-    def test_otra_concesion_sin_datos_no_recibe_datos_t05(self):
+    def test_t13_muestra_sus_datos_sin_confundirse_con_t05(self):
         datos = self.client.get("/api/mapa/t13").get_json()
-        self.assertEqual(datos["routes"], [])
-        self.assertEqual(datos["stops"], [])
-        self.assertEqual(datos["concesion"], "T13")
+        nombres = {ruta["short_name"] for ruta in datos["routes"]}
+        self.assertTrue(nombres)
+        self.assertTrue(all(nombre.startswith("T13-") for nombre in nombres))
+        self.assertTrue(datos["stops"])
+        self.assertTrue(all(parada["concesion"] == "T13" for parada in datos["stops"]))
         self.assertFalse(datos["funciones"]["tiempo_real"])
 
     def test_catalogo_indica_capacidades_reales_por_concesion(self):
