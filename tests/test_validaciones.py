@@ -664,6 +664,12 @@ class CapasMapaGTFSTests(unittest.TestCase):
         self.assertFalse(datos["funciones"]["tiempo_real"])
 
 
+    def test_boton_proximo_servicio_detiene_el_clic_para_mantener_abierto_el_popup(self):
+        html = app.test_client().get("/").get_data(as_text=True)
+        self.assertIn("L.DomEvent.stop(evento);", html)
+        self.assertIn("cargarLlegadasParada(stopId, popup, fechaSiguiente, stopIds);", html)
+        self.assertIn("selectorFecha.value = fechaSiguiente;", html)
+
     def test_popup_de_autobus_muestra_velocidad_y_distingue_sin_dato(self):
         html = app.test_client().get("/").get_data(as_text=True)
         self.assertIn("bus.velocidad_kmh", html)
