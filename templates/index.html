@@ -539,6 +539,81 @@
         -webkit-overflow-scrolling: touch;
       }
     }
+
+    /* Evita que los horarios largos hagan crecer indefinidamente la ficha. */
+    .llegadas-parada {
+      max-height: min(38vh, 300px);
+      overflow-y: auto;
+      overflow-x: hidden;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+      scrollbar-color: #cbd5e1 transparent;
+      padding-right: 5px;
+    }
+
+    .stop-line-list {
+      max-height: 76px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      align-content: flex-start;
+      overscroll-behavior: contain;
+      scrollbar-width: thin;
+    }
+
+    /* El selector de líneas pasa a una cuadrícula compacta con scroll propio. */
+    .line-filter-row {
+      display: block;
+      margin-top: 8px;
+    }
+
+    .filter-caption {
+      display: block;
+      margin: 0 0 5px;
+    }
+
+    #lista-filtros-lineas {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      align-items: start;
+      gap: 5px;
+      width: 100%;
+      max-height: 112px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      overscroll-behavior: contain;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148,163,184,.55) transparent;
+      padding: 2px 5px 3px 0;
+    }
+
+    .line-filter {
+      width: 100%;
+      min-width: 0;
+      justify-content: flex-start;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .filter-dot {
+      flex: 0 0 7px;
+    }
+
+    @media (max-width: 640px) {
+      #lista-filtros-lineas {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        max-height: 104px;
+      }
+
+      .llegadas-parada {
+        max-height: min(34vh, 240px);
+      }
+
+      .stop-line-list {
+        max-height: 64px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1330,9 +1405,12 @@
               maxWidth: window.matchMedia('(max-width: 640px)').matches
                 ? Math.max(220, Math.min(310, window.innerWidth - 58))
                 : 310,
-              maxHeight: window.matchMedia('(max-width: 640px)').matches
-                ? Math.max(220, Math.floor(window.innerHeight * 0.62))
-                : undefined
+              maxHeight: Math.max(
+                240,
+                Math.floor(window.innerHeight * (
+                  window.matchMedia('(max-width: 640px)').matches ? 0.62 : 0.72
+                ))
+              )
             }
           );
           marcador.on('popupopen', evento => {
