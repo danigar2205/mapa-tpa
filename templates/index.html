@@ -710,6 +710,37 @@
       .stop-popup { min-width: 330px; max-width: 390px; }
     }
 
+
+    .stop-next-service-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      width: 100%;
+      margin-top: 8px;
+      padding: 9px 10px;
+      border: 1px solid #93c5fd;
+      border-radius: 8px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-size: 11px;
+      line-height: 1.35;
+      font-weight: 800;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .stop-next-service-button:hover,
+    .stop-next-service-button:focus-visible {
+      border-color: #60a5fa;
+      background: #dbeafe;
+    }
+
+    .stop-next-service-button:focus-visible {
+      outline: 2px solid #2563eb;
+      outline-offset: 2px;
+    }
+
   </style>
 </head>
 <body>
@@ -1416,6 +1447,18 @@
       return fechaLocalISO(fecha);
     }
 
+    function formatearFechaServicio(fechaISO) {
+      const [anio, mes, dia] = String(fechaISO || '').split('-').map(Number);
+      if (!anio || !mes || !dia) return fechaISO;
+      const fecha = new Date(anio, mes - 1, dia, 12);
+      const texto = new Intl.DateTimeFormat('es-ES', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long'
+      }).format(fecha);
+      return texto.charAt(0).toUpperCase() + texto.slice(1);
+    }
+
     async function cargarLlegadasParada(stopId, popup, fecha = fechaLocalISO(), stopIds = null) {
       const elementoPopup = popup.getElement();
       const contenedor = elementoPopup?.querySelector('.llegadas-parada');
@@ -1446,6 +1489,17 @@
           { horarios: [], mensaje: 'Esta concesión todavía no tiene horarios oficiales incorporados.' };
 
         if (respuestaHorario && !respuestaHorario.ok) throw new Error(datosHorario.error || 'No se pudo cargar el horario.');
+        if (selectorFecha && funciones.horarios) {
+          const hoyISO = fechaLocalISO();
+          selectorFecha.min = hoyISO;
+          if (datosHorario.vigencia_gtfs_hasta) {
+            selectorFecha.max = datosHorario.vigencia_gtfs_hasta < hoyISO
+              ? hoyISO
+              : datosHorario.vigencia_gtfs_hasta;
+          } else {
+            selectorFecha.max = hoyISO;
+          }
+        }
         const programadas = Array.isArray(datosHorario.horarios) ? datosHorario.horarios : [];
         const tiempoReal = respuestaRT?.ok && Array.isArray(datosRT.llegadas) ? datosRT.llegadas : [];
         const tiempoRealPorViaje = new Map(
@@ -1487,7 +1541,24 @@
           if (datosHorario.vigencia_gtfs_hasta) {
             mensajes.push('El fichero GTFS disponible llega hasta ' + escaparHTML(datosHorario.vigencia_gtfs_hasta) + '.');
           }
-          contenedor.innerHTML = '<div class="stop-arrival-state">' + mensajes.join('<br>') + '</div>';
+          const proximaFecha = datosHorario.proxima_fecha_disponible;
+          const botonProximaFecha = proximaFecha
+            ? '<button type="button" class="stop-next-service-button" data-proxima-fecha="' +
+                escaparHTML(proximaFecha) + '">' +
+                '<i class="fa-solid fa-calendar-day" aria-hidden="true"></i> Ver próximo servicio: ' +
+                escaparHTML(formatearFechaServicio(proximaFecha)) +
+              '</button>'
+            : '';
+          contenedor.innerHTML =
+            '<div class="stop-arrival-state">' + mensajes.join('<br>') + '</div>' +
+            botonProximaFecha;
+
+          const botonSiguiente = contenedor.querySelector('[data-proxima-fecha]');
+          botonSiguiente?.addEventListener('click', () => {
+            const fechaSiguiente = botonSiguiente.dataset.proximaFecha;
+            if (selectorFecha) selectorFecha.value = fechaSiguiente;
+            cargarLlegadasParada(stopId, popup, fechaSiguiente, stopIds);
+          });
           return;
         }
 
@@ -1555,7 +1626,9 @@
           '<div class="stop-arrival-source">' + fuenteTexto + '</div>' +
           actualizado + avisoVigencia;
       } catch (error) {
-        contenedor.innerHTML = 'No se han podido cargar los horarios y llegadas de esta parada.';
+        contenedor.innerHTML = '<div class="stop-arrival-state">' +
+          escaparHTML(error?.message || 'No se han podido cargar los horarios y llegadas de esta parada.') +
+          '</div>';
         console.error('Error consultando horarios de la parada:', error);
       }
     }
@@ -1641,7 +1714,7 @@
             const hoy = fechaLocalISO();
             if (selectorFecha) {
               selectorFecha.min = hoy;
-              selectorFecha.max = desplazarFechaISO(hoy, 14);
+              selectorFecha.removeAttribute('max');
               selectorFecha.value = hoy;
               selectorFecha.addEventListener('change', () => {
                 cargarLlegadasParada(parada.id, evento.popup, selectorFecha.value, parada.stop_ids);
