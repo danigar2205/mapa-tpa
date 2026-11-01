@@ -11,6 +11,8 @@ from app import (
     GTFS_T05_SCHEDULE,
     servicio_activo_gtfs,
     segundos_horario_gtfs,
+    obtener_destino_final_viaje_gtfs,
+    resolver_destino_horario_gtfs,
     obtener_respuesta_cacheada,
     CACHE_RESPUESTAS_GTFSRT,
 )
@@ -66,6 +68,63 @@ class ProximaParadaGTFSTests(unittest.TestCase):
             trip_id="viaje-inexistente"
         )
         self.assertEqual(parada, "Parada sin identificar")
+
+
+class DestinoSentidoGTFSTests(unittest.TestCase):
+    def setUp(self):
+        self.dataset = {
+            "lookup": {
+                "stops": {
+                    "s1": "Teruel. Estación de Autobuses",
+                    "s2": "Calamocha. Estación",
+                    "s3": "Zaragoza. Estación Intermodal",
+                },
+                "trips": {
+                    "viaje-teruel-zaragoza": {"1": "s1", "2": "s2", "3": "s3"},
+                },
+            }
+        }
+
+    def test_obtiene_destino_de_la_ultima_parada_del_viaje(self):
+        self.assertEqual(
+            obtener_destino_final_viaje_gtfs(
+                self.dataset, "viaje-teruel-zaragoza"
+            ),
+            "Zaragoza. Estación Intermodal",
+        )
+
+    def test_sustituye_headsign_generico_por_el_sentido_del_viaje(self):
+        registro = {
+            "trip_id": "viaje-teruel-zaragoza",
+            "headsign": "Teruel - Zaragoza",
+        }
+        info_ruta = {"long_name": "Teruel - Zaragoza"}
+        self.assertEqual(
+            resolver_destino_horario_gtfs("T11", registro, info_ruta, self.dataset),
+            "Zaragoza. Estación Intermodal",
+        )
+
+    def test_conserva_headsign_especifico_de_t05(self):
+        registro = {
+            "trip_id": "viaje-teruel-zaragoza",
+            "headsign": "Fraga",
+        }
+        info_ruta = {"long_name": "Zaragoza - Fraga"}
+        self.assertEqual(
+            resolver_destino_horario_gtfs("T05", registro, info_ruta, self.dataset),
+            "Fraga",
+        )
+
+    def test_conserva_headsign_especifico_de_otra_concesion(self):
+        registro = {
+            "trip_id": "viaje-teruel-zaragoza",
+            "headsign": "Alcañiz",
+        }
+        info_ruta = {"long_name": "Teruel - Zaragoza"}
+        self.assertEqual(
+            resolver_destino_horario_gtfs("T07", registro, info_ruta, self.dataset),
+            "Alcañiz",
+        )
 
 
 class HorariosGTFSTests(unittest.TestCase):
