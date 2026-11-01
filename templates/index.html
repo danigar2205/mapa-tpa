@@ -614,6 +614,102 @@
         max-height: 64px;
       }
     }
+
+    /* Horarios agrupados por línea y destino: menos repetición y lectura más rápida. */
+    .llegadas-parada { max-height: min(46vh, 380px); }
+
+    .stop-schedule-summary {
+      position: sticky; top: 0; z-index: 1; padding: 6px 0;
+      background: #fff; color: #64748b; font-size: 10px; font-weight: 700;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .stop-schedule-group { padding: 8px 0; border-bottom: 1px solid #e2e8f0; }
+    .stop-schedule-heading {
+      display: flex; align-items: center; flex-wrap: wrap; gap: 5px 7px; margin-bottom: 6px;
+    }
+    .stop-schedule-line {
+      flex: 0 0 auto; font-size: 10px; font-weight: 800; padding: 3px 6px;
+      border-radius: 5px; background: #f1f5f9;
+    }
+    .stop-schedule-destination {
+      min-width: 100px; flex: 1 1 120px; color: #334155; font-size: 11px;
+      line-height: 1.25; font-weight: 700; overflow-wrap: anywhere;
+    }
+    .stop-schedule-count { flex: 0 0 auto; color: #94a3b8; font-size: 9px; }
+    .stop-schedule-times { display: flex; flex-wrap: wrap; gap: 5px; }
+    .stop-schedule-time {
+      display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+      min-width: 66px; padding: 5px 7px; border: 1px solid #e2e8f0;
+      border-radius: 7px; background: #f8fafc;
+    }
+    .stop-schedule-time strong {
+      color: #0f172a; font-size: 13px; line-height: 1.15; font-variant-numeric: tabular-nums;
+    }
+    .stop-schedule-time small {
+      margin-top: 2px; color: #64748b; font-size: 9px; line-height: 1.15; white-space: nowrap;
+    }
+    .stop-schedule-time.live { border-color: #86efac; background: #f0fdf4; }
+    .stop-schedule-time.live small { color: #15803d; font-weight: 700; }
+
+    /* El selector empieza plegado y despliega sus controles bajo demanda. */
+    .line-filter-row { display: block; margin-top: 8px; }
+    .line-filter-toggle {
+      width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 8px 10px; border: 1px solid rgba(255,255,255,.13); border-radius: 9px;
+      background: rgba(255,255,255,.06); color: #f8fafc; text-align: left; cursor: pointer;
+    }
+    .line-filter-toggle:hover { background: rgba(255,255,255,.11); }
+    .line-filter-toggle-copy { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .line-filter-title { color: #e2e8f0; font-size: 11px; font-weight: 800; }
+    .line-filter-summary { color: #94a3b8; font-size: 10px; }
+    .line-filter-toggle > i { flex: 0 0 auto; color: #94a3b8; font-size: 11px; }
+    .line-filter-panel {
+      margin-top: 7px; padding: 8px; border: 1px solid rgba(255,255,255,.12);
+      border-radius: 10px; background: rgba(15,23,42,.72);
+    }
+    .line-filter-actions { display: flex; gap: 6px; margin-bottom: 7px; }
+    .line-filter-action {
+      flex: 1 1 0; min-width: 0; padding: 7px 6px; border: 1px solid rgba(255,255,255,.12);
+      border-radius: 7px; background: rgba(255,255,255,.07); color: #cbd5e1;
+      font-size: 10px; font-weight: 700; cursor: pointer;
+    }
+    .line-filter-action:hover { background: rgba(255,255,255,.14); color: #fff; }
+    #buscador-filtros-lineas {
+      width: 100%; height: 33px; margin-bottom: 7px; padding: 0 9px;
+      border: 1px solid rgba(255,255,255,.13); border-radius: 7px; outline: none;
+      background: rgba(255,255,255,.07); color: #f8fafc; font-size: 11px;
+    }
+    #buscador-filtros-lineas::placeholder { color: #94a3b8; }
+    #buscador-filtros-lineas:focus {
+      border-color: #60a5fa; box-shadow: 0 0 0 2px rgba(96,165,250,.14);
+    }
+    #lista-filtros-lineas {
+      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start;
+      gap: 5px; width: 100%; max-height: 188px; overflow-y: auto; overflow-x: hidden;
+      overscroll-behavior: contain; scrollbar-width: thin;
+      scrollbar-color: rgba(148,163,184,.55) transparent; padding: 2px 4px 3px 0;
+    }
+    #lista-filtros-lineas .line-filter {
+      width: 100%; min-width: 0; justify-content: flex-start;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    #lista-filtros-lineas .line-filter[hidden] { display: none !important; }
+
+    @media (max-width: 640px) {
+      .llegadas-parada { max-height: min(42vh, 320px); }
+      .stop-popup {
+        min-width: min(300px, calc(100vw - 92px));
+        max-width: calc(100vw - 64px);
+      }
+      #lista-filtros-lineas {
+        grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: 148px;
+      }
+      .line-filter-action { font-size: 9px; }
+    }
+    @media (min-width: 641px) {
+      .stop-popup { min-width: 330px; max-width: 390px; }
+    }
+
   </style>
 </head>
 <body>
@@ -743,8 +839,23 @@
       </div>
       <div class="search-results" id="resultados-paradas" hidden></div>
       <div class="line-filter-row" id="contenedor-filtros-lineas" hidden>
-        <span class="filter-caption">Autobuses</span>
-        <div id="lista-filtros-lineas"></div>
+        <button class="line-filter-toggle" id="btn-toggle-filtros-lineas" type="button"
+          aria-expanded="false" aria-controls="panel-filtros-lineas">
+          <span class="line-filter-toggle-copy">
+            <span class="line-filter-title">Filtrar autobuses</span>
+            <span class="line-filter-summary" id="resumen-filtros-lineas">Todas las líneas activas</span>
+          </span>
+          <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+        </button>
+        <div class="line-filter-panel" id="panel-filtros-lineas" hidden>
+          <div class="line-filter-actions">
+            <button class="line-filter-action" id="btn-seleccionar-todas-lineas" type="button">Seleccionar todas</button>
+            <button class="line-filter-action" id="btn-desmarcar-todas-lineas" type="button">Desmarcar todas</button>
+          </div>
+          <input id="buscador-filtros-lineas" type="search" autocomplete="off"
+            placeholder="Buscar línea..." aria-label="Buscar línea">
+          <div id="lista-filtros-lineas"></div>
+        </div>
       </div>
       <div class="favorites-panel" id="panel-favoritos" hidden>
         <div class="favorites-panel-heading">
@@ -1143,6 +1254,31 @@
         if (boton) toggleFiltroLinea(boton.dataset.lineFilter);
       });
 
+      const botonFiltros = document.getElementById('btn-toggle-filtros-lineas');
+      const panelFiltros = document.getElementById('panel-filtros-lineas');
+      botonFiltros?.addEventListener('click', () => {
+        if (!panelFiltros) return;
+        panelFiltros.hidden = !panelFiltros.hidden;
+        const abierto = !panelFiltros.hidden;
+        botonFiltros.setAttribute('aria-expanded', String(abierto));
+        const icono = botonFiltros.querySelector('i');
+        icono?.classList.toggle('fa-chevron-down', !abierto);
+        icono?.classList.toggle('fa-chevron-up', abierto);
+        if (abierto) document.getElementById('buscador-filtros-lineas')?.focus();
+      });
+      document.getElementById('btn-seleccionar-todas-lineas')?.addEventListener('click', () => {
+        cambiarEstadoFiltrosLineas(true);
+      });
+      document.getElementById('btn-desmarcar-todas-lineas')?.addEventListener('click', () => {
+        cambiarEstadoFiltrosLineas(false);
+      });
+      document.getElementById('buscador-filtros-lineas')?.addEventListener('input', evento => {
+        const consulta = normalizarTexto(evento.target.value);
+        document.querySelectorAll('#lista-filtros-lineas [data-line-filter]').forEach(opcion => {
+          opcion.hidden = !normalizarTexto(opcion.textContent).includes(consulta);
+        });
+      });
+
       renderFavoritos();
       if (!intervaloAlertasFavoritos) {
         intervaloAlertasFavoritos = setInterval(comprobarAlertasFavoritos, 60000);
@@ -1167,7 +1303,42 @@
           '<span class="filter-dot" style="background:' + escaparHTML(color) + '"></span>' +
           escaparHTML(nombre) + '</button>'
       ).join('');
+
+      const panel = document.getElementById('panel-filtros-lineas');
+      const botonPanel = document.getElementById('btn-toggle-filtros-lineas');
+      const buscador = document.getElementById('buscador-filtros-lineas');
+      if (panel) panel.hidden = true;
+      if (botonPanel) {
+        botonPanel.setAttribute('aria-expanded', 'false');
+        const icono = botonPanel.querySelector('i');
+        icono?.classList.add('fa-chevron-down');
+        icono?.classList.remove('fa-chevron-up');
+      }
+      if (buscador) buscador.value = '';
+      lista.querySelectorAll('[data-line-filter]').forEach(opcion => { opcion.hidden = false; });
+      actualizarResumenFiltrosLineas();
       contenedor.hidden = !configuracionConcesionActiva?.funciones?.tiempo_real || !lineas.size;
+    }
+
+    function actualizarResumenFiltrosLineas() {
+      const total = Object.keys(filtrosLineas).length;
+      const activas = Object.values(filtrosLineas).filter(Boolean).length;
+      const resumen = document.getElementById('resumen-filtros-lineas');
+      if (!resumen) return;
+      if (total > 0 && activas === total) resumen.textContent = 'Todas las líneas activas';
+      else if (activas === 0) resumen.textContent = 'Todas las líneas ocultas';
+      else resumen.textContent = activas + ' de ' + total + ' líneas activas';
+    }
+
+    function cambiarEstadoFiltrosLineas(activar) {
+      Object.keys(filtrosLineas).forEach(nombre => { filtrosLineas[nombre] = activar; });
+      document.querySelectorAll('#lista-filtros-lineas [data-line-filter]').forEach(boton => {
+        const visible = filtrosLineas[boton.dataset.lineFilter] !== false;
+        boton.classList.toggle('active', visible);
+        boton.setAttribute('aria-pressed', String(visible));
+      });
+      actualizarResumenFiltrosLineas();
+      aplicarFiltrosLineas();
     }
 
     function toggleFiltroLinea(linea) {
@@ -1177,6 +1348,7 @@
         boton.classList.toggle('active', filtrosLineas[linea]);
         boton.setAttribute('aria-pressed', String(filtrosLineas[linea]));
       }
+      actualizarResumenFiltrosLineas();
       aplicarFiltrosLineas();
     }
 
@@ -1311,23 +1483,56 @@
           return;
         }
 
-        const html = elementos.slice(0, 20).map(item => {
-          const color = COLORES_LINEA[item.linea] || '#475569';
-          const estado = item.estado === 'En vivo'
-            ? (Number(item.minutos) <= 0 ? 'Llegando' : 'en ' + Number(item.minutos) + ' min')
-            : 'Horario oficial';
-          const diferencia = item.estado === 'En vivo' && item.delta !== null
-            ? (item.delta > 60 ? ' · +' + Math.round(item.delta / 60) + ' min' : item.delta < -60 ? ' · ' + Math.round(item.delta / 60) + ' min' : '')
-            : '';
-          return '<div class="stop-arrival-row">' +
-            '<span class="stop-arrival-line" style="color:' + color + ';">' + escaparHTML(item.linea) + '</span>' +
-            '<span class="stop-arrival-destination">' + escaparHTML(item.destino) +
-              '<small class="arrival-status ' + (item.estado === 'En vivo' ? 'live' : 'scheduled') + '">' +
-                escaparHTML(item.estado + diferencia) + '</small></span>' +
-            '<span class="stop-arrival-time"><strong>' + escaparHTML(item.horaMostrada) +
-              '</strong><small>' + escaparHTML(estado) + '</small></span>' +
-          '</div>';
+        const grupos = new Map();
+        elementos.forEach(item => {
+          const linea = String(item.linea || 'Línea sin identificar');
+          const destino = String(item.destino || 'Destino no disponible');
+          const clave = linea + '\u0000' + destino;
+          let grupo = grupos.get(clave);
+          if (!grupo) {
+            grupo = {
+              linea,
+              destino,
+              items: [],
+              timestamp: Number(item.timestampMostrado) || 0
+            };
+            grupos.set(clave, grupo);
+          }
+          grupo.items.push(item);
+        });
+
+        const gruposOrdenados = Array.from(grupos.values()).sort((a, b) => a.timestamp - b.timestamp);
+        const html = gruposOrdenados.map(grupo => {
+          const color = COLORES_LINEA[grupo.linea] || '#475569';
+          const horas = grupo.items
+            .sort((a, b) => Number(a.timestampMostrado || 0) - Number(b.timestampMostrado || 0))
+            .map(item => {
+              const esTiempoReal = item.estado === 'En vivo';
+              const diferencia = esTiempoReal && item.delta !== null
+                ? (item.delta > 60 ? ' · +' + Math.round(item.delta / 60) + ' min' : item.delta < -60 ? ' · ' + Math.round(item.delta / 60) + ' min' : '')
+                : '';
+              const estado = esTiempoReal
+                ? (Number(item.minutos) <= 0 ? 'RT · Llegando' : 'RT · ' + Number(item.minutos) + ' min')
+                : 'Horario oficial';
+              return '<span class="stop-schedule-time' + (esTiempoReal ? ' live' : '') +
+                '" title="' + escaparHTML(estado + diferencia) + '">' +
+                '<strong>' + escaparHTML(item.horaMostrada) + '</strong>' +
+                '<small>' + escaparHTML(esTiempoReal ? 'En vivo' + diferencia : 'Oficial') + '</small>' +
+              '</span>';
+            }).join('');
+
+          return '<section class="stop-schedule-group">' +
+            '<div class="stop-schedule-heading">' +
+              '<span class="stop-schedule-line" style="color:' + color + ';">' + escaparHTML(grupo.linea) + '</span>' +
+              '<span class="stop-schedule-destination">' + escaparHTML(grupo.destino) + '</span>' +
+              '<span class="stop-schedule-count">' + grupo.items.length +
+                (grupo.items.length === 1 ? ' salida' : ' salidas') + '</span>' +
+            '</div>' +
+            '<div class="stop-schedule-times">' + horas + '</div>' +
+          '</section>';
         }).join('');
+        const resumenSalidas = '<div class="stop-schedule-summary">' +
+          elementos.length + ' salidas · ' + grupos.size + ' grupos de línea y destino</div>';
 
         const avisoVigencia = datosHorario.vigencia_gtfs_hasta
           ? '<div class="stop-arrival-updated">Horario GTFS disponible hasta ' + escaparHTML(datosHorario.vigencia_gtfs_hasta) + '</div>'
@@ -1338,7 +1543,7 @@
         const fuenteTexto = funciones.tiempo_real
           ? 'En vivo = predicción GTFS-RT · Programado = horario oficial'
           : 'Programado = horario oficial GTFS';
-        contenedor.innerHTML = html +
+        contenedor.innerHTML = resumenSalidas + html +
           '<div class="stop-arrival-source">' + fuenteTexto + '</div>' +
           actualizado + avisoVigencia;
       } catch (error) {
@@ -1403,13 +1608,13 @@
             '</div>',
             {
               maxWidth: window.matchMedia('(max-width: 640px)').matches
-                ? Math.max(220, Math.min(310, window.innerWidth - 58))
-                : 310,
+                ? Math.max(220, Math.min(390, window.innerWidth - 40))
+                : 390,
               maxHeight: Math.max(
-                240,
-                Math.floor(window.innerHeight * (
-                  window.matchMedia('(max-width: 640px)').matches ? 0.62 : 0.72
-                ))
+                160,
+                Math.min(640, Math.floor(window.innerHeight * (
+                  window.matchMedia('(max-width: 640px)').matches ? 0.78 : 0.82
+                )))
               )
             }
           );
