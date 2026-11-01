@@ -290,6 +290,54 @@ class HorariosGTFSTests(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(respuesta.get_json()["horarios"][0]["linea"], "T05-01")
 
+
+    def test_api_devuelve_todas_las_salidas_cuando_superan_veinte(self):
+        from datetime import timedelta
+
+        fecha = date.today() + timedelta(days=1)
+        salidas = [{
+            "stop_id": "parada-prueba",
+            "service_id": "servicio-prueba",
+            "departure_time": "10:{:02d}:00".format(minuto),
+            "route_id": "ruta-prueba",
+            "headsign": "Destino",
+            "trip_id": "viaje-{}".format(minuto),
+            "direction_id": "0",
+        } for minuto in range(25)]
+        dataset = {
+            "map": {"stops": {"T05-01": [{
+                "id": "parada-prueba",
+                "name": "Parada de prueba",
+            }]}},
+            "lookup": {"stops": {}, "trips": {}},
+            "schedule": {
+                "routes": {"ruta-prueba": {
+                    "short_name": "T05-01",
+                    "long_name": "Destino",
+                }},
+                "services": {},
+                "exceptions": [{
+                    "service_id": "servicio-prueba",
+                    "date": fecha.strftime("%Y%m%d"),
+                    "exception_type": "1",
+                }],
+                "stop_times": salidas,
+            },
+            "has_map": True,
+            "has_schedules": True,
+            "has_realtime": True,
+        }
+        with patch("app.obtener_dataset_gtfs", return_value=dataset):
+            respuesta = app.test_client().get(
+                "/api/paradas/parada-prueba/horarios?concesion=T05&fecha=" + fecha.isoformat()
+            )
+
+        self.assertEqual(respuesta.status_code, 200)
+        horarios = respuesta.get_json()["horarios"]
+        self.assertEqual(len(horarios), 25)
+        self.assertEqual(horarios[0]["hora"], "10:00")
+        self.assertEqual(horarios[-1]["hora"], "10:24")
+
     def test_api_de_llegadas_t05_responde_con_feed_gtfsrt_vacio(self):
         from types import SimpleNamespace
 

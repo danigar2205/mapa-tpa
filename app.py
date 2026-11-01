@@ -777,7 +777,7 @@ def get_horarios_parada(stop_id):
     vigencia_hasta = max(ultima_fecha).isoformat() if ultima_fecha else None
     return jsonify({
         "fecha": fecha.isoformat(),
-        "horarios": horarios[:20],
+        "horarios": horarios,
         "vigencia_gtfs_hasta": vigencia_hasta,
         "mensaje": None if horarios else "El GTFS no contiene salidas para esta parada en la fecha seleccionada."
     })
