@@ -479,8 +479,12 @@ def get_concesiones():
     return jsonify({"concesiones": construir_catalogo_publico(GTFS_DATASETS)})
 
 
-def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05"):
-    """Consulta GTFS-RT y devuelve predicciones para una parada concreta."""
+def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05", stop_ids=None):
+    """Consulta GTFS-RT y devuelve predicciones para una o varias paradas fusionadas."""
+    ids_parada_objetivo = {str(stop_id)}
+    ids_parada_objetivo.update(
+        str(valor) for valor in (stop_ids or []) if valor
+    )
     codigo = str(concesion or "").upper()
     dataset = obtener_dataset_gtfs(codigo)
     fuentes = FUENTES_GTFSRT_POR_CONCESION.get(codigo, {})
@@ -565,7 +569,7 @@ def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05"):
                             .get(str(int(actualizacion_parada.stop_sequence)), "")
                         )
 
-                    if stop_id_actualizacion != str(stop_id):
+                    if stop_id_actualizacion not in ids_parada_objetivo:
                         continue
                     if es_ultima_parada_viaje_gtfs(dataset, {
                         "trip_id": trip_id,
@@ -628,15 +632,27 @@ def get_llegadas_parada(stop_id):
     """Próximas llegadas para una parada de una concesión."""
     concesion = request.args.get("concesion", "T05").upper()
     dataset = obtener_dataset_gtfs(concesion)
-    parada_existe = any(
-        str(parada.get("id") or parada.get("stop_id") or "") == str(stop_id)
-        for paradas in dataset["map"].get("stops", {}).values()
-        for parada in paradas
-    )
-    if not parada_existe:
+    ids_disponibles = set()
+    for paradas in dataset["map"].get("stops", {}).values():
+        for parada in paradas:
+            ids_disponibles.update(
+                str(valor) for valor in (parada.get("stop_ids") or [
+                    parada.get("id") or parada.get("stop_id") or ""
+                ]) if valor
+            )
+
+    if str(stop_id) not in ids_disponibles:
         return jsonify({"error": "Parada no encontrada", "llegadas": []}), 404
 
-    return jsonify(obtener_llegadas_en_tiempo_real(stop_id, concesion))
+    ids_solicitados = {str(stop_id)}
+    ids_parametro = request.args.get("stop_ids", "")
+    ids_solicitados.update(
+        valor.strip() for valor in ids_parametro.split(",") if valor.strip()
+    )
+    ids_consultados = ids_solicitados.intersection(ids_disponibles)
+    return jsonify(obtener_llegadas_en_tiempo_real(
+        stop_id, concesion, ids_consultados
+    ))
 
 
 def servicio_activo_gtfs(service_id, fecha, horario=None):
