@@ -9,6 +9,7 @@ import gzip
 import time
 import ssl
 import math
+import unicodedata
 import base64
 import json
 from requests.adapters import HTTPAdapter
@@ -597,6 +598,14 @@ def servicio_activo_gtfs(service_id, fecha, horario=None):
     return str(servicio.get(campos_dias[fecha.weekday()], "0")) == "1"
 
 
+def normalizar_nombre_parada_gtfs(valor):
+    """Normaliza nombres para comparar el destino con la parada seleccionada."""
+    texto = unicodedata.normalize("NFKD", str(valor or "").casefold())
+    return " ".join(
+        "".join(caracter for caracter in texto if not unicodedata.combining(caracter)).split()
+    )
+
+
 def obtener_ultima_parada_id_viaje_gtfs(dataset, trip_id):
     """Devuelve el stop_id terminal de un viaje usando stop_sequence del lookup."""
     secuencias = dataset.get("lookup", {}).get("trips", {}).get(str(trip_id), {})
@@ -687,6 +696,21 @@ def get_horarios_parada(stop_id):
     if str(stop_id) not in ids_disponibles:
         return jsonify({"error": "Parada no encontrada", "horarios": []}), 404
 
+    # Nombres del marcador fusionado: se ocultan los servicios cuyo destino
+    # vuelve a ser exactamente esta misma parada/estación.
+    nombres_parada_marcada = set()
+    for paradas in dataset["map"].get("stops", {}).values():
+        for parada in paradas:
+            ids_parada = {
+                str(valor) for valor in (parada.get("stop_ids") or [
+                    parada.get("id") or parada.get("stop_id") or ""
+                ]) if valor
+            }
+            if ids_parada.intersection(ids_consultados):
+                nombres_parada_marcada.add(
+                    normalizar_nombre_parada_gtfs(parada.get("name"))
+                )
+
     fecha_texto = request.args.get("fecha")
     try:
         fecha = (
@@ -721,11 +745,15 @@ def get_horarios_parada(stop_id):
             continue
 
         info_ruta = horario.get("routes", {}).get(registro.get("route_id"), {})
+        destino = resolver_destino_horario_gtfs(
+            concesion, registro, info_ruta, dataset
+        )
+        if normalizar_nombre_parada_gtfs(destino) in nombres_parada_marcada:
+            continue
+
         horarios.append({
             "linea": info_ruta.get("short_name", concesion),
-            "destino": resolver_destino_horario_gtfs(
-                concesion, registro, info_ruta, dataset
-            ),
+            "destino": destino,
             "hora": instante.strftime("%H:%M"),
             "timestamp": int(instante.timestamp()),
             "direccion": str(registro.get("direction_id", "")),
