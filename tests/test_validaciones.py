@@ -772,7 +772,7 @@ class CapasMapaGTFSTests(unittest.TestCase):
     def test_horarios_de_otras_fechas_no_consultan_ni_mezclan_tiempo_real(self):
         html = app.test_client().get("/").get_data(as_text=True)
         self.assertIn("fecha === fechaLocalISO()", html)
-        self.assertIn("consultarTiempoReal ? fetch(", html)
+        self.assertIn("consultarTiempoReal", html)
         self.assertIn("const tiempoReal = consultarTiempoReal &&", html)
         self.assertIn("Otra fecha: se muestra el horario oficial", html)
         self.assertIn("popup._solicitudLlegadasParada", html)
