@@ -1554,7 +1554,9 @@
             botonProximaFecha;
 
           const botonSiguiente = contenedor.querySelector('[data-proxima-fecha]');
-          botonSiguiente?.addEventListener('click', () => {
+          botonSiguiente?.addEventListener('click', (evento) => {
+            // Evita que el clic llegue al mapa y Leaflet cierre el popup.
+            L.DomEvent.stop(evento);
             const fechaSiguiente = botonSiguiente.dataset.proximaFecha;
             if (selectorFecha) selectorFecha.value = fechaSiguiente;
             cargarLlegadasParada(stopId, popup, fechaSiguiente, stopIds);
