@@ -415,6 +415,25 @@ class CapasMapaGTFSTests(unittest.TestCase):
         self.assertTrue(all(parada["concesion"] == "T13" for parada in datos["stops"]))
         self.assertFalse(datos["funciones"]["tiempo_real"])
 
+
+    def test_solo_t05_se_habilita_en_el_menu_inicial(self):
+        html = app.test_client().get("/").get_data(as_text=True)
+        codigos = ["T01", "T02", "T03", "T04"] + [
+            "T{:02d}".format(numero) for numero in range(6, 16)
+        ]
+        for codigo in codigos:
+            boton = html.split('data-concesion="' + codigo + '"', 1)[0].rsplit("<button", 1)[-1]
+            self.assertIn("disabled", boton, codigo)
+            self.assertIn("btn-deshabilitado", boton, codigo)
+
+        boton_t05 = html.split('data-concesion="T05"', 1)[0].rsplit("<button", 1)[-1]
+        self.assertNotIn("disabled", boton_t05)
+        self.assertNotIn("btn-deshabilitado", boton_t05)
+
+        # La respuesta dinámica del catálogo tampoco puede volver a habilitar otras concesiones.
+        self.assertIn("codigo === 'T05' && !!configuracion.disponible", html)
+        self.assertIn(": 'Próximamente';", html)
+
     def test_catalogo_indica_capacidades_reales_por_concesion(self):
         catalogo = self.client.get("/api/concesiones").get_json()["concesiones"]
         por_codigo = {item["codigo"]: item for item in catalogo}
