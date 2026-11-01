@@ -1,6 +1,7 @@
 import math
 import unittest
-from datetime import date
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 from unittest.mock import patch, Mock
 
 from app import (
@@ -338,6 +339,140 @@ class HorariosGTFSTests(unittest.TestCase):
         self.assertEqual(horarios[0]["hora"], "10:00")
         self.assertEqual(horarios[-1]["hora"], "10:24")
 
+
+    def test_api_admite_fechas_mas_alla_de_catorce_dias_dentro_de_vigencia(self):
+        from datetime import timedelta
+
+        hoy = datetime.now(ZoneInfo("Europe/Madrid")).date()
+        fecha = hoy + timedelta(days=35)
+        fin = fecha + timedelta(days=30)
+        dataset = {
+            "map": {"stops": {"T05-01": [{"id": "parada-prueba"}]}},
+            "lookup": {"stops": {}, "trips": {}},
+            "schedule": {
+                "routes": {"ruta-prueba": {
+                    "short_name": "T05-01",
+                    "long_name": "Destino",
+                }},
+                "services": {
+                    "servicio-prueba": {
+                        "start_date": fecha.strftime("%Y%m%d"),
+                        "end_date": fin.strftime("%Y%m%d"),
+                        "monday": "1", "tuesday": "1", "wednesday": "1",
+                        "thursday": "1", "friday": "1", "saturday": "1",
+                        "sunday": "1",
+                    }
+                },
+                "exceptions": [],
+                "stop_times": [{
+                    "stop_id": "parada-prueba",
+                    "service_id": "servicio-prueba",
+                    "departure_time": "10:00:00",
+                    "route_id": "ruta-prueba",
+                    "headsign": "Destino",
+                    "trip_id": "viaje-prueba",
+                    "direction_id": "0",
+                }],
+            },
+            "has_map": True,
+            "has_schedules": True,
+            "has_realtime": True,
+        }
+        with patch("app.obtener_dataset_gtfs", return_value=dataset):
+            respuesta = app.test_client().get(
+                "/api/paradas/parada-prueba/horarios?concesion=T05&fecha=" + fecha.isoformat()
+            )
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.get_json()["horarios"][0]["hora"], "10:00")
+        self.assertEqual(respuesta.get_json()["vigencia_gtfs_hasta"], fin.isoformat())
+
+    def test_api_sugiere_el_siguiente_dia_con_servicio_en_la_parada(self):
+        from datetime import timedelta
+
+        hoy = datetime.now(ZoneInfo("Europe/Madrid")).date()
+        fecha_consultada = hoy + timedelta(days=1)
+        fecha_siguiente = hoy + timedelta(days=4)
+        dataset = {
+            "map": {"stops": {"T05-01": [{
+                "id": "parada-prueba",
+                "name": "Parada de prueba",
+            }]}},
+            "lookup": {"stops": {}, "trips": {}},
+            "schedule": {
+                "routes": {"ruta-prueba": {
+                    "short_name": "T05-01",
+                    "long_name": "Destino",
+                }},
+                "services": {},
+                "exceptions": [{
+                    "service_id": "servicio-prueba",
+                    "date": fecha_siguiente.strftime("%Y%m%d"),
+                    "exception_type": "1",
+                }],
+                "stop_times": [{
+                    "stop_id": "parada-prueba",
+                    "service_id": "servicio-prueba",
+                    "departure_time": "10:00:00",
+                    "route_id": "ruta-prueba",
+                    "headsign": "Destino",
+                    "trip_id": "viaje-prueba",
+                    "direction_id": "0",
+                }],
+            },
+            "has_map": True,
+            "has_schedules": True,
+            "has_realtime": True,
+        }
+        with patch("app.obtener_dataset_gtfs", return_value=dataset):
+            respuesta = app.test_client().get(
+                "/api/paradas/parada-prueba/horarios?concesion=T05&fecha=" +
+                fecha_consultada.isoformat()
+            )
+
+        self.assertEqual(respuesta.status_code, 200)
+        datos = respuesta.get_json()
+        self.assertEqual(datos["horarios"], [])
+        self.assertEqual(datos["proxima_fecha_disponible"], fecha_siguiente.isoformat())
+
+    def test_api_rechaza_fechas_posteriores_a_la_vigencia_gtfs(self):
+        from datetime import timedelta
+
+        hoy = datetime.now(ZoneInfo("Europe/Madrid")).date()
+        vigencia = hoy + timedelta(days=20)
+        fecha_solicitada = vigencia + timedelta(days=1)
+        dataset = {
+            "map": {"stops": {"T05-01": [{"id": "parada-prueba"}]}},
+            "lookup": {"stops": {}, "trips": {}},
+            "schedule": {
+                "routes": {},
+                "services": {
+                    "servicio-prueba": {
+                        "start_date": hoy.strftime("%Y%m%d"),
+                        "end_date": vigencia.strftime("%Y%m%d"),
+                        "monday": "1", "tuesday": "1", "wednesday": "1",
+                        "thursday": "1", "friday": "1", "saturday": "1",
+                        "sunday": "1",
+                    }
+                },
+                "exceptions": [],
+                "stop_times": [],
+            },
+            "has_map": True,
+            "has_schedules": True,
+            "has_realtime": False,
+        }
+        with patch("app.obtener_dataset_gtfs", return_value=dataset):
+            respuesta = app.test_client().get(
+                "/api/paradas/parada-prueba/horarios?concesion=T05&fecha=" +
+                fecha_solicitada.isoformat()
+            )
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertEqual(
+            respuesta.get_json()["vigencia_gtfs_hasta"], vigencia.isoformat()
+        )
+
     def test_api_de_llegadas_t05_responde_con_feed_gtfsrt_vacio(self):
         from types import SimpleNamespace
 
@@ -415,6 +550,14 @@ class CapasMapaGTFSTests(unittest.TestCase):
         self.assertTrue(all(parada["concesion"] == "T13" for parada in datos["stops"]))
         self.assertFalse(datos["funciones"]["tiempo_real"])
 
+
+    def test_selector_de_fecha_usa_vigencia_gtfs_y_ofrece_proximo_servicio(self):
+        html = app.test_client().get("/").get_data(as_text=True)
+        self.assertIn("selectorFecha.removeAttribute('max')", html)
+        self.assertNotIn("selectorFecha.max = desplazarFechaISO(hoy, 14)", html)
+        self.assertIn("datosHorario.vigencia_gtfs_hasta", html)
+        self.assertIn("datosHorario.proxima_fecha_disponible", html)
+        self.assertIn("stop-next-service-button", html)
 
     def test_solo_t05_se_habilita_en_el_menu_inicial(self):
         html = app.test_client().get("/").get_data(as_text=True)
