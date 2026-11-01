@@ -511,6 +511,11 @@ def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05"):
 
                     if stop_id_actualizacion != str(stop_id):
                         continue
+                    if es_ultima_parada_viaje_gtfs(dataset, {
+                        "trip_id": trip_id,
+                        "stop_id": stop_id_actualizacion,
+                    }):
+                        continue
 
                     instante = None
                     if actualizacion_parada.HasField("arrival") and actualizacion_parada.arrival.HasField("time"):
@@ -592,29 +597,36 @@ def servicio_activo_gtfs(service_id, fecha, horario=None):
     return str(servicio.get(campos_dias[fecha.weekday()], "0")) == "1"
 
 
-def obtener_destino_final_viaje_gtfs(dataset, trip_id):
-    """Obtiene la última parada del viaje a partir del lookup GTFS."""
-    lookup = dataset.get("lookup", {})
-    secuencias = lookup.get("trips", {}).get(str(trip_id), {})
-    nombres_paradas = lookup.get("stops", {})
-    if not isinstance(secuencias, dict):
+def obtener_ultima_parada_id_viaje_gtfs(dataset, trip_id):
+    """Devuelve el stop_id terminal de un viaje usando stop_sequence del lookup."""
+    secuencias = dataset.get("lookup", {}).get("trips", {}).get(str(trip_id), {})
+    if not isinstance(secuencias, dict) or not secuencias:
         return None
-
     try:
-        ordenadas = sorted(
-            secuencias,
-            key=lambda secuencia: int(secuencia),
-            reverse=True,
-        )
+        ultima_secuencia = max(secuencias, key=lambda valor: int(valor))
     except (TypeError, ValueError):
-        ordenadas = sorted(secuencias, reverse=True)
+        ultima_secuencia = max(secuencias)
+    stop_id = secuencias.get(ultima_secuencia)
+    return str(stop_id) if stop_id else None
 
-    for secuencia in ordenadas:
-        stop_id = secuencias.get(secuencia)
-        nombre = nombres_paradas.get(str(stop_id))
-        if nombre:
-            return nombre
-    return None
+
+def es_ultima_parada_viaje_gtfs(dataset, registro):
+    """Indica si el registro corresponde al término real de esa expedición."""
+    stop_id_final = obtener_ultima_parada_id_viaje_gtfs(
+        dataset, registro.get("trip_id")
+    )
+    return bool(
+        stop_id_final and
+        str(registro.get("stop_id") or "") == stop_id_final
+    )
+
+
+def obtener_destino_final_viaje_gtfs(dataset, trip_id):
+    """Obtiene el nombre de la última parada del viaje."""
+    stop_id = obtener_ultima_parada_id_viaje_gtfs(dataset, trip_id)
+    if not stop_id:
+        return None
+    return dataset.get("lookup", {}).get("stops", {}).get(stop_id)
 
 
 def resolver_destino_horario_gtfs(concesion, registro, info_ruta, dataset):
@@ -660,12 +672,19 @@ def get_horarios_parada(stop_id):
     concesion = request.args.get("concesion", "T05").upper()
     dataset = obtener_dataset_gtfs(concesion)
     horario = dataset["schedule"]
-    parada_existe = any(
-        str(parada.get("id") or parada.get("stop_id") or "") == str(stop_id)
-        for paradas in dataset["map"].get("stops", {}).values()
-        for parada in paradas
-    )
-    if not parada_existe:
+    ids_disponibles = set()
+    for paradas in dataset["map"].get("stops", {}).values():
+        for parada in paradas:
+            ids_disponibles.update(
+                str(valor) for valor in (parada.get("stop_ids") or [
+                    parada.get("id") or parada.get("stop_id") or ""
+                ]) if valor
+            )
+    ids_solicitados = {str(stop_id)}
+    ids_parametro = request.args.get("stop_ids", "")
+    ids_solicitados.update(valor.strip() for valor in ids_parametro.split(",") if valor.strip())
+    ids_consultados = ids_solicitados.intersection(ids_disponibles)
+    if str(stop_id) not in ids_disponibles:
         return jsonify({"error": "Parada no encontrada", "horarios": []}), 404
 
     fecha_texto = request.args.get("fecha")
@@ -684,7 +703,10 @@ def get_horarios_parada(stop_id):
     ahora = datetime.now(ZONA_HORARIA)
     horarios = []
     for registro in horario.get("stop_times", []):
-        if str(registro.get("stop_id")) != str(stop_id):
+        if str(registro.get("stop_id")) not in ids_consultados:
+            continue
+        # La última parada de cada expedición no es una salida hacia sí misma.
+        if es_ultima_parada_viaje_gtfs(dataset, registro):
             continue
         service_id = registro.get("service_id")
         if not servicio_activo_gtfs(service_id, fecha, horario):
