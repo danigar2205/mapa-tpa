@@ -19,6 +19,9 @@ from app import (
     resolver_destino_horario_gtfs,
     obtener_respuesta_cacheada,
     CACHE_RESPUESTAS_GTFSRT,
+    procesar_ocupacion,
+    leer_campo_protobuf_opcional,
+    convertir_velocidad_kmh,
 )
 
 
@@ -46,6 +49,116 @@ class ValidarCoordenadasTests(unittest.TestCase):
 
     def test_rechaza_texto_no_numerico(self):
         self.assertIsNone(validar_coordenadas("norte", "oeste"))
+
+
+class OcupacionYVelocidadGTFSRTTests(unittest.TestCase):
+    def test_traduce_todos_los_estados_de_ocupacion_gtfs_rt(self):
+        esperados = {
+            0: "Vacío",
+            1: "Asientos libres",
+            2: "Pocos asientos",
+            3: "Solo de pie",
+            4: "Espacio muy reducido",
+            5: "Lleno",
+            6: "No admite pasajeros",
+            7: "Sin datos",
+            8: "No admite viajeros",
+        }
+        for valor, texto in esperados.items():
+            with self.subTest(occupancy_status=valor):
+                self.assertEqual(procesar_ocupacion(valor)[0], texto)
+
+    def test_estado_ausente_no_se_confunde_con_autobus_vacio(self):
+        from google.transit import gtfs_realtime_pb2
+
+        vehiculo = gtfs_realtime_pb2.VehiclePosition()
+        self.assertIsNone(leer_campo_protobuf_opcional(vehiculo, "occupancy_status"))
+        vehiculo.occupancy_status = 0
+        self.assertEqual(leer_campo_protobuf_opcional(vehiculo, "occupancy_status"), 0)
+        self.assertEqual(procesar_ocupacion(None)[0], "Sin datos")
+
+    def test_porcentaje_de_ocupacion_se_muestra_si_el_feed_lo_publica(self):
+        self.assertEqual(
+            procesar_ocupacion(7, 64),
+            ("64% de ocupación", "gray"),
+        )
+        self.assertEqual(
+            procesar_ocupacion(1, 64),
+            ("Asientos libres (64%)", "green"),
+        )
+        self.assertEqual(procesar_ocupacion(1, -1)[0], "Asientos libres")
+
+    def test_convierte_velocidad_de_metros_por_segundo_a_kmh(self):
+        self.assertEqual(convertir_velocidad_kmh(10), 36.0)
+        self.assertEqual(convertir_velocidad_kmh(0), 0.0)
+        self.assertIsNone(convertir_velocidad_kmh(None))
+        self.assertIsNone(convertir_velocidad_kmh(-1))
+        self.assertIsNone(convertir_velocidad_kmh(float("nan")))
+
+    def test_api_buses_incluye_ocupacion_y_velocidad_del_feed(self):
+        from types import SimpleNamespace
+        from google.transit import gtfs_realtime_pb2
+
+        route_id = next(iter(GTFS_DATASETS["T05"]["map"]["routes"]))
+        feed = gtfs_realtime_pb2.FeedMessage()
+        feed.header.gtfs_realtime_version = "2.0"
+        feed.header.incrementality = 0  # FULL_DATASET
+        feed.header.timestamp = 1800000000
+        entidad = feed.entity.add()
+        entidad.id = "vehiculo-prueba"
+        vehiculo = entidad.vehicle
+        vehiculo.trip.route_id = route_id
+        vehiculo.vehicle.id = "id-vehiculo-prueba"
+        vehiculo.vehicle.label = "Coche 123"
+        vehiculo.position.latitude = 41.0
+        vehiculo.position.longitude = -1.0
+        vehiculo.position.speed = 10.0
+        vehiculo.occupancy_status = 2
+
+        respuesta_feed = SimpleNamespace(
+            status_code=200,
+            content=feed.SerializeToString(),
+        )
+        with patch("app.obtener_estimaciones_tripupdates", return_value={}), \
+             patch("app.obtener_respuesta_cacheada", return_value=respuesta_feed):
+            respuesta = app.test_client().get("/api/buses/t05")
+
+        self.assertEqual(respuesta.status_code, 200)
+        datos = respuesta.get_json()
+        self.assertEqual(len(datos), 1)
+        self.assertEqual(datos[0]["ocupacion"], "Pocos asientos")
+        self.assertEqual(datos[0]["velocidad_kmh"], 36.0)
+
+    def test_api_buses_no_inventa_ocupacion_ni_velocidad_ausentes(self):
+        from types import SimpleNamespace
+        from google.transit import gtfs_realtime_pb2
+
+        route_id = next(iter(GTFS_DATASETS["T05"]["map"]["routes"]))
+        feed = gtfs_realtime_pb2.FeedMessage()
+        feed.header.gtfs_realtime_version = "2.0"
+        feed.header.incrementality = 0  # FULL_DATASET
+        feed.header.timestamp = 1800000000
+        entidad = feed.entity.add()
+        entidad.id = "vehiculo-sin-datos"
+        vehiculo = entidad.vehicle
+        vehiculo.trip.route_id = route_id
+        vehiculo.vehicle.id = "id-vehiculo-sin-datos"
+        vehiculo.position.latitude = 41.0
+        vehiculo.position.longitude = -1.0
+
+        respuesta_feed = SimpleNamespace(
+            status_code=200,
+            content=feed.SerializeToString(),
+        )
+        with patch("app.obtener_estimaciones_tripupdates", return_value={}), \
+             patch("app.obtener_respuesta_cacheada", return_value=respuesta_feed):
+            respuesta = app.test_client().get("/api/buses/t05")
+
+        self.assertEqual(respuesta.status_code, 200)
+        datos = respuesta.get_json()
+        self.assertEqual(len(datos), 1)
+        self.assertEqual(datos[0]["ocupacion"], "Sin datos")
+        self.assertIsNone(datos[0]["velocidad_kmh"])
 
 
 class ProximaParadaGTFSTests(unittest.TestCase):
@@ -550,6 +663,12 @@ class CapasMapaGTFSTests(unittest.TestCase):
         self.assertTrue(all(parada["concesion"] == "T13" for parada in datos["stops"]))
         self.assertFalse(datos["funciones"]["tiempo_real"])
 
+
+    def test_popup_de_autobus_muestra_velocidad_y_distingue_sin_dato(self):
+        html = app.test_client().get("/").get_data(as_text=True)
+        self.assertIn("bus.velocidad_kmh", html)
+        self.assertIn("Velocidad:</b>", html)
+        self.assertIn("Sin dato", html)
 
     def test_selector_de_fecha_usa_vigencia_gtfs_y_ofrece_proximo_servicio(self):
         html = app.test_client().get("/").get_data(as_text=True)

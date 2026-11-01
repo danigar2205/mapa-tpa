@@ -1908,6 +1908,10 @@
             const idUnico = bus.id || coche;
             const ocupacion = bus.ocupacion || "Sin datos";
             const occColor = bus.ocupacion_color || "gray";
+            const velocidadKmh = bus.velocidad_kmh == null ? null : Number(bus.velocidad_kmh);
+            const velocidadTexto = velocidadKmh !== null && Number.isFinite(velocidadKmh) && velocidadKmh >= 0
+              ? velocidadKmh.toLocaleString('es-ES', { maximumFractionDigits: 1 }) + ' km/h'
+              : 'Sin dato';
             const retraso = bus.retraso || "En hora";
             const proximaParada = bus.proxima_parada || "En trayecto";
             const destino = bus.destino || "En trayecto";
@@ -1926,6 +1930,7 @@
                   <div style="margin-bottom: 3px;"><i class="fa-solid fa-route" style="color: #8b5cf6; width: 16px;"></i> <b>Destino:</b> ${escaparHTML(destino)}</div>
                   <div style="margin-bottom: 3px;"><i class="fa-solid fa-clock" style="color: #2563eb; width: 16px;"></i> <b>Estado:</b> ${escaparHTML(retraso)}</div>
                   <div><i class="fa-solid fa-location-dot" style="color: #ef4444; width: 16px;"></i> <b>Próxima:</b> ${escaparHTML(proximaParada)}</div>
+                  <div><i class="fa-solid fa-gauge-high" style="color: #0f766e; width: 16px;"></i> <b>Velocidad:</b> ${escaparHTML(velocidadTexto)}</div>
                 </div>
 
                 <div class="occ-badge occ-${occColor}">

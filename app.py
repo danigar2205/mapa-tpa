@@ -199,7 +199,9 @@ TRADUCCION_OCUPACION = {
     'STANDING_ROOM_ONLY': ('Solo de pie', 'orange'),
     'CRUSHED_STANDING_ROOM_ONLY': ('Espacio muy reducido', 'red'),
     'FULL': ('Lleno', 'red'),
-    'NOT_ACCEPTING_PASSENGERS': ('No admite pasajeros', 'red')
+    'NOT_ACCEPTING_PASSENGERS': ('No admite pasajeros', 'red'),
+    'NO_DATA_AVAILABLE': ('Sin datos', 'gray'),
+    'NOT_BOARDABLE': ('No admite viajeros', 'gray')
 }
 
 def validar_coordenadas(lat, lon):
@@ -252,11 +254,37 @@ def resolver_destino_y_parada(concesion_key, route_id, direction_id, stop_sequen
 
     return destino, nombre_parada
 
-def procesar_ocupacion(raw_status):
-    if raw_status is None or raw_status == "":
-        return 'Sin datos', 'gray'
-    
-    status_str = str(raw_status).strip().upper()
+def leer_campo_protobuf_opcional(mensaje, nombre):
+    """Lee un campo opcional sin confundir su valor predeterminado con un dato publicado."""
+    if mensaje is None or not hasattr(mensaje, nombre):
+        return None
+
+    comprobar_presencia = getattr(mensaje, "HasField", None)
+    if callable(comprobar_presencia):
+        try:
+            if not comprobar_presencia(nombre):
+                return None
+        except (TypeError, ValueError):
+            # Algunos mensajes/esquemas no permiten consultar presencia escalar.
+            pass
+
+    return getattr(mensaje, nombre, None)
+
+
+def convertir_velocidad_kmh(velocidad_mps):
+    """Convierte m/s de GTFS-RT a km/h; mantiene 0 como velocidad válida."""
+    try:
+        velocidad = float(velocidad_mps)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if not math.isfinite(velocidad) or velocidad < 0:
+        return None
+    return round(velocidad * 3.6, 1)
+
+
+def procesar_ocupacion(raw_status, raw_percentage=None):
+    """Traduce OccupancyStatus y, si existe, añade el porcentaje publicado."""
+    status_str = str(raw_status).strip().upper() if raw_status is not None else ""
     enum_map = {
         '0': 'EMPTY',
         '1': 'MANY_SEATS_AVAILABLE',
@@ -264,10 +292,31 @@ def procesar_ocupacion(raw_status):
         '3': 'STANDING_ROOM_ONLY',
         '4': 'CRUSHED_STANDING_ROOM_ONLY',
         '5': 'FULL',
-        '6': 'NOT_ACCEPTING_PASSENGERS'
+        '6': 'NOT_ACCEPTING_PASSENGERS',
+        '7': 'NO_DATA_AVAILABLE',
+        '8': 'NOT_BOARDABLE'
     }
     clave = enum_map.get(status_str, status_str)
-    return TRADUCCION_OCUPACION.get(clave, ('Sin datos', 'gray'))
+    texto, color = TRADUCCION_OCUPACION.get(clave, ('Sin datos', 'gray'))
+
+    porcentaje = None
+    if raw_percentage is not None:
+        try:
+            valor = float(raw_percentage)
+            if math.isfinite(valor) and valor >= 0:
+                porcentaje = valor
+        except (TypeError, ValueError, OverflowError):
+            pass
+
+    if porcentaje is not None:
+        porcentaje_texto = f"{porcentaje:g}%"
+        if clave == 'NO_DATA_AVAILABLE' or clave not in TRADUCCION_OCUPACION:
+            texto = f"{porcentaje_texto} de ocupación"
+        else:
+            texto = f"{texto} ({porcentaje_texto})"
+
+    return texto, color
+
 
 def obtener_estimaciones_tripupdates(linea_objetivo):
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Accept': '*/*'}
@@ -943,14 +992,16 @@ def get_buses(linea):
                         lat = v.position.latitude if v.HasField('position') else None
                         lon = v.position.longitude if v.HasField('position') else None
                         
-                        if v.HasField('occupancy_status'):
-                            raw_occ = v.occupancy_status
-                        elif hasattr(v, 'occupancy_status'):
-                            raw_occ = getattr(v, 'occupancy_status')
-                        else:
-                            raw_occ = None
-
-                        occ_texto, occ_color = procesar_ocupacion(raw_occ)
+                        raw_occ = leer_campo_protobuf_opcional(v, 'occupancy_status')
+                        raw_occ_percentage = leer_campo_protobuf_opcional(v, 'occupancy_percentage')
+                        occ_texto, occ_color = procesar_ocupacion(
+                            raw_occ, raw_occ_percentage
+                        )
+                        velocidad_mps = (
+                            leer_campo_protobuf_opcional(v.position, 'speed')
+                            if v.HasField('position') else None
+                        )
+                        velocidad_kmh = convertir_velocidad_kmh(velocidad_mps)
                         dest_defecto, _ = resolver_destino_y_parada(linea_objetivo, r_id, direction_id, None)
 
                         info_est = (
@@ -978,6 +1029,7 @@ def get_buses(linea):
                                 'lon': float(lon),
                                 'ocupacion': occ_texto,
                                 'ocupacion_color': occ_color,
+                                'velocidad_kmh': velocidad_kmh,
                                 'retraso': info_est.get('retraso', 'En hora'),
                                 'proxima_parada': info_est.get('proxima_parada', 'En trayecto'),
                                 'destino': destino_final
