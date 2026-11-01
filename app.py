@@ -592,6 +592,57 @@ def servicio_activo_gtfs(service_id, fecha, horario=None):
     return str(servicio.get(campos_dias[fecha.weekday()], "0")) == "1"
 
 
+def obtener_destino_final_viaje_gtfs(dataset, trip_id):
+    """Obtiene la última parada del viaje a partir del lookup GTFS."""
+    lookup = dataset.get("lookup", {})
+    secuencias = lookup.get("trips", {}).get(str(trip_id), {})
+    nombres_paradas = lookup.get("stops", {})
+    if not isinstance(secuencias, dict):
+        return None
+
+    try:
+        ordenadas = sorted(
+            secuencias,
+            key=lambda secuencia: int(secuencia),
+            reverse=True,
+        )
+    except (TypeError, ValueError):
+        ordenadas = sorted(secuencias, reverse=True)
+
+    for secuencia in ordenadas:
+        stop_id = secuencias.get(secuencia)
+        nombre = nombres_paradas.get(str(stop_id))
+        if nombre:
+            return nombre
+    return None
+
+
+def resolver_destino_horario_gtfs(concesion, registro, info_ruta, dataset):
+    """
+    Devuelve el destino concreto del viaje, no el nombre general de la línea.
+
+    Algunos GTFS publican como trip_headsign el nombre completo del corredor
+    (por ejemplo, «Teruel - Zaragoza»), que no distingue el sentido. En ese
+    caso se usa la última parada del viaje. Los headsign específicos, como
+    los que ya utiliza T05, se conservan.
+    """
+    headsign = str(registro.get("headsign") or "").strip()
+    nombre_ruta = str(info_ruta.get("long_name") or "").strip()
+
+    headsign_generico = (
+        not headsign or
+        (nombre_ruta and headsign.casefold() == nombre_ruta.casefold())
+    )
+    if headsign_generico and str(concesion).upper() != "T05":
+        destino_final = obtener_destino_final_viaje_gtfs(
+            dataset, registro.get("trip_id")
+        )
+        if destino_final:
+            return destino_final
+
+    return headsign or nombre_ruta or "Destino no disponible"
+
+
 def segundos_horario_gtfs(valor):
     """Convierte una hora GTFS, admitiendo horas superiores a 24:00."""
     try:
@@ -650,7 +701,9 @@ def get_horarios_parada(stop_id):
         info_ruta = horario.get("routes", {}).get(registro.get("route_id"), {})
         horarios.append({
             "linea": info_ruta.get("short_name", concesion),
-            "destino": registro.get("headsign") or info_ruta.get("long_name", "Destino no disponible"),
+            "destino": resolver_destino_horario_gtfs(
+                concesion, registro, info_ruta, dataset
+            ),
             "hora": instante.strftime("%H:%M"),
             "timestamp": int(instante.timestamp()),
             "direccion": str(registro.get("direction_id", "")),
