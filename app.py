@@ -318,14 +318,184 @@ def procesar_ocupacion(raw_status, raw_percentage=None):
     return texto, color
 
 
+def obtener_fecha_servicio_trip_descriptor(viaje):
+    """Lee TripDescriptor.start_date, si el feed la proporciona."""
+    if not viaje or not viaje.HasField("start_date") or not viaje.start_date:
+        return None
+    try:
+        return datetime.strptime(str(viaje.start_date), "%Y%m%d").date()
+    except (TypeError, ValueError):
+        return None
+
+
+def obtener_instante_programado_trip_gtfs(
+    horario,
+    trip_id,
+    stop_id,
+    tipo_evento="arrival",
+    timestamp_referencia=None,
+    fecha_servicio=None,
+    ahora=None,
+    delay_referencia=0,
+):
+    """
+    Busca la hora oficial de una parada del viaje y la devuelve como timestamp POSIX.
+
+    Usa start_date cuando existe; si falta, contrasta los días de servicio próximos.
+    También contempla horas GTFS superiores a 24:00 y excepciones de calendario.
+    """
+    trip_id = str(trip_id or "")
+    stop_id = str(stop_id or "")
+    if not trip_id or not stop_id:
+        return None
+
+    registros = [
+        registro for registro in horario.get("stop_times", [])
+        if str(registro.get("trip_id") or "") == trip_id
+        and str(registro.get("stop_id") or "") == stop_id
+    ]
+    if not registros:
+        return None
+
+    if fecha_servicio is not None:
+        fechas_candidatas = [fecha_servicio]
+    else:
+        referencia = timestamp_referencia
+        if referencia is None:
+            referencia = ahora if ahora is not None else time.time()
+        fecha_referencia = datetime.fromtimestamp(
+            float(referencia), ZONA_HORARIA
+        ).date()
+        fechas_candidatas = [
+            fecha_referencia + timedelta(days=desplazamiento)
+            for desplazamiento in (-2, -1, 0, 1)
+        ]
+
+    ahora_timestamp = float(ahora if ahora is not None else time.time())
+    mejor_instante = None
+    mejor_puntuacion = None
+
+    for registro in registros:
+        clave_hora = (
+            "departure_time" if tipo_evento == "departure" else "arrival_time"
+        )
+        hora_gtfs = registro.get(clave_hora) or registro.get(
+            "arrival_time" if clave_hora == "departure_time" else "departure_time"
+        )
+        segundos = segundos_horario_gtfs(hora_gtfs)
+        if segundos is None:
+            continue
+
+        service_id = str(registro.get("service_id") or "")
+        for fecha in fechas_candidatas:
+            if service_id and not servicio_activo_gtfs(
+                service_id, fecha, horario
+            ):
+                continue
+
+            instante_programado = datetime.combine(
+                fecha, datetime.min.time(), tzinfo=ZONA_HORARIA
+            ) + timedelta(seconds=segundos)
+            timestamp_programado = instante_programado.timestamp()
+
+            if timestamp_referencia is not None:
+                puntuacion = abs(timestamp_programado - float(timestamp_referencia))
+            else:
+                timestamp_estimado = timestamp_programado + float(
+                    delay_referencia or 0
+                )
+                if ahora_timestamp - 120 <= timestamp_estimado <= ahora_timestamp + 12 * 3600:
+                    puntuacion = max(0, timestamp_estimado - ahora_timestamp)
+                else:
+                    puntuacion = abs(timestamp_estimado - ahora_timestamp) + 1_000_000_000
+
+            if mejor_puntuacion is None or puntuacion < mejor_puntuacion:
+                mejor_puntuacion = puntuacion
+                mejor_instante = timestamp_programado
+
+    return mejor_instante
+
+
+def resolver_evento_horario_gtfs(
+    horario,
+    trip_id,
+    stop_id,
+    tipo_evento="arrival",
+    timestamp_evento=None,
+    delay_evento=None,
+    fecha_servicio=None,
+    ahora=None,
+):
+    """
+    Resuelve la predicción GTFS-RT como (timestamp estimado, desviación en segundos).
+
+    Cuando el feed publica una hora absoluta, la compara con el GTFS estático.
+    Cuando solo publica delay, reconstruye la hora estimada desde el horario oficial.
+    """
+    timestamp_evento = (
+        int(timestamp_evento) if timestamp_evento is not None else None
+    )
+    delay_evento = int(delay_evento) if delay_evento is not None else None
+
+    instante_programado = obtener_instante_programado_trip_gtfs(
+        horario,
+        trip_id,
+        stop_id,
+        tipo_evento=tipo_evento,
+        timestamp_referencia=timestamp_evento,
+        fecha_servicio=fecha_servicio,
+        ahora=ahora,
+        delay_referencia=delay_evento or 0,
+    )
+
+    if timestamp_evento is not None:
+        if instante_programado is not None:
+            retraso = int(round(timestamp_evento - instante_programado))
+        else:
+            # Si no se puede emparejar el horario, solo se conserva un delay
+            # explícito del mismo StopTimeEvent; nunca se inventa puntualidad.
+            retraso = delay_evento
+        return timestamp_evento, retraso
+
+    if delay_evento is not None and instante_programado is not None:
+        return int(round(instante_programado + delay_evento)), delay_evento
+
+    return None, delay_evento
+
+
+def formatear_retraso_gtfs(delay_segundos):
+    """Expresa una desviación GTFS-RT firmada; None significa que no hay datos."""
+    if delay_segundos is None:
+        return "Sin datos"
+
+    try:
+        delay = float(delay_segundos)
+    except (TypeError, ValueError, OverflowError):
+        return "Sin datos"
+    if not math.isfinite(delay):
+        return "Sin datos"
+    if abs(delay) < 30:
+        return "En hora"
+
+    minutos = round(abs(delay) / 60.0, 1)
+    minutos_texto = str(int(minutos)) if minutos.is_integer() else str(minutos)
+    if delay > 0:
+        return f"+{minutos_texto} min retraso"
+    return f"-{minutos_texto} min adelanto"
+
+
 def obtener_estimaciones_tripupdates(linea_objetivo):
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Accept': '*/*'}
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+        'Accept': '*/*'
+    }
     estimaciones = {}
     fuentes = FUENTES_GTFSRT_POR_CONCESION.get(linea_objetivo, {})
     if not fuentes:
         return estimaciones
 
     dataset = obtener_dataset_gtfs(linea_objetivo)
+    horario = dataset.get("schedule", {})
     rutas_validas = list(dataset["map"].get("routes", {}).keys())
 
     for url in fuentes.get("tripupdates", []):
@@ -336,8 +506,10 @@ def obtener_estimaciones_tripupdates(linea_objetivo):
 
             content = res.content
             if content.startswith(b'\x1f\x8b'):
-                try: content = gzip.decompress(content)
-                except Exception: pass
+                try:
+                    content = gzip.decompress(content)
+                except Exception:
+                    pass
 
             from google.transit import gtfs_realtime_pb2
             feed = gtfs_realtime_pb2.FeedMessage()
@@ -345,80 +517,166 @@ def obtener_estimaciones_tripupdates(linea_objetivo):
 
             ahora = time.time()
             for entity in feed.entity:
-                if entity.HasField('trip_update'):
-                    tu = entity.trip_update
-                    r_id = str(tu.trip.route_id) if tu.HasField('trip') else ""
-                    trip_id = str(tu.trip.trip_id) if tu.HasField('trip') else ""
-                    v_id = str(tu.vehicle.id) if (tu.HasField('vehicle') and tu.vehicle.id) else ""
-                    coche_label = str(tu.vehicle.label) if (tu.HasField('vehicle') and tu.vehicle.label) else ""
-                    direction_id = tu.trip.direction_id if (tu.HasField('trip') and tu.trip.HasField('direction_id')) else None
+                if not entity.HasField('trip_update'):
+                    continue
 
-                    # Filtro estricto por concesión activa
-                    es_linea_bus = r_id in rutas_validas
+                tu = entity.trip_update
+                if not tu.HasField('trip'):
+                    continue
+                viaje = tu.trip
+                r_id = str(viaje.route_id or "")
+                trip_id = str(viaje.trip_id or "")
+                v_id = (
+                    str(tu.vehicle.id)
+                    if tu.HasField('vehicle') and tu.vehicle.id else ""
+                )
+                coche_label = (
+                    str(tu.vehicle.label)
+                    if tu.HasField('vehicle') and tu.vehicle.label else ""
+                )
+                direction_id = (
+                    viaje.direction_id
+                    if viaje.HasField('direction_id') else None
+                )
 
-                    if es_linea_bus:
-                        delay_sec = tu.delay if tu.HasField('delay') else 0
-                        proxima_parada = "En trayecto"
-                        
-                        destino, _ = resolver_destino_y_parada(linea_objetivo, r_id, direction_id, None)
+                if r_id not in rutas_validas:
+                    continue
+                if (
+                    viaje.HasField('schedule_relationship')
+                    and viaje.schedule_relationship
+                    == gtfs_realtime_pb2.TripDescriptor.CANCELED
+                ):
+                    continue
 
-                        # Priorizar la primera parada futura con hora prevista.
-                        # Las paradas SKIPPED no deben mostrarse como próxima parada.
-                        actualizaciones_parada = []
-                        for stu in tu.stop_time_update:
-                            if stu.HasField('schedule_relationship') and stu.schedule_relationship == gtfs_realtime_pb2.TripUpdate.StopTimeUpdate.SKIPPED:
-                                continue
-                            tiene_hora = (
-                                (stu.HasField('arrival') and stu.arrival.HasField('time')) or
-                                (stu.HasField('departure') and stu.departure.HasField('time'))
-                            )
-                            arr_time = (
-                                stu.arrival.time if stu.HasField('arrival') and stu.arrival.HasField('time')
-                                else stu.departure.time if stu.HasField('departure') and stu.departure.HasField('time')
-                                else 0
-                            )
-                            if arr_time > ahora:
-                                actualizaciones_parada.append((stu, arr_time, True))
-                            elif not tiene_hora:
-                                actualizaciones_parada.append((stu, 0, False))
+                fecha_servicio = obtener_fecha_servicio_trip_descriptor(viaje)
+                delay_trip = int(tu.delay) if tu.HasField('delay') else None
+                delay_sec = delay_trip
+                proxima_parada = "En trayecto"
 
-                        # Las actualizaciones suelen venir ordenadas por secuencia.
-                        futura = next((item for item in actualizaciones_parada if item[2]), None)
-                        elegida = futura or next((item for item in actualizaciones_parada if not item[2]), None)
-                        if elegida:
-                            stu, arr_time, tiene_hora_futura = elegida
-                            minutos = max(0, int((arr_time - ahora) / 60)) if tiene_hora_futura else None
-                            stop_seq = stu.stop_sequence if stu.HasField('stop_sequence') else None
-                            stop_id = stu.stop_id if stu.HasField('stop_id') and stu.stop_id else None
+                destino, _ = resolver_destino_y_parada(
+                    linea_objetivo, r_id, direction_id, None
+                )
 
-                            _, nombre_parada = resolver_destino_y_parada(
-                                linea_objetivo, r_id, direction_id, stop_seq, stop_id, trip_id
-                            )
-                            proxima_parada = f"{nombre_parada}" + (f" ({minutos} min)" if minutos is not None else "")
+                # Se conserva el tipo de evento (llegada/salida) junto a su
+                # hora y desviación: no se deben cruzar arrival.delay y departure.time.
+                actualizaciones_parada = []
+                for stu in tu.stop_time_update:
+                    relacion = (
+                        stu.schedule_relationship
+                        if stu.HasField('schedule_relationship') else None
+                    )
+                    if relacion in (
+                        gtfs_realtime_pb2.TripUpdate.StopTimeUpdate.SKIPPED,
+                        gtfs_realtime_pb2.TripUpdate.StopTimeUpdate.NO_DATA,
+                    ):
+                        continue
 
-                            if stu.HasField('arrival') and stu.arrival.HasField('delay'):
-                                delay_sec = stu.arrival.delay
-                            elif stu.HasField('departure') and stu.departure.HasField('delay'):
-                                delay_sec = stu.departure.delay
+                    evento_tipo = None
+                    evento = None
+                    for nombre_evento in ("arrival", "departure"):
+                        if not stu.HasField(nombre_evento):
+                            continue
+                        candidato = getattr(stu, nombre_evento)
+                        if candidato.HasField('time') or candidato.HasField('delay'):
+                            evento_tipo = nombre_evento
+                            evento = candidato
+                            break
 
-                        if abs(delay_sec) < 30:
-                            texto_retraso = "En hora"
-                        elif delay_sec > 0:
-                            delay_min = round(delay_sec / 60.0, 1)
-                            texto_retraso = f"+{int(delay_min) if delay_min.is_integer() else delay_min} min retraso"
-                        else:
-                            delay_min = abs(round(delay_sec / 60.0, 1))
-                            texto_retraso = f"-{int(delay_min) if delay_min.is_integer() else delay_min} min adelanto"
+                    if evento is None:
+                        continue
 
-                        info = {'retraso': texto_retraso, 'proxima_parada': proxima_parada, 'destino': destino}
-                        if v_id: estimaciones[v_id] = info
-                        if coche_label: estimaciones[coche_label] = info
-                        if trip_id: estimaciones[trip_id] = info
+                    evento_time = (
+                        int(evento.time) if evento.HasField('time') else None
+                    )
+                    evento_delay = (
+                        int(evento.delay) if evento.HasField('delay') else None
+                    )
+                    if evento_time is not None and evento_time > ahora:
+                        actualizaciones_parada.append(
+                            (stu, evento_tipo, evento_time, evento_delay, True)
+                        )
+                    elif evento_time is None:
+                        actualizaciones_parada.append(
+                            (stu, evento_tipo, None, evento_delay, False)
+                        )
+
+                # El feed ordena las paradas por secuencia: se usa la primera
+                # predicción futura; si solo hay delay, la primera con datos.
+                elegida = next(
+                    (item for item in actualizaciones_parada if item[4]),
+                    None
+                )
+                if elegida is None:
+                    elegida = next(
+                        (item for item in actualizaciones_parada if not item[4]),
+                        None
+                    )
+
+                if elegida:
+                    stu, evento_tipo, evento_time, evento_delay, tiene_hora_futura = elegida
+                    minutos = (
+                        max(0, int((evento_time - ahora) / 60))
+                        if tiene_hora_futura else None
+                    )
+                    stop_seq = (
+                        stu.stop_sequence if stu.HasField('stop_sequence') else None
+                    )
+                    stop_id = (
+                        str(stu.stop_id)
+                        if stu.HasField('stop_id') and stu.stop_id else None
+                    )
+                    if not stop_id and trip_id and stop_seq is not None:
+                        stop_id = str(
+                            dataset.get("lookup", {})
+                            .get("trips", {})
+                            .get(trip_id, {})
+                            .get(str(int(stop_seq)), "")
+                        ) or None
+
+                    _, nombre_parada = resolver_destino_y_parada(
+                        linea_objetivo, r_id, direction_id,
+                        stop_seq, stop_id, trip_id
+                    )
+                    proxima_parada = (
+                        f"{nombre_parada}"
+                        + (f" ({minutos} min)" if minutos is not None else "")
+                    )
+
+                    _, delay_calculado = resolver_evento_horario_gtfs(
+                        horario,
+                        trip_id,
+                        stop_id,
+                        tipo_evento=evento_tipo,
+                        timestamp_evento=evento_time,
+                        delay_evento=evento_delay,
+                        fecha_servicio=fecha_servicio,
+                        ahora=ahora,
+                    )
+                    # StopTimeEvent tiene prioridad sobre TripUpdate.delay.
+                    # Si no se puede emparejar una hora absoluta con GTFS,
+                    # se conserva el delay explícito del evento o el global.
+                    if delay_calculado is not None:
+                        delay_sec = delay_calculado
+                    elif evento_delay is not None:
+                        delay_sec = evento_delay
+
+                info = {
+                    'retraso': formatear_retraso_gtfs(delay_sec),
+                    'retraso_segundos': delay_sec,
+                    'proxima_parada': proxima_parada,
+                    'destino': destino,
+                }
+                if v_id:
+                    estimaciones[v_id] = info
+                if coche_label:
+                    estimaciones[coche_label] = info
+                if trip_id:
+                    estimaciones[trip_id] = info
 
             if estimaciones:
                 return estimaciones
-        except Exception as e:
-            print(f"[TRIPUPDATES ERROR {url}]: {e}")
+        except Exception as exc:
+            print(f"[TRIPUPDATES ERROR {url}]: {exc}")
 
     return estimaciones
 
@@ -577,11 +835,46 @@ def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05", stop_ids=None):
                     }):
                         continue
 
-                    instante = None
-                    if actualizacion_parada.HasField("arrival") and actualizacion_parada.arrival.HasField("time"):
-                        instante = int(actualizacion_parada.arrival.time)
-                    elif actualizacion_parada.HasField("departure") and actualizacion_parada.departure.HasField("time"):
-                        instante = int(actualizacion_parada.departure.time)
+                    if (
+                        actualizacion_parada.HasField("schedule_relationship")
+                        and actualizacion_parada.schedule_relationship
+                        in (
+                            gtfs_realtime_pb2.TripUpdate.StopTimeUpdate.SKIPPED,
+                            gtfs_realtime_pb2.TripUpdate.StopTimeUpdate.NO_DATA,
+                        )
+                    ):
+                        continue
+
+                    evento_tipo = None
+                    evento = None
+                    for nombre_evento in ("arrival", "departure"):
+                        if not actualizacion_parada.HasField(nombre_evento):
+                            continue
+                        candidato = getattr(actualizacion_parada, nombre_evento)
+                        if candidato.HasField("time") or candidato.HasField("delay"):
+                            evento_tipo = nombre_evento
+                            evento = candidato
+                            break
+                    if evento is None:
+                        continue
+
+                    timestamp_evento = (
+                        int(evento.time) if evento.HasField("time") else None
+                    )
+                    delay_evento = (
+                        int(evento.delay) if evento.HasField("delay") else None
+                    )
+                    fecha_servicio = obtener_fecha_servicio_trip_descriptor(viaje)
+                    instante, retraso_segundos = resolver_evento_horario_gtfs(
+                        dataset.get("schedule", {}),
+                        trip_id,
+                        stop_id_actualizacion,
+                        tipo_evento=evento_tipo,
+                        timestamp_evento=timestamp_evento,
+                        delay_evento=delay_evento,
+                        fecha_servicio=fecha_servicio,
+                        ahora=ahora,
+                    )
 
                     if instante is None or instante < ahora - 120 or instante > ahora + 12 * 3600:
                         continue
@@ -594,6 +887,7 @@ def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05", stop_ids=None):
                         "hora": fecha_hora.strftime("%H:%M"),
                         "minutos": minutos,
                         "timestamp": instante,
+                        "retraso_segundos": retraso_segundos,
                         "fuente": "Tiempo real",
                         "trip_id": trip_id,
                         "vehicle_id": vehicle_id,
@@ -1042,7 +1336,7 @@ def get_buses(linea):
                             estimaciones.get(v_id) or 
                             estimaciones.get(coche_num) or 
                             estimaciones.get(trip_id) or 
-                            {'retraso': 'En hora', 'proxima_parada': 'En trayecto', 'destino': dest_defecto}
+                            {'retraso': 'Sin datos', 'retraso_segundos': None, 'proxima_parada': 'En trayecto', 'destino': dest_defecto}
                         )
 
                         destino_final = info_est.get('destino')
