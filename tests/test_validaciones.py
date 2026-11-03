@@ -199,6 +199,8 @@ class OcupacionYVelocidadGTFSRTTests(unittest.TestCase):
         self.assertEqual(len(datos), 1)
         self.assertEqual(datos[0]["ocupacion"], "Sin datos")
         self.assertIsNone(datos[0]["velocidad_kmh"])
+        self.assertEqual(datos[0]["retraso"], "Sin datos")
+        self.assertIsNone(datos[0]["retraso_segundos"])
 
 
 class RetrasosGTFSRTTests(unittest.TestCase):
