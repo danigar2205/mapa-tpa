@@ -1973,6 +1973,7 @@
             if (marcadoresBuses[idUnico]) {
               marcadoresBuses[idUnico].setLatLng([lat, lon]);
               marcadoresBuses[idUnico].setIcon(iconoBus);
+              marcadoresBuses[idUnico].setOpacity(1);
               marcadoresBuses[idUnico]._lineaBus = lineaBus;
               marcadoresBuses[idUnico].getPopup().setContent(popupContent);
             } else {
@@ -2020,7 +2021,14 @@
         actualizarEstadoConexion('offline', 'SIN CONEXIÓN');
         console.error('Error cargando datos:', error);
         if (lineaActiva === lineaSolicitada) {
-          document.getElementById('bus-info').innerText = "No se han podido actualizar los datos";
+          const marcadoresConocidos = Object.values(marcadoresBuses);
+          marcadoresConocidos.forEach(marcador => marcador.setOpacity(0.45));
+          document.getElementById('vehicle-title').innerText = marcadoresConocidos.length
+            ? "Conexión perdida · última posición"
+            : "Sin conexión";
+          document.getElementById('bus-info').innerText = marcadoresConocidos.length
+            ? "Las posiciones visibles son las últimas conocidas, no datos actuales."
+            : "No se han podido actualizar los datos";
         }
       } finally {
         solicitudEnCurso = false;
