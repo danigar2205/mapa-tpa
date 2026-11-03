@@ -1358,7 +1358,8 @@ def get_buses(linea):
                                 'ocupacion': occ_texto,
                                 'ocupacion_color': occ_color,
                                 'velocidad_kmh': velocidad_kmh,
-                                'retraso': info_est.get('retraso', 'En hora'),
+                                'retraso': info_est.get('retraso', 'Sin datos'),
+                                'retraso_segundos': info_est.get('retraso_segundos'),
                                 'proxima_parada': info_est.get('proxima_parada', 'En trayecto'),
                                 'destino': destino_final
                             })
