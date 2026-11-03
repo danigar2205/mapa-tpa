@@ -77,6 +77,43 @@ class TelegramBotServiceTests(unittest.TestCase):
         self.assertEqual(segundo, 1)
         self.assertEqual(len(mensajes), 2)
 
+    def test_feed_primario_vacio_no_oculta_servicios_del_feed_secundario(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from google.transit import gtfs_realtime_pb2
+        from bot_worker import obtener_servicios_t05
+        import bot_worker
+
+        route_id = next(iter(bot_worker.mapa.T05_ROUTE_NAMES))
+        feed_vacio = gtfs_realtime_pb2.FeedMessage()
+        feed_vacio.header.gtfs_realtime_version = "2.0"
+        feed_vacio.header.incrementality = 0
+        feed_vacio.header.timestamp = 1800000000
+
+        feed_con_bus = gtfs_realtime_pb2.FeedMessage()
+        feed_con_bus.header.gtfs_realtime_version = "2.0"
+        feed_con_bus.header.incrementality = 0
+        feed_con_bus.header.timestamp = 1800000000
+        entidad = feed_con_bus.entity.add()
+        entidad.id = "entidad-bus"
+        vehiculo = entidad.vehicle
+        vehiculo.trip.route_id = route_id
+        vehiculo.trip.trip_id = "viaje-bus"
+        vehiculo.vehicle.id = "coche-bus"
+        vehiculo.position.latitude = 41.0
+        vehiculo.position.longitude = -1.0
+
+        respuestas = [
+            SimpleNamespace(status_code=200, content=feed_vacio.SerializeToString()),
+            SimpleNamespace(status_code=200, content=feed_con_bus.SerializeToString()),
+        ]
+        with patch("mapa.obtener_respuesta_cacheada", side_effect=respuestas) as consulta:
+            servicios = obtener_servicios_t05()
+
+        self.assertEqual(len(servicios), 1)
+        self.assertEqual(servicios[0]["trip_id"], "viaje-bus")
+        self.assertEqual(consulta.call_count, 2)
+
     def test_vincular_guarda_grupo_y_responsable_sin_dar_admin_al_bot(self):
         from bot_worker import TelegramBot, obtener_config
 
