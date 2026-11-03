@@ -107,7 +107,7 @@ class TelegramBotServiceTests(unittest.TestCase):
             SimpleNamespace(status_code=200, content=feed_vacio.SerializeToString()),
             SimpleNamespace(status_code=200, content=feed_con_bus.SerializeToString()),
         ]
-        with patch("mapa.obtener_respuesta_cacheada", side_effect=respuestas) as consulta:
+        with patch("bot_worker.mapa.obtener_respuesta_cacheada", side_effect=respuestas) as consulta:
             servicios = obtener_servicios_t05()
 
         self.assertEqual(len(servicios), 1)
