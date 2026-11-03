@@ -247,7 +247,11 @@ def obtener_servicios_t05() -> list[dict] | None:
 
                 descriptor = vehiculo.vehicle if vehiculo.HasField("vehicle") else None
                 coche = str(getattr(descriptor, "label", "") or "") if descriptor else ""
-                vehicle_id = str(getattr(descriptor, "id", "") or "") if descriptor else ""
+                entity_id = str(entidad.id or "")
+                vehicle_id = (
+                    str(getattr(descriptor, "id", "") or "")
+                    if descriptor else ""
+                ) or entity_id
                 matricula = str(getattr(descriptor, "license_plate", "") or "") if descriptor else ""
                 trip_id = str(viaje.trip_id or "")
 
