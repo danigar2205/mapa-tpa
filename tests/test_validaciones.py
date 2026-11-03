@@ -1175,7 +1175,7 @@ class CapasMapaGTFSTests(unittest.TestCase):
         self.assertIn("if (!respuesta.ok) throw new Error", html)
         self.assertIn("const retraso = bus.retraso || \"Sin datos\";", html)
         self.assertIn("marcador.setOpacity(0.45)", html)
-        self.assertIn("marcador.setOpacity(1)", html)
+        self.assertIn("marcadoresBuses[idUnico].setOpacity(1)", html)
         self.assertIn("últimas conocidas", html)
         self.assertIn("datos.forEach((bus)", html)
         self.assertIn("idsVivos.add(idUnico)", html)
