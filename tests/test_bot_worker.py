@@ -114,6 +114,35 @@ class TelegramBotServiceTests(unittest.TestCase):
         self.assertEqual(servicios[0]["trip_id"], "viaje-bus")
         self.assertEqual(consulta.call_count, 2)
 
+    def test_vehiculos_sin_trip_id_ni_descriptor_conservan_id_de_entidad(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from google.transit import gtfs_realtime_pb2
+        from bot_worker import obtener_servicios_t05
+        import bot_worker
+
+        route_id = next(iter(bot_worker.mapa.T05_ROUTE_NAMES))
+        feed = gtfs_realtime_pb2.FeedMessage()
+        feed.header.gtfs_realtime_version = "2.0"
+        feed.header.incrementality = 0
+        feed.header.timestamp = 1800000000
+        for indice in range(2):
+            entidad = feed.entity.add()
+            entidad.id = "bus-sin-descriptor-" + str(indice)
+            entidad.vehicle.trip.route_id = route_id
+            entidad.vehicle.position.latitude = 41.0 + indice * 0.01
+            entidad.vehicle.position.longitude = -1.0 - indice * 0.01
+
+        respuesta = SimpleNamespace(status_code=200, content=feed.SerializeToString())
+        with patch("bot_worker.mapa.obtener_respuesta_cacheada", return_value=respuesta):
+            servicios = obtener_servicios_t05()
+
+        self.assertEqual(len(servicios), 2)
+        self.assertEqual(
+            {servicio["vehicle_id"] for servicio in servicios},
+            {"bus-sin-descriptor-0", "bus-sin-descriptor-1"},
+        )
+
     def test_vincular_guarda_grupo_y_responsable_sin_dar_admin_al_bot(self):
         from bot_worker import TelegramBot, obtener_config
 
