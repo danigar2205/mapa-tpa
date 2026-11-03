@@ -464,6 +464,78 @@ class RetrasosGTFSRTTests(unittest.TestCase):
         self.assertEqual(estimaciones["viaje-tarde"]["retraso_segundos"], 420)
         self.assertEqual(estimaciones["viaje-adelantado"]["retraso_segundos"], -240)
 
+    def test_api_llegadas_marca_como_pasado_un_viaje_adelantado(self):
+        from types import SimpleNamespace
+        from google.transit import gtfs_realtime_pb2
+
+        hoy = datetime.now(ZoneInfo("Europe/Madrid")).date()
+        ahora_dt = datetime.combine(
+            hoy, datetime.strptime("08:10", "%H:%M").time(),
+            tzinfo=ZoneInfo("Europe/Madrid")
+        )
+        ahora = ahora_dt.timestamp()
+        salida_real = datetime.combine(
+            hoy, datetime.strptime("08:05", "%H:%M").time(),
+            tzinfo=ZoneInfo("Europe/Madrid")
+        )
+        route_id = next(iter(GTFS_DATASETS["T05"]["map"]["routes"]))
+        feed = gtfs_realtime_pb2.FeedMessage()
+        feed.header.gtfs_realtime_version = "2.0"
+        feed.header.incrementality = 0
+        feed.header.timestamp = int(ahora)
+        entidad = feed.entity.add()
+        entidad.id = "entidad-viaje-adelantado"
+        actualizacion = entidad.trip_update
+        actualizacion.trip.route_id = route_id
+        actualizacion.trip.trip_id = "viaje-adelantado"
+        actualizacion.trip.start_date = hoy.strftime("%Y%m%d")
+        parada = actualizacion.stop_time_update.add()
+        parada.stop_id = "parada-prueba"
+        # La salida real prevalece sobre arrival para la tabla de salidas.
+        parada.arrival.time = int(datetime.combine(
+            hoy, datetime.strptime("08:04", "%H:%M").time(),
+            tzinfo=ZoneInfo("Europe/Madrid")
+        ).timestamp())
+        parada.departure.time = int(salida_real.timestamp())
+
+        horario = self._horario(hoy, ["viaje-adelantado"])
+        horario["stop_times"][0]["arrival_time"] = "08:15:00"
+        horario["stop_times"][0]["departure_time"] = "08:15:00"
+        dataset = {
+            "map": {
+                "routes": {route_id: {
+                    "short_name": "T05-01",
+                    "long_name": "Origen - Destino",
+                }},
+                "stops": {"T05-01": [{"id": "parada-prueba"}]},
+            },
+            "lookup": {"trips": {}},
+            "schedule": horario,
+            "has_map": True,
+            "has_schedules": True,
+            "has_realtime": True,
+        }
+        respuesta_feed = SimpleNamespace(
+            status_code=200,
+            content=feed.SerializeToString(),
+        )
+        with (
+            patch("app.obtener_dataset_gtfs", return_value=dataset),
+            patch("app.obtener_respuesta_cacheada", return_value=respuesta_feed),
+            patch("app.time.time", return_value=ahora),
+            patch("app.resolver_destino_y_parada", return_value=("Destino", "Parada")),
+        ):
+            respuesta = app.test_client().get(
+                "/api/paradas/parada-prueba/llegadas?concesion=T05"
+            )
+
+        self.assertEqual(respuesta.status_code, 200)
+        llegadas = respuesta.get_json()["llegadas"]
+        self.assertEqual(len(llegadas), 1)
+        self.assertTrue(llegadas[0]["pasado"])
+        self.assertEqual(llegadas[0]["timestamp"], int(salida_real.timestamp()))
+        self.assertEqual(llegadas[0]["retraso_segundos"], -600)
+
     def test_api_llegadas_reconstruye_hora_si_el_feed_solo_envia_delay(self):
         from types import SimpleNamespace
         from google.transit import gtfs_realtime_pb2
@@ -1167,6 +1239,10 @@ class CapasMapaGTFSTests(unittest.TestCase):
         self.assertIn("fecha === fechaLocalISO()", html)
         self.assertIn("consultarTiempoReal", html)
         self.assertIn("const tiempoReal = consultarTiempoReal &&", html)
+        self.assertIn("item.pasado && item.trip_id", html)
+        self.assertIn("viajesPasados.has(String(item.trip_id))", html)
+        self.assertIn("mapa-tpa:viajes-pasados:", html)
+        self.assertIn("const tiempoRealPendiente = tiempoReal.filter(item => !item.pasado)", html)
         self.assertIn("Otra fecha: se muestra el horario oficial", html)
         self.assertIn("popup._solicitudLlegadasParada", html)
 
