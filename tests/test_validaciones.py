@@ -592,9 +592,10 @@ class FusionParadasYTerminalesTests(unittest.TestCase):
     def test_horarios_fusionados_conservan_pasada_intermedia(self):
         parada = self._paradas_por_nombre("T04", "Huesca. Estación de Autobuses")[0]
         ids = ",".join(parada["stop_ids"])
+        fecha = datetime.now(ZoneInfo("Europe/Madrid")).date() + timedelta(days=7)
         respuesta = self.client.get(
             "/api/paradas/" + parada["id"] + "/horarios"
-            "?concesion=T04&fecha=2026-11-03&stop_ids=" + ids
+            "?concesion=T04&fecha=" + fecha.isoformat() + "&stop_ids=" + ids
         )
         self.assertEqual(respuesta.status_code, 200)
         horas = [item["hora"] for item in respuesta.get_json()["horarios"]]
