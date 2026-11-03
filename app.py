@@ -100,19 +100,37 @@ FUENTES_GTFSRT_POR_CONCESION = {
 # Evita descargar los mismos feeds por cada navegador y cada parada abierta.
 CACHE_RESPUESTAS_GTFSRT = {}
 CACHE_GTFSRT_LOCK = threading.Lock()
+CACHE_GTFSRT_LOCKS = {}
 
 
 def obtener_respuesta_cacheada(url, familia, ttl_segundos, headers, timeout):
+    """
+    Reutiliza el feed durante su TTL sin bloquear las descargas de otras URLs.
+
+    La sección global protege solo el diccionario; cada feed tiene su propio
+    lock para evitar descargas duplicadas concurrentes del mismo proveedor.
+    """
     clave = (familia, url)
-    ahora_monotonic = time.monotonic()
 
     with CACHE_GTFSRT_LOCK:
+        ahora_monotonic = time.monotonic()
         cacheada = CACHE_RESPUESTAS_GTFSRT.get(clave)
-        if cacheada and ahora_monotonic - cacheada["timestamp"] < ttl_segundos:
+        if cacheada and ahora_monotonic - cacheada["timestamp"] < cacheada.get("ttl", ttl_segundos):
             return SimpleNamespace(
                 status_code=cacheada["status_code"],
                 content=cacheada["content"]
             )
+        lock_feed = CACHE_GTFSRT_LOCKS.setdefault(clave, threading.Lock())
+
+    with lock_feed:
+        with CACHE_GTFSRT_LOCK:
+            ahora_monotonic = time.monotonic()
+            cacheada = CACHE_RESPUESTAS_GTFSRT.get(clave)
+            if cacheada and ahora_monotonic - cacheada["timestamp"] < cacheada.get("ttl", ttl_segundos):
+                return SimpleNamespace(
+                    status_code=cacheada["status_code"],
+                    content=cacheada["content"]
+                )
 
         try:
             respuesta = session.get(url, headers=headers, timeout=timeout, verify=False)
@@ -122,11 +140,19 @@ def obtener_respuesta_cacheada(url, familia, ttl_segundos, headers, timeout):
             )
         except requests.RequestException as exc:
             print(f"[GTFS-RT {familia.upper()} ERROR {url}]: {exc}")
-            return SimpleNamespace(status_code=0, content=b"")
+            resultado = SimpleNamespace(status_code=0, content=b"")
 
-        if resultado.status_code == 200 and resultado.content:
+        # Los errores se conservan unos segundos para que muchas consultas
+        # simultáneas no repitan el mismo timeout una detrás de otra.
+        ttl_cache = (
+            ttl_segundos
+            if resultado.status_code == 200 and resultado.content
+            else min(max(int(ttl_segundos), 1), 3)
+        )
+        with CACHE_GTFSRT_LOCK:
             CACHE_RESPUESTAS_GTFSRT[clave] = {
-                "timestamp": ahora_monotonic,
+                "timestamp": time.monotonic(),
+                "ttl": ttl_cache,
                 "status_code": resultado.status_code,
                 "content": resultado.content
             }
@@ -303,7 +329,7 @@ def procesar_ocupacion(raw_status, raw_percentage=None):
     if raw_percentage is not None:
         try:
             valor = float(raw_percentage)
-            if math.isfinite(valor) and valor >= 0:
+            if math.isfinite(valor) and 0 <= valor <= 100:
                 porcentaje = valor
         except (TypeError, ValueError, OverflowError):
             pass
@@ -667,14 +693,11 @@ def obtener_estimaciones_tripupdates(linea_objetivo):
                     'destino': destino,
                 }
                 if v_id:
-                    estimaciones[v_id] = info
+                    estimaciones.setdefault(v_id, info)
                 if coche_label:
-                    estimaciones[coche_label] = info
+                    estimaciones.setdefault(coche_label, info)
                 if trip_id:
-                    estimaciones[trip_id] = info
-
-            if estimaciones:
-                return estimaciones
+                    estimaciones.setdefault(trip_id, info)
         except Exception as exc:
             print(f"[TRIPUPDATES ERROR {url}]: {exc}")
 
@@ -891,28 +914,33 @@ def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05", stop_ids=None):
                         "fuente": "Tiempo real",
                         "trip_id": trip_id,
                         "vehicle_id": vehicle_id,
-                        "entity_id": entity_id
+                        "entity_id": entity_id,
+                        "stop_id": stop_id_actualizacion
                     })
-
-            if llegadas:
-                break
         except Exception as exc:
             print(f"[LLEGADAS GTFS-RT ERROR {url}]: {exc}")
 
-    llegadas.sort(key=lambda item: item["timestamp"])
-    unicas = []
-    vistos = set()
+    # Conserva la primera fuente para cada viaje/parada y añade los servicios
+    # que solo estén presentes en los feeds secundarios.
+    unicas_por_viaje = {}
+    anonimas = []
     for llegada in llegadas:
         identificador = (
             llegada.get("trip_id") or
             llegada.get("vehicle_id") or
             llegada.get("entity_id")
         )
-        clave = (identificador, llegada["linea"], llegada["timestamp"])
-        if clave in vistos:
-            continue
-        vistos.add(clave)
-        unicas.append(llegada)
+        if identificador:
+            clave = (
+                identificador,
+                llegada["linea"],
+                llegada.get("stop_id", ""),
+            )
+            unicas_por_viaje.setdefault(clave, llegada)
+        else:
+            anonimas.append(llegada)
+    unicas = list(unicas_por_viaje.values()) + anonimas
+    unicas.sort(key=lambda item: item["timestamp"])
 
     return {
         "llegadas": unicas,
@@ -961,8 +989,15 @@ def servicio_activo_gtfs(service_id, fecha, horario=None):
     if not servicio:
         return False
 
-    inicio = datetime.strptime(servicio["start_date"], "%Y%m%d").date()
-    fin = datetime.strptime(servicio["end_date"], "%Y%m%d").date()
+    try:
+        inicio = datetime.strptime(
+            str(servicio.get("start_date", "")), "%Y%m%d"
+        ).date()
+        fin = datetime.strptime(
+            str(servicio.get("end_date", "")), "%Y%m%d"
+        ).date()
+    except (TypeError, ValueError):
+        return False
     if not inicio <= fecha <= fin:
         return False
 
@@ -1272,105 +1307,158 @@ def get_buses(linea):
     fuentes = FUENTES_GTFSRT_POR_CONCESION.get(linea_objetivo, {})
     if not fuentes:
         return jsonify([])
+
     dataset = obtener_dataset_gtfs(linea_objetivo)
     nombres_rutas = {
         route_id: info.get("short_name", linea_objetivo)
         for route_id, info in dataset["map"].get("routes", {}).items()
     }
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Accept': '*/*'}
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+        'Accept': '*/*'
+    }
 
     estimaciones = obtener_estimaciones_tripupdates(linea_objetivo)
-    rutas_validas = list(dataset["map"].get("routes", {}).keys())
+    rutas_validas = set(dataset["map"].get("routes", {}))
+    buses_por_identidad = {}
+    feed_disponible = False
 
     for url in fuentes.get("vehiclepositions", []):
         try:
-            res = obtener_respuesta_cacheada(url, "vehiclepositions", 5, headers, 8)
+            res = obtener_respuesta_cacheada(
+                url, "vehiclepositions", 5, headers, 8
+            )
             if res.status_code != 200 or not res.content:
                 continue
 
             content = res.content
             if content.startswith(b'\x1f\x8b'):
-                try: content = gzip.decompress(content)
-                except Exception: pass
+                try:
+                    content = gzip.decompress(content)
+                except (OSError, EOFError):
+                    continue
 
-            buses = []
             from google.transit import gtfs_realtime_pb2
             feed = gtfs_realtime_pb2.FeedMessage()
             feed.ParseFromString(content)
+            feed_disponible = True
 
             for entity in feed.entity:
-                if entity.HasField('vehicle'):
-                    v = entity.vehicle
-                    r_id = str(v.trip.route_id) if v.HasField('trip') else ""
-                    trip_id = str(v.trip.trip_id) if v.HasField('trip') else ""
-                    coche_num = str(v.vehicle.label) if (v.HasField('vehicle') and v.vehicle.label) else ""
-                    matricula = str(v.vehicle.license_plate) if (v.HasField('vehicle') and hasattr(v.vehicle, 'license_plate')) else ""
-                    entity_id = str(entity.id or "")
-                    v_id = (
-                        str(v.vehicle.id)
-                        if (v.HasField('vehicle') and v.vehicle.id)
-                        else coche_num or entity_id
+                if not entity.HasField('vehicle'):
+                    continue
+
+                v = entity.vehicle
+                r_id = str(v.trip.route_id) if v.HasField('trip') else ""
+                trip_id = str(v.trip.trip_id) if v.HasField('trip') else ""
+                coche_num = (
+                    str(v.vehicle.label)
+                    if v.HasField('vehicle') and v.vehicle.label else ""
+                )
+                matricula = (
+                    str(v.vehicle.license_plate)
+                    if v.HasField('vehicle') and hasattr(v.vehicle, 'license_plate')
+                    else ""
+                )
+                entity_id = str(entity.id or "")
+                vehicle_id = (
+                    str(v.vehicle.id)
+                    if v.HasField('vehicle') and v.vehicle.id else ""
+                )
+                vehicle_key = vehicle_id or coche_num or entity_id
+                direction_id = (
+                    v.trip.direction_id
+                    if v.HasField('trip') and v.trip.HasField('direction_id')
+                    else None
+                )
+
+                if r_id not in rutas_validas:
+                    continue
+
+                lat = v.position.latitude if v.HasField('position') else None
+                lon = v.position.longitude if v.HasField('position') else None
+                raw_occ = leer_campo_protobuf_opcional(v, 'occupancy_status')
+                raw_occ_percentage = leer_campo_protobuf_opcional(v, 'occupancy_percentage')
+                occ_texto, occ_color = procesar_ocupacion(
+                    raw_occ, raw_occ_percentage
+                )
+                velocidad_mps = (
+                    leer_campo_protobuf_opcional(v.position, 'speed')
+                    if v.HasField('position') else None
+                )
+                velocidad_kmh = convertir_velocidad_kmh(velocidad_mps)
+                dest_defecto, _ = resolver_destino_y_parada(
+                    linea_objetivo, r_id, direction_id, None
+                )
+
+                # El viaje identifica la expedición de forma más precisa que
+                # el vehículo, cuyo identificador puede reutilizarse.
+                info_est = (
+                    estimaciones.get(trip_id) or
+                    estimaciones.get(vehicle_id) or
+                    estimaciones.get(coche_num) or
+                    {
+                        'retraso': 'Sin datos',
+                        'retraso_segundos': None,
+                        'proxima_parada': 'En trayecto',
+                        'destino': dest_defecto,
+                    }
+                )
+
+                destino_final = info_est.get('destino')
+                if not destino_final or destino_final in ['Desconocido', 'En trayecto']:
+                    destino_final = dest_defecto
+
+                coordenadas = validar_coordenadas(lat, lon)
+                if coordenadas is None:
+                    continue
+                lat, lon = coordenadas
+
+                bus = {
+                    'id': vehicle_key,
+                    'trip_id': trip_id,
+                    'linea': nombres_rutas.get(r_id, linea_objetivo),
+                    'coche': coche_num,
+                    'matricula': matricula,
+                    'lat': float(lat),
+                    'lon': float(lon),
+                    'ocupacion': occ_texto,
+                    'ocupacion_color': occ_color,
+                    'velocidad_kmh': velocidad_kmh,
+                    'retraso': info_est.get('retraso', 'Sin datos'),
+                    'retraso_segundos': info_est.get('retraso_segundos'),
+                    'proxima_parada': info_est.get('proxima_parada', 'En trayecto'),
+                    'destino': destino_final,
+                }
+
+                if trip_id:
+                    identidad_bus = ("trip", r_id, trip_id)
+                elif vehicle_id or coche_num:
+                    identidad_bus = ("vehicle", r_id, vehicle_id or coche_num)
+                elif entity_id:
+                    identidad_bus = (
+                        "entity", r_id, entity_id,
+                        round(float(lat), 6), round(float(lon), 6)
                     )
-                    direction_id = v.trip.direction_id if (v.HasField('trip') and v.trip.HasField('direction_id')) else None
+                else:
+                    identidad_bus = (
+                        "position", url, r_id, round(float(lat), 6), round(float(lon), 6)
+                    )
 
-                    # Garantiza que SOLO se carguen los buses de la concesión pulsada
-                    es_linea_bus = r_id in rutas_validas
+                # Las fuentes se procesan por orden de prioridad: se conserva
+                # el primer dato de cada autobús y se añaden los no repetidos.
+                buses_por_identidad.setdefault(identidad_bus, bus)
 
-                    if es_linea_bus:
-                        lat = v.position.latitude if v.HasField('position') else None
-                        lon = v.position.longitude if v.HasField('position') else None
-                        
-                        raw_occ = leer_campo_protobuf_opcional(v, 'occupancy_status')
-                        raw_occ_percentage = leer_campo_protobuf_opcional(v, 'occupancy_percentage')
-                        occ_texto, occ_color = procesar_ocupacion(
-                            raw_occ, raw_occ_percentage
-                        )
-                        velocidad_mps = (
-                            leer_campo_protobuf_opcional(v.position, 'speed')
-                            if v.HasField('position') else None
-                        )
-                        velocidad_kmh = convertir_velocidad_kmh(velocidad_mps)
-                        dest_defecto, _ = resolver_destino_y_parada(linea_objetivo, r_id, direction_id, None)
+        except Exception as exc:
+            print(f"[API ERROR {url}]: {exc}")
 
-                        info_est = (
-                            estimaciones.get(v_id) or 
-                            estimaciones.get(coche_num) or 
-                            estimaciones.get(trip_id) or 
-                            {'retraso': 'Sin datos', 'retraso_segundos': None, 'proxima_parada': 'En trayecto', 'destino': dest_defecto}
-                        )
+    if buses_por_identidad:
+        return jsonify(list(buses_por_identidad.values()))
+    if feed_disponible:
+        return jsonify([])
+    return jsonify({
+        "error": "No se pudo conectar con ningún feed de posiciones GTFS-RT."
+    }), 503
 
-                        destino_final = info_est.get('destino')
-                        if not destino_final or destino_final in ['Desconocido', 'En trayecto']:
-                            destino_final = dest_defecto
-
-                        # Las coordenadas 0.0 son válidas; descartar datos GPS incorrectos.
-                        coordenadas = validar_coordenadas(lat, lon)
-                        if coordenadas is None:
-                            continue
-                        lat, lon = coordenadas
-                        buses.append({
-                                'id': v_id or coche_num or entity_id,
-                                'linea': nombres_rutas.get(r_id, linea_objetivo),
-                                'coche': coche_num,
-                                'matricula': matricula,
-                                'lat': float(lat),
-                                'lon': float(lon),
-                                'ocupacion': occ_texto,
-                                'ocupacion_color': occ_color,
-                                'velocidad_kmh': velocidad_kmh,
-                                'retraso': info_est.get('retraso', 'Sin datos'),
-                                'retraso_segundos': info_est.get('retraso_segundos'),
-                                'proxima_parada': info_est.get('proxima_parada', 'En trayecto'),
-                                'destino': destino_final
-                            })
-
-            if buses:
-                return jsonify(buses)
-
-        except Exception as e:
-            print(f"[API ERROR {url}]: {e}")
-
-    return jsonify([])
 
 if __name__ == '__main__':
     # El modo debug solo se activa explícitamente en desarrollo local.

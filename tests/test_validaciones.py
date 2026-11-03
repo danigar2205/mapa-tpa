@@ -90,6 +90,7 @@ class OcupacionYVelocidadGTFSRTTests(unittest.TestCase):
             ("Asientos libres (64%)", "green"),
         )
         self.assertEqual(procesar_ocupacion(1, -1)[0], "Asientos libres")
+        self.assertEqual(procesar_ocupacion(1, 101)[0], "Asientos libres")
 
     def test_convierte_velocidad_de_metros_por_segundo_a_kmh(self):
         self.assertEqual(convertir_velocidad_kmh(10), 36.0)
@@ -131,6 +132,96 @@ class OcupacionYVelocidadGTFSRTTests(unittest.TestCase):
         self.assertEqual(len(datos), 1)
         self.assertEqual(datos[0]["ocupacion"], "Pocos asientos")
         self.assertEqual(datos[0]["velocidad_kmh"], 36.0)
+
+    def test_api_buses_prioriza_trip_id_si_el_id_del_vehiculo_se_repite(self):
+        from types import SimpleNamespace
+        from google.transit import gtfs_realtime_pb2
+
+        route_id = next(iter(GTFS_DATASETS["T05"]["map"]["routes"]))
+        feed = gtfs_realtime_pb2.FeedMessage()
+        feed.header.gtfs_realtime_version = "2.0"
+        feed.header.incrementality = 0
+        feed.header.timestamp = 1800000000
+        entidad = feed.entity.add()
+        entidad.id = "vehiculo-trip-test"
+        vehiculo = entidad.vehicle
+        vehiculo.trip.route_id = route_id
+        vehiculo.trip.trip_id = "trip-correcto"
+        vehiculo.vehicle.id = "vehicle-compartido"
+        vehiculo.position.latitude = 41.0
+        vehiculo.position.longitude = -1.0
+
+        respuesta_feed = SimpleNamespace(
+            status_code=200,
+            content=feed.SerializeToString(),
+        )
+        estimaciones = {
+            "vehicle-compartido": {
+                "retraso": "+99 min retraso",
+                "retraso_segundos": 5940,
+            },
+            "trip-correcto": {
+                "retraso": "+3 min retraso",
+                "retraso_segundos": 180,
+            },
+        }
+        with (
+            patch("app.obtener_estimaciones_tripupdates", return_value=estimaciones),
+            patch("app.obtener_respuesta_cacheada", return_value=respuesta_feed),
+        ):
+            respuesta = app.test_client().get("/api/buses/t05")
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.get_json()[0]["retraso"], "+3 min retraso")
+
+    def test_api_buses_combina_autobuses_de_varios_proveedores(self):
+        from types import SimpleNamespace
+        from google.transit import gtfs_realtime_pb2
+
+        route_id = next(iter(GTFS_DATASETS["T05"]["map"]["routes"]))
+        respuestas = []
+        for indice in range(2):
+            feed = gtfs_realtime_pb2.FeedMessage()
+            feed.header.gtfs_realtime_version = "2.0"
+            feed.header.incrementality = 0
+            feed.header.timestamp = 1800000000
+            entidad = feed.entity.add()
+            entidad.id = "feed-" + str(indice)
+            entidad.vehicle.trip.route_id = route_id
+            entidad.vehicle.trip.trip_id = "trip-" + str(indice)
+            entidad.vehicle.vehicle.id = "vehicle-" + str(indice)
+            entidad.vehicle.position.latitude = 41.0 + indice * 0.1
+            entidad.vehicle.position.longitude = -1.0 - indice * 0.1
+            respuestas.append(SimpleNamespace(
+                status_code=200,
+                content=feed.SerializeToString(),
+            ))
+
+        with (
+            patch("app.obtener_estimaciones_tripupdates", return_value={}),
+            patch("app.obtener_respuesta_cacheada", side_effect=respuestas),
+        ):
+            respuesta = app.test_client().get("/api/buses/t05")
+
+        self.assertEqual(respuesta.status_code, 200)
+        datos = respuesta.get_json()
+        self.assertEqual(len(datos), 2)
+        self.assertEqual({bus["id"] for bus in datos}, {"vehicle-0", "vehicle-1"})
+
+    def test_api_buses_distingue_feed_vacio_de_fallo_de_conexion(self):
+        from types import SimpleNamespace
+
+        with (
+            patch("app.obtener_estimaciones_tripupdates", return_value={}),
+            patch(
+                "app.obtener_respuesta_cacheada",
+                return_value=SimpleNamespace(status_code=0, content=b""),
+            ),
+        ):
+            respuesta = app.test_client().get("/api/buses/t05")
+
+        self.assertEqual(respuesta.status_code, 503)
+        self.assertIn("error", respuesta.get_json())
 
     def test_api_buses_devuelve_varios_autobuses_con_identificadores_distintos(self):
         from types import SimpleNamespace
@@ -641,6 +732,23 @@ class HorariosGTFSTests(unittest.TestCase):
         self.assertIsNone(segundos_horario_gtfs("12:75:00"))
         self.assertIsNone(segundos_horario_gtfs("hora"))
 
+    def test_calendario_malformado_no_rompe_la_consulta_de_horarios(self):
+        horario = {
+            "services": {
+                "servicio-malformado": {
+                    "start_date": "fecha-invalida",
+                    "end_date": "20261231",
+                    "monday": "1",
+                }
+            },
+            "exceptions": [],
+        }
+        self.assertFalse(
+            servicio_activo_gtfs(
+                "servicio-malformado", date(2026, 11, 3), horario
+            )
+        )
+
     def test_rechaza_parada_inexistente_en_api_de_horarios(self):
         respuesta = app.test_client().get("/api/paradas/inexistente/horarios")
         self.assertEqual(respuesta.status_code, 404)
@@ -965,6 +1073,52 @@ class CacheGTFSRTTests(unittest.TestCase):
         self.assertEqual(get.call_count, 1)
         CACHE_RESPUESTAS_GTFSRT.pop(clave, None)
 
+    def test_un_fallo_de_feed_se_cachea_brevemente_para_evitar_timeouts_en_cola(self):
+        url = "https://test.local/feed-fallido-cacheado"
+        clave = ("unit-test", url)
+        CACHE_RESPUESTAS_GTFSRT.pop(clave, None)
+
+        with patch("app.session.get", side_effect=__import__("requests").Timeout("sin respuesta")) as get:
+            primera = obtener_respuesta_cacheada(url, "unit-test", 60, {}, 1)
+            segunda = obtener_respuesta_cacheada(url, "unit-test", 60, {}, 1)
+
+        self.assertEqual(primera.status_code, 0)
+        self.assertEqual(segunda.status_code, 0)
+        self.assertEqual(get.call_count, 1)
+        CACHE_RESPUESTAS_GTFSRT.pop(clave, None)
+
+    def test_descargas_de_urls_distintas_no_se_bloquean_entre_si(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Barrier
+
+        barrera = Barrier(2)
+        urls = [
+            "https://test.local/feed-concurrente-1",
+            "https://test.local/feed-concurrente-2",
+        ]
+        for url in urls:
+            CACHE_RESPUESTAS_GTFSRT.pop(("unit-test", url), None)
+
+        respuesta_falsa = Mock(status_code=200, content=b"feed")
+
+        def obtener_simultaneamente(*args, **kwargs):
+            barrera.wait(timeout=2)
+            return respuesta_falsa
+
+        with patch("app.session.get", side_effect=obtener_simultaneamente) as get:
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                resultados = list(pool.map(
+                    lambda url: obtener_respuesta_cacheada(
+                        url, "unit-test", 60, {}, 1
+                    ),
+                    urls,
+                ))
+
+        self.assertEqual(get.call_count, 2)
+        self.assertTrue(all(resultado.status_code == 200 for resultado in resultados))
+        for url in urls:
+            CACHE_RESPUESTAS_GTFSRT.pop(("unit-test", url), None)
+
 
 class CapasMapaGTFSTests(unittest.TestCase):
     def setUp(self):
@@ -1018,6 +1172,11 @@ class CapasMapaGTFSTests(unittest.TestCase):
 
     def test_el_mapa_procesa_todos_los_autobuses_devuelto_por_la_api(self):
         html = app.test_client().get("/").get_data(as_text=True)
+        self.assertIn("if (!respuesta.ok) throw new Error", html)
+        self.assertIn("const retraso = bus.retraso || \"Sin datos\";", html)
+        self.assertIn("marcador.setOpacity(0.45)", html)
+        self.assertIn("marcadoresBuses[idUnico].setOpacity(1)", html)
+        self.assertIn("últimas conocidas", html)
         self.assertIn("datos.forEach((bus)", html)
         self.assertIn("idsVivos.add(idUnico)", html)
         self.assertIn("marcadoresBuses[idUnico]", html)
