@@ -22,6 +22,9 @@ from app import (
     procesar_ocupacion,
     leer_campo_protobuf_opcional,
     convertir_velocidad_kmh,
+    obtener_estimaciones_tripupdates,
+    resolver_evento_horario_gtfs,
+    formatear_retraso_gtfs,
 )
 
 
@@ -196,6 +199,239 @@ class OcupacionYVelocidadGTFSRTTests(unittest.TestCase):
         self.assertEqual(len(datos), 1)
         self.assertEqual(datos[0]["ocupacion"], "Sin datos")
         self.assertIsNone(datos[0]["velocidad_kmh"])
+
+
+class RetrasosGTFSRTTests(unittest.TestCase):
+    def _horario(self, fecha, trip_ids):
+        fecha_texto = fecha.strftime("%Y%m%d")
+        registros = []
+        for trip_id in trip_ids:
+            registros.append({
+                "trip_id": trip_id,
+                "stop_id": "parada-prueba",
+                "service_id": "servicio-prueba",
+                "arrival_time": "10:00:00",
+                "departure_time": "10:00:00",
+                "route_id": "ruta-prueba",
+            })
+        return {
+            "routes": {"ruta-prueba": {
+                "short_name": "T05-01",
+                "long_name": "Destino",
+            }},
+            "services": {"servicio-prueba": {
+                "start_date": fecha_texto,
+                "end_date": fecha_texto,
+                "monday": "1", "tuesday": "1", "wednesday": "1",
+                "thursday": "1", "friday": "1", "saturday": "1",
+                "sunday": "1",
+            }},
+            "exceptions": [],
+            "stop_times": registros,
+        }
+
+    def test_hora_absoluta_calcula_retraso_y_time_prevalece_sobre_delay(self):
+        hoy = datetime.now(ZoneInfo("Europe/Madrid")).date()
+        programada = datetime.combine(
+            hoy, datetime.strptime("10:00", "%H:%M").time(),
+            tzinfo=ZoneInfo("Europe/Madrid")
+        )
+        estimada = programada + timedelta(minutes=7)
+        horario = self._horario(hoy, ["viaje-prueba"])
+
+        instante, retraso = resolver_evento_horario_gtfs(
+            horario,
+            "viaje-prueba",
+            "parada-prueba",
+            tipo_evento="arrival",
+            timestamp_evento=int(estimada.timestamp()),
+            delay_evento=60,  # Si también hay time, manda la hora absoluta.
+            fecha_servicio=hoy,
+            ahora=programada.timestamp() - 3600,
+        )
+
+        self.assertEqual(instante, int(estimada.timestamp()))
+        self.assertEqual(retraso, 420)
+
+    def test_hora_absoluta_calcula_adelanto_con_signo_negativo(self):
+        hoy = datetime.now(ZoneInfo("Europe/Madrid")).date()
+        programada = datetime.combine(
+            hoy, datetime.strptime("10:00", "%H:%M").time(),
+            tzinfo=ZoneInfo("Europe/Madrid")
+        )
+        estimada = programada - timedelta(minutes=4)
+        horario = self._horario(hoy, ["viaje-prueba"])
+
+        instante, retraso = resolver_evento_horario_gtfs(
+            horario,
+            "viaje-prueba",
+            "parada-prueba",
+            timestamp_evento=int(estimada.timestamp()),
+            fecha_servicio=hoy,
+            ahora=programada.timestamp() - 3600,
+        )
+
+        self.assertEqual(instante, int(estimada.timestamp()))
+        self.assertEqual(retraso, -240)
+
+    def test_evento_solo_con_delay_reconstruye_la_hora_estimada(self):
+        hoy = datetime.now(ZoneInfo("Europe/Madrid")).date()
+        programada = datetime.combine(
+            hoy, datetime.strptime("10:00", "%H:%M").time(),
+            tzinfo=ZoneInfo("Europe/Madrid")
+        )
+        horario = self._horario(hoy, ["viaje-prueba"])
+
+        instante, retraso = resolver_evento_horario_gtfs(
+            horario,
+            "viaje-prueba",
+            "parada-prueba",
+            tipo_evento="arrival",
+            delay_evento=300,
+            fecha_servicio=hoy,
+            ahora=programada.timestamp() - 3600,
+        )
+
+        self.assertEqual(instante, int((programada + timedelta(minutes=5)).timestamp()))
+        self.assertEqual(retraso, 300)
+
+    def test_sin_estimacion_no_se_muestra_como_en_hora(self):
+        self.assertEqual(formatear_retraso_gtfs(None), "Sin datos")
+        self.assertEqual(formatear_retraso_gtfs(0), "En hora")
+        self.assertEqual(formatear_retraso_gtfs(20), "En hora")
+        self.assertEqual(formatear_retraso_gtfs(300), "+5 min retraso")
+        self.assertEqual(formatear_retraso_gtfs(-180), "-3 min adelanto")
+
+    def test_tripupdates_asigna_retraso_adelanto_y_sin_datos_a_cada_viaje(self):
+        from types import SimpleNamespace
+        from google.transit import gtfs_realtime_pb2
+
+        hoy = datetime.now(ZoneInfo("Europe/Madrid")).date()
+        base = datetime.combine(
+            hoy, datetime.strptime("08:00", "%H:%M").time(),
+            tzinfo=ZoneInfo("Europe/Madrid")
+        )
+        ahora = base.timestamp()
+        programada = datetime.combine(
+            hoy, datetime.strptime("10:00", "%H:%M").time(),
+            tzinfo=ZoneInfo("Europe/Madrid")
+        )
+        route_id = next(iter(GTFS_DATASETS["T05"]["map"]["routes"]))
+        ids = ("viaje-tarde", "viaje-adelantado", "viaje-sin-horario")
+        feed = gtfs_realtime_pb2.FeedMessage()
+        feed.header.gtfs_realtime_version = "2.0"
+        feed.header.incrementality = 0
+        feed.header.timestamp = int(ahora)
+
+        for trip_id, delta_segundos in (
+            ("viaje-tarde", 420),
+            ("viaje-adelantado", -240),
+            ("viaje-sin-horario", 600),
+        ):
+            entidad = feed.entity.add()
+            entidad.id = "entidad-" + trip_id
+            actualizacion = entidad.trip_update
+            actualizacion.trip.route_id = route_id
+            actualizacion.trip.trip_id = trip_id
+            actualizacion.trip.start_date = hoy.strftime("%Y%m%d")
+            actualizacion.vehicle.id = "bus-" + trip_id
+            parada = actualizacion.stop_time_update.add()
+            parada.stop_id = "parada-prueba"
+            parada.arrival.time = int(
+                (programada + timedelta(seconds=delta_segundos)).timestamp()
+            )
+            if trip_id == "viaje-tarde":
+                parada.arrival.delay = 60  # La hora absoluta (7 min) prevalece.
+
+        dataset = {
+            "map": {"routes": {route_id: {
+                "short_name": "T05-01",
+                "long_name": "Origen - Destino",
+            }}},
+            "lookup": {"trips": {}},
+            "schedule": self._horario(
+                hoy, ["viaje-tarde", "viaje-adelantado"]
+            ),
+        }
+        respuesta_feed = SimpleNamespace(
+            status_code=200,
+            content=feed.SerializeToString(),
+        )
+        with (
+            patch("app.obtener_dataset_gtfs", return_value=dataset),
+            patch("app.obtener_respuesta_cacheada", return_value=respuesta_feed),
+            patch("app.time.time", return_value=ahora),
+            patch("app.resolver_destino_y_parada", return_value=("Destino", "Próxima parada")),
+        ):
+            estimaciones = obtener_estimaciones_tripupdates("T05")
+
+        self.assertEqual(estimaciones["bus-viaje-tarde"]["retraso"], "+7 min retraso")
+        self.assertEqual(estimaciones["bus-viaje-adelantado"]["retraso"], "-4 min adelanto")
+        self.assertEqual(estimaciones["bus-viaje-sin-horario"]["retraso"], "Sin datos")
+        self.assertEqual(estimaciones["viaje-tarde"]["retraso_segundos"], 420)
+        self.assertEqual(estimaciones["viaje-adelantado"]["retraso_segundos"], -240)
+
+    def test_api_llegadas_reconstruye_hora_si_el_feed_solo_envia_delay(self):
+        from types import SimpleNamespace
+        from google.transit import gtfs_realtime_pb2
+
+        hoy = datetime.now(ZoneInfo("Europe/Madrid")).date()
+        ahora_dt = datetime.combine(
+            hoy, datetime.strptime("08:00", "%H:%M").time(),
+            tzinfo=ZoneInfo("Europe/Madrid")
+        )
+        ahora = ahora_dt.timestamp()
+        route_id = next(iter(GTFS_DATASETS["T05"]["map"]["routes"]))
+        feed = gtfs_realtime_pb2.FeedMessage()
+        feed.header.gtfs_realtime_version = "2.0"
+        feed.header.incrementality = 0
+        feed.header.timestamp = int(ahora)
+        entidad = feed.entity.add()
+        entidad.id = "entidad-delay-solo"
+        actualizacion = entidad.trip_update
+        actualizacion.trip.route_id = route_id
+        actualizacion.trip.trip_id = "viaje-delay-solo"
+        actualizacion.trip.start_date = hoy.strftime("%Y%m%d")
+        parada = actualizacion.stop_time_update.add()
+        parada.stop_id = "parada-prueba"
+        parada.arrival.delay = 300
+
+        dataset = {
+            "map": {
+                "routes": {route_id: {
+                    "short_name": "T05-01",
+                    "long_name": "Origen - Destino",
+                }},
+                "stops": {"T05-01": [{"id": "parada-prueba"}]},
+            },
+            "lookup": {"trips": {}},
+            "schedule": self._horario(hoy, ["viaje-delay-solo"]),
+            "has_map": True,
+            "has_schedules": True,
+            "has_realtime": True,
+        }
+        respuesta_feed = SimpleNamespace(
+            status_code=200,
+            content=feed.SerializeToString(),
+        )
+        with (
+            patch("app.obtener_dataset_gtfs", return_value=dataset),
+            patch("app.obtener_respuesta_cacheada", return_value=respuesta_feed),
+            patch("app.time.time", return_value=ahora),
+            patch("app.resolver_destino_y_parada", return_value=("Destino", "Próxima parada")),
+        ):
+            respuesta = app.test_client().get(
+                "/api/paradas/parada-prueba/llegadas?concesion=T05"
+            )
+
+        self.assertEqual(respuesta.status_code, 200)
+        datos = respuesta.get_json()
+        self.assertEqual(len(datos["llegadas"]), 1)
+        self.assertEqual(datos["llegadas"][0]["retraso_segundos"], 300)
+        self.assertEqual(
+            datos["llegadas"][0]["timestamp"],
+            int((ahora_dt.replace(hour=10) + timedelta(minutes=5)).timestamp()),
+        )
 
 
 class ProximaParadaGTFSTests(unittest.TestCase):
