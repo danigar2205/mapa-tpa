@@ -1941,7 +1941,7 @@
             const velocidadTexto = velocidadKmh !== null && Number.isFinite(velocidadKmh) && velocidadKmh >= 0
               ? velocidadKmh.toLocaleString('es-ES', { maximumFractionDigits: 1 }) + ' km/h'
               : 'Sin dato';
-            const retraso = bus.retraso || "En hora";
+            const retraso = bus.retraso || "Sin datos";
             const proximaParada = bus.proxima_parada || "En trayecto";
             const destino = bus.destino || "En trayecto";
 
