@@ -100,19 +100,37 @@ FUENTES_GTFSRT_POR_CONCESION = {
 # Evita descargar los mismos feeds por cada navegador y cada parada abierta.
 CACHE_RESPUESTAS_GTFSRT = {}
 CACHE_GTFSRT_LOCK = threading.Lock()
+CACHE_GTFSRT_LOCKS = {}
 
 
 def obtener_respuesta_cacheada(url, familia, ttl_segundos, headers, timeout):
+    """
+    Reutiliza el feed durante su TTL sin bloquear las descargas de otras URLs.
+
+    La sección global protege solo el diccionario; cada feed tiene su propio
+    lock para evitar descargas duplicadas concurrentes del mismo proveedor.
+    """
     clave = (familia, url)
-    ahora_monotonic = time.monotonic()
 
     with CACHE_GTFSRT_LOCK:
+        ahora_monotonic = time.monotonic()
         cacheada = CACHE_RESPUESTAS_GTFSRT.get(clave)
         if cacheada and ahora_monotonic - cacheada["timestamp"] < ttl_segundos:
             return SimpleNamespace(
                 status_code=cacheada["status_code"],
                 content=cacheada["content"]
             )
+        lock_feed = CACHE_GTFSRT_LOCKS.setdefault(clave, threading.Lock())
+
+    with lock_feed:
+        with CACHE_GTFSRT_LOCK:
+            ahora_monotonic = time.monotonic()
+            cacheada = CACHE_RESPUESTAS_GTFSRT.get(clave)
+            if cacheada and ahora_monotonic - cacheada["timestamp"] < ttl_segundos:
+                return SimpleNamespace(
+                    status_code=cacheada["status_code"],
+                    content=cacheada["content"]
+                )
 
         try:
             respuesta = session.get(url, headers=headers, timeout=timeout, verify=False)
@@ -125,11 +143,12 @@ def obtener_respuesta_cacheada(url, familia, ttl_segundos, headers, timeout):
             return SimpleNamespace(status_code=0, content=b"")
 
         if resultado.status_code == 200 and resultado.content:
-            CACHE_RESPUESTAS_GTFSRT[clave] = {
-                "timestamp": ahora_monotonic,
-                "status_code": resultado.status_code,
-                "content": resultado.content
-            }
+            with CACHE_GTFSRT_LOCK:
+                CACHE_RESPUESTAS_GTFSRT[clave] = {
+                    "timestamp": time.monotonic(),
+                    "status_code": resultado.status_code,
+                    "content": resultado.content
+                }
 
         return resultado
 
@@ -303,7 +322,7 @@ def procesar_ocupacion(raw_status, raw_percentage=None):
     if raw_percentage is not None:
         try:
             valor = float(raw_percentage)
-            if math.isfinite(valor) and valor >= 0:
+            if math.isfinite(valor) and 0 <= valor <= 100:
                 porcentaje = valor
         except (TypeError, ValueError, OverflowError):
             pass
@@ -667,14 +686,11 @@ def obtener_estimaciones_tripupdates(linea_objetivo):
                     'destino': destino,
                 }
                 if v_id:
-                    estimaciones[v_id] = info
+                    estimaciones.setdefault(v_id, info)
                 if coche_label:
-                    estimaciones[coche_label] = info
+                    estimaciones.setdefault(coche_label, info)
                 if trip_id:
-                    estimaciones[trip_id] = info
-
-            if estimaciones:
-                return estimaciones
+                    estimaciones.setdefault(trip_id, info)
         except Exception as exc:
             print(f"[TRIPUPDATES ERROR {url}]: {exc}")
 
@@ -891,28 +907,33 @@ def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05", stop_ids=None):
                         "fuente": "Tiempo real",
                         "trip_id": trip_id,
                         "vehicle_id": vehicle_id,
-                        "entity_id": entity_id
+                        "entity_id": entity_id,
+                        "stop_id": stop_id_actualizacion
                     })
-
-            if llegadas:
-                break
         except Exception as exc:
             print(f"[LLEGADAS GTFS-RT ERROR {url}]: {exc}")
 
-    llegadas.sort(key=lambda item: item["timestamp"])
-    unicas = []
-    vistos = set()
+    # Conserva la primera fuente para cada viaje/parada y añade los servicios
+    # que solo estén presentes en los feeds secundarios.
+    unicas_por_viaje = {}
+    anonimas = []
     for llegada in llegadas:
         identificador = (
             llegada.get("trip_id") or
             llegada.get("vehicle_id") or
             llegada.get("entity_id")
         )
-        clave = (identificador, llegada["linea"], llegada["timestamp"])
-        if clave in vistos:
-            continue
-        vistos.add(clave)
-        unicas.append(llegada)
+        if identificador:
+            clave = (
+                identificador,
+                llegada["linea"],
+                llegada.get("stop_id", ""),
+            )
+            unicas_por_viaje.setdefault(clave, llegada)
+        else:
+            anonimas.append(llegada)
+    unicas = list(unicas_por_viaje.values()) + anonimas
+    unicas.sort(key=lambda item: item["timestamp"])
 
     return {
         "llegadas": unicas,
@@ -961,8 +982,15 @@ def servicio_activo_gtfs(service_id, fecha, horario=None):
     if not servicio:
         return False
 
-    inicio = datetime.strptime(servicio["start_date"], "%Y%m%d").date()
-    fin = datetime.strptime(servicio["end_date"], "%Y%m%d").date()
+    try:
+        inicio = datetime.strptime(
+            str(servicio.get("start_date", "")), "%Y%m%d"
+        ).date()
+        fin = datetime.strptime(
+            str(servicio.get("end_date", "")), "%Y%m%d"
+        ).date()
+    except (TypeError, ValueError):
+        return False
     if not inicio <= fecha <= fin:
         return False
 
