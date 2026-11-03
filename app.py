@@ -115,7 +115,7 @@ def obtener_respuesta_cacheada(url, familia, ttl_segundos, headers, timeout):
     with CACHE_GTFSRT_LOCK:
         ahora_monotonic = time.monotonic()
         cacheada = CACHE_RESPUESTAS_GTFSRT.get(clave)
-        if cacheada and ahora_monotonic - cacheada["timestamp"] < ttl_segundos:
+        if cacheada and ahora_monotonic - cacheada["timestamp"] < cacheada.get("ttl", ttl_segundos):
             return SimpleNamespace(
                 status_code=cacheada["status_code"],
                 content=cacheada["content"]
@@ -126,7 +126,7 @@ def obtener_respuesta_cacheada(url, familia, ttl_segundos, headers, timeout):
         with CACHE_GTFSRT_LOCK:
             ahora_monotonic = time.monotonic()
             cacheada = CACHE_RESPUESTAS_GTFSRT.get(clave)
-            if cacheada and ahora_monotonic - cacheada["timestamp"] < ttl_segundos:
+            if cacheada and ahora_monotonic - cacheada["timestamp"] < cacheada.get("ttl", ttl_segundos):
                 return SimpleNamespace(
                     status_code=cacheada["status_code"],
                     content=cacheada["content"]
@@ -140,15 +140,22 @@ def obtener_respuesta_cacheada(url, familia, ttl_segundos, headers, timeout):
             )
         except requests.RequestException as exc:
             print(f"[GTFS-RT {familia.upper()} ERROR {url}]: {exc}")
-            return SimpleNamespace(status_code=0, content=b"")
+            resultado = SimpleNamespace(status_code=0, content=b"")
 
-        if resultado.status_code == 200 and resultado.content:
-            with CACHE_GTFSRT_LOCK:
-                CACHE_RESPUESTAS_GTFSRT[clave] = {
-                    "timestamp": time.monotonic(),
-                    "status_code": resultado.status_code,
-                    "content": resultado.content
-                }
+        # Los errores se conservan unos segundos para que muchas consultas
+        # simultáneas no repitan el mismo timeout una detrás de otra.
+        ttl_cache = (
+            ttl_segundos
+            if resultado.status_code == 200 and resultado.content
+            else min(max(int(ttl_segundos), 1), 3)
+        )
+        with CACHE_GTFSRT_LOCK:
+            CACHE_RESPUESTAS_GTFSRT[clave] = {
+                "timestamp": time.monotonic(),
+                "ttl": ttl_cache,
+                "status_code": resultado.status_code,
+                "content": resultado.content
+            }
 
         return resultado
 
