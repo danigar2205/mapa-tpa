@@ -1519,12 +1519,61 @@
         const tiempoReal = consultarTiempoReal && respuestaRT?.ok && Array.isArray(datosRT.llegadas)
           ? datosRT.llegadas
           : [];
+
+        // Guarda durante el día los viajes adelantados que ya han pasado por
+        // esta parada. Así no reaparece su hora oficial cuando el feed deja de
+        // publicar la predicción porque el autobús ya ha continuado la ruta.
+        const claveParadas = idsParada.map(String).sort().join(',') || String(stopId);
+        const prefijoViajesPasados = 'mapa-tpa:viajes-pasados:' + codigo + ':' + claveParadas + ':';
+        const claveViajesPasados = prefijoViajesPasados + fecha;
+        const viajesPasadosMemoria = popup._viajesPasados || {};
+        const viajesPasados = new Set(
+          viajesPasadosMemoria[claveViajesPasados] || []
+        );
+        try {
+          const guardados = JSON.parse(
+            localStorage.getItem(claveViajesPasados) || '[]'
+          );
+          if (Array.isArray(guardados)) {
+            guardados.forEach(id => viajesPasados.add(String(id)));
+          }
+        } catch (error) {
+          // El almacenamiento puede estar bloqueado en navegación privada.
+        }
+
+        tiempoReal
+          .filter(item => item.pasado && item.trip_id)
+          .forEach(item => viajesPasados.add(String(item.trip_id)));
+
+        popup._viajesPasados = popup._viajesPasados || {};
+        popup._viajesPasados[claveViajesPasados] = Array.from(viajesPasados);
+        try {
+          // Solo se conserva la fecha seleccionada para esta parada y concesión.
+          for (let indice = localStorage.length - 1; indice >= 0; indice--) {
+            const clave = localStorage.key(indice);
+            if (clave && clave.startsWith(prefijoViajesPasados) && clave !== claveViajesPasados) {
+              localStorage.removeItem(clave);
+            }
+          }
+          localStorage.setItem(
+            claveViajesPasados,
+            JSON.stringify(Array.from(viajesPasados))
+          );
+        } catch (error) {
+          // La memoria del popup sigue cubriendo las recargas aunque no haya almacenamiento.
+        }
+
+        const tiempoRealPendiente = tiempoReal.filter(item => !item.pasado);
+        const programadasPendientes = programadas.filter(item =>
+          !item.trip_id || !viajesPasados.has(String(item.trip_id))
+        );
         const tiempoRealPorViaje = new Map(
-          tiempoReal.filter(item => item.trip_id).map(item => [item.trip_id, item])
+          tiempoRealPendiente.filter(item => item.trip_id)
+            .map(item => [String(item.trip_id), item])
         );
 
-        const elementos = programadas.map(item => {
-          const prediccion = tiempoRealPorViaje.get(item.trip_id);
+        const elementos = programadasPendientes.map(item => {
+          const prediccion = tiempoRealPorViaje.get(String(item.trip_id));
           return {
             ...item,
             horaMostrada: prediccion?.hora || item.hora,
@@ -1535,8 +1584,12 @@
           };
         });
 
-        const idsIncluidos = new Set(programadas.map(item => item.trip_id).filter(Boolean));
-        tiempoReal.filter(item => !item.trip_id || !idsIncluidos.has(item.trip_id)).forEach(item => {
+        const idsIncluidos = new Set(
+          programadasPendientes.map(item => String(item.trip_id)).filter(Boolean)
+        );
+        tiempoRealPendiente.filter(item =>
+          !item.trip_id || !idsIncluidos.has(String(item.trip_id))
+        ).forEach(item => {
           elementos.push({
             ...item,
             horaMostrada: item.hora,
@@ -1550,9 +1603,12 @@
         if (!elementos.length) {
           const mensajes = [];
           if (datosHorario.mensaje) mensajes.push(escaparHTML(datosHorario.mensaje));
+          if (viajesPasados.size) {
+            mensajes.push('La expedición que se ha adelantado ya ha pasado por esta parada; se ha retirado su hora programada.');
+          }
           if (consultarTiempoReal && (!respuestaRT?.ok || !datosRT.tiempo_real_disponible)) {
             mensajes.push('No hay conexión con las predicciones en tiempo real.');
-          } else if (consultarTiempoReal && !tiempoReal.length) {
+          } else if (consultarTiempoReal && !tiempoRealPendiente.length && !viajesPasados.size) {
             mensajes.push('Ahora mismo no hay predicciones en tiempo real para esta parada.');
           }
           if (datosHorario.vigencia_gtfs_hasta) {
