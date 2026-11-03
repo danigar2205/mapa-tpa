@@ -1073,6 +1073,20 @@ class CacheGTFSRTTests(unittest.TestCase):
         self.assertEqual(get.call_count, 1)
         CACHE_RESPUESTAS_GTFSRT.pop(clave, None)
 
+    def test_un_fallo_de_feed_se_cachea_brevemente_para_evitar_timeouts_en_cola(self):
+        url = "https://test.local/feed-fallido-cacheado"
+        clave = ("unit-test", url)
+        CACHE_RESPUESTAS_GTFSRT.pop(clave, None)
+
+        with patch("app.session.get", side_effect=__import__("requests").Timeout("sin respuesta")) as get:
+            primera = obtener_respuesta_cacheada(url, "unit-test", 60, {}, 1)
+            segunda = obtener_respuesta_cacheada(url, "unit-test", 60, {}, 1)
+
+        self.assertEqual(primera.status_code, 0)
+        self.assertEqual(segunda.status_code, 0)
+        self.assertEqual(get.call_count, 1)
+        CACHE_RESPUESTAS_GTFSRT.pop(clave, None)
+
     def test_descargas_de_urls_distintas_no_se_bloquean_entre_si(self):
         from concurrent.futures import ThreadPoolExecutor
         from threading import Barrier
@@ -1160,6 +1174,9 @@ class CapasMapaGTFSTests(unittest.TestCase):
         html = app.test_client().get("/").get_data(as_text=True)
         self.assertIn("if (!respuesta.ok) throw new Error", html)
         self.assertIn("const retraso = bus.retraso || \"Sin datos\";", html)
+        self.assertIn("marcador.setOpacity(0.45)", html)
+        self.assertIn("marcador.setOpacity(1)", html)
+        self.assertIn("últimas conocidas", html)
         self.assertIn("datos.forEach((bus)", html)
         self.assertIn("idsVivos.add(idUnico)", html)
         self.assertIn("marcadoresBuses[idUnico]", html)
