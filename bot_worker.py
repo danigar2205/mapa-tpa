@@ -201,6 +201,9 @@ def obtener_servicios_t05() -> list[dict] | None:
         "Accept": "*/*",
     }
 
+    servicios_totales: dict[str, dict] = {}
+    feed_disponible = False
+
     for url in mapa.VEHICLES_ENDPOINTS:
         try:
             respuesta = mapa.obtener_respuesta_cacheada(
@@ -220,7 +223,7 @@ def obtener_servicios_t05() -> list[dict] | None:
 
             feed = gtfs_realtime_pb2.FeedMessage()
             feed.ParseFromString(contenido)
-            servicios: dict[str, dict] = {}
+            feed_disponible = True
 
             for entidad in feed.entity:
                 if not entidad.HasField("vehicle"):
@@ -258,13 +261,14 @@ def obtener_servicios_t05() -> list[dict] | None:
                     "lat": float(posicion.latitude),
                     "lon": float(posicion.longitude),
                 }
-                servicios[clave_servicio(servicio)] = servicio
+                servicios_totales.setdefault(clave_servicio(servicio), servicio)
 
-            return list(servicios.values())
-
-        except (requests.RequestException, ValueError, Exception) as exc:
+        except Exception as exc:
             LOG.warning("No se pudo leer el feed de vehículos %s: %s", url, exc)
 
+    # Una respuesta válida pero vacía no impide consultar el proveedor alternativo.
+    if feed_disponible:
+        return list(servicios_totales.values())
     return None
 
 
