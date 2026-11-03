@@ -870,7 +870,10 @@ def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05", stop_ids=None):
 
                     evento_tipo = None
                     evento = None
-                    for nombre_evento in ("arrival", "departure"):
+                    # El horario mostrado en la parada representa salidas; por
+                    # tanto, departure es la referencia principal. Si el feed
+                    # solo publica arrival, se utiliza como respaldo.
+                    for nombre_evento in ("departure", "arrival"):
                         if not actualizacion_parada.HasField(nombre_evento):
                             continue
                         candidato = getattr(actualizacion_parada, nombre_evento)
@@ -899,7 +902,18 @@ def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05", stop_ids=None):
                         ahora=ahora,
                     )
 
-                    if instante is None or instante < ahora - 120 or instante > ahora + 12 * 3600:
+                    if instante is None or instante < ahora - 30 * 60 or instante > ahora + 12 * 3600:
+                        continue
+
+                    # Una expedición adelantada puede haber pasado ya aunque su
+                    # hora oficial siga en el futuro. Se conserva durante 30 min
+                    # como marca de paso, para retirar su salida teórica.
+                    pasado = bool(
+                        instante < ahora - 60
+                        and retraso_segundos is not None
+                        and retraso_segundos < 0
+                    )
+                    if instante < ahora - 60 and not pasado:
                         continue
 
                     fecha_hora = datetime.fromtimestamp(instante, ZONA_HORARIA)
@@ -911,6 +925,7 @@ def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05", stop_ids=None):
                         "minutos": minutos,
                         "timestamp": instante,
                         "retraso_segundos": retraso_segundos,
+                        "pasado": pasado,
                         "fuente": "Tiempo real",
                         "trip_id": trip_id,
                         "vehicle_id": vehicle_id,
