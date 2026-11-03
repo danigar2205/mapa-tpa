@@ -1428,7 +1428,10 @@ def get_buses(linea):
                 elif vehicle_id or coche_num:
                     identidad_bus = ("vehicle", r_id, vehicle_id or coche_num)
                 elif entity_id:
-                    identidad_bus = ("entity", url, entity_id)
+                    identidad_bus = (
+                        "entity", r_id, entity_id,
+                        round(float(lat), 6), round(float(lon), 6)
+                    )
                 else:
                     identidad_bus = (
                         "position", url, r_id, round(float(lat), 6), round(float(lon), 6)
