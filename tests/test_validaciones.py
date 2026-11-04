@@ -1126,6 +1126,7 @@ class HorariosGTFSTests(unittest.TestCase):
         self.assertTrue(respuesta.get_json()["tiempo_real_disponible"])
         self.assertEqual(respuesta.get_json()["llegadas"], [])
         consulta.assert_called()
+        self.assertTrue(all(llamada.args[2] == 5 for llamada in consulta.call_args_list))
 
 
 
