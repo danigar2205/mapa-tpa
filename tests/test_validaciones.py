@@ -1247,6 +1247,10 @@ class CapasMapaGTFSTests(unittest.TestCase):
         self.assertIn("item.mostrarCuentaAtras = segundosRestantes < 30 * 60", html)
         self.assertIn("'En ' + item.minutosRestantes + ' min' : 'Llegando'", html)
         self.assertIn("escaparHTML(item.tiempoPrincipal)", html)
+        self.assertIn("estado: prediccion ? 'Tiempo real' : 'Programado'", html)
+        self.assertIn("En tiempo real", html)
+        self.assertNotIn("En vivo", html[html.index("const gruposOrdenados = Array.from(grupos.values())"):html.index("const actualizado = consultarTiempoReal")])
+        self.assertNotIn("diferencia", html[html.index("const gruposOrdenados = Array.from(grupos.values())"):html.index("const actualizado = consultarTiempoReal")])
         self.assertIn("Otra fecha: se muestra el horario oficial", html)
         self.assertIn("popup._solicitudLlegadasParada", html)
 
