@@ -1637,6 +1637,19 @@
           return;
         }
 
+        // En los 30 minutos previos se sustituye la hora del reloj por una
+        // cuenta atrás. Se calcula con el timestamp previsto para ambos tipos
+        // de servicio (programado y predicción en vivo).
+        const ahoraTimestamp = Date.now() / 1000;
+        elementos.forEach(item => {
+          const segundosRestantes = Number(item.timestampMostrado) - ahoraTimestamp;
+          item.mostrarCuentaAtras = segundosRestantes < 30 * 60;
+          item.minutosRestantes = Math.max(0, Math.ceil(segundosRestantes / 60));
+          item.tiempoPrincipal = item.mostrarCuentaAtras
+            ? (item.minutosRestantes > 0 ? 'En ' + item.minutosRestantes + ' min' : 'Llegando')
+            : item.horaMostrada;
+        });
+
         const grupos = new Map();
         elementos.forEach(item => {
           const linea = String(item.linea || 'Línea sin identificar');
@@ -1670,7 +1683,7 @@
                 : 'Horario oficial';
               return '<span class="stop-schedule-time' + (esTiempoReal ? ' live' : '') +
                 '" title="' + escaparHTML(estado + diferencia) + '">' +
-                '<strong>' + escaparHTML(item.horaMostrada) + '</strong>' +
+                '<strong>' + escaparHTML(item.tiempoPrincipal) + '</strong>' +
                 '<small>' + escaparHTML(esTiempoReal ? 'En vivo' + diferencia : 'Oficial') + '</small>' +
               '</span>';
             }).join('');
