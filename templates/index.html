@@ -1645,8 +1645,11 @@
           const segundosRestantes = Number(item.timestampMostrado) - ahoraTimestamp;
           item.mostrarCuentaAtras = segundosRestantes < 30 * 60;
           item.minutosRestantes = Math.max(0, Math.ceil(segundosRestantes / 60));
+          const umbralLlegadaSegundos = 2 * 60;
           item.tiempoPrincipal = item.mostrarCuentaAtras
-            ? (item.minutosRestantes > 0 ? 'En ' + item.minutosRestantes + ' min' : 'Llegando')
+            ? (segundosRestantes > umbralLlegadaSegundos
+              ? 'En ' + item.minutosRestantes + ' min'
+              : 'Llegando')
             : item.horaMostrada;
         });
 
