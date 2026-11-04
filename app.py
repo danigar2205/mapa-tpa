@@ -526,7 +526,7 @@ def obtener_estimaciones_tripupdates(linea_objetivo):
 
     for url in fuentes.get("tripupdates", []):
         try:
-            res = obtener_respuesta_cacheada(url, "tripupdates", 15, headers, 8)
+            res = obtener_respuesta_cacheada(url, "tripupdates", 5, headers, 8)
             if res.status_code != 200 or not res.content:
                 continue
 
