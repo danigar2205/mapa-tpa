@@ -1,4 +1,5 @@
 import math
+import inspect
 import unittest
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -1131,6 +1132,13 @@ class HorariosGTFSTests(unittest.TestCase):
 
 
 class CacheGTFSRTTests(unittest.TestCase):
+    def test_predicciones_de_autobuses_usan_cache_tripupdates_de_cinco_segundos(self):
+        codigo = inspect.getsource(obtener_estimaciones_tripupdates)
+        self.assertIn(
+            'obtener_respuesta_cacheada(url, "tripupdates", 5, headers, 8)',
+            codigo,
+        )
+
     def test_reutiliza_respuesta_durante_ttl(self):
         url = "https://test.local/gtfsrt-cache-unittest"
         clave = ("unit-test", url)
