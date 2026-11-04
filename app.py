@@ -790,7 +790,7 @@ def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05", stop_ids=None):
 
     for url in fuentes.get("tripupdates", []):
         try:
-            respuesta = obtener_respuesta_cacheada(url, "tripupdates", 15, headers, 7)
+            respuesta = obtener_respuesta_cacheada(url, "tripupdates", 5, headers, 7)
             if respuesta.status_code != 200 or not respuesta.content:
                 continue
 

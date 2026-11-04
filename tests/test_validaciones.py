@@ -1126,6 +1126,7 @@ class HorariosGTFSTests(unittest.TestCase):
         self.assertTrue(respuesta.get_json()["tiempo_real_disponible"])
         self.assertEqual(respuesta.get_json()["llegadas"], [])
         consulta.assert_called()
+        self.assertTrue(all(llamada.args[2] == 5 for llamada in consulta.call_args_list))
 
 
 
@@ -1247,11 +1248,17 @@ class CapasMapaGTFSTests(unittest.TestCase):
         self.assertIn("item.mostrarCuentaAtras = segundosRestantes < 30 * 60", html)
         self.assertIn("'En ' + item.minutosRestantes + ' min' : 'Llegando'", html)
         self.assertIn("escaparHTML(item.tiempoPrincipal)", html)
+        self.assertIn("popup._llegadaInminente = consultarTiempoReal && elementos.some", html)
+        self.assertIn("evento.popup._llegadaInminente ? 5000 : 30000", html)
+        self.assertNotIn("Tiempo real consultado a las", html)
+        self.assertNotIn("En tiempo real = predicción GTFS-RT", html)
+        self.assertNotIn("Horario GTFS disponible hasta", html)
+        self.assertNotIn("stop-schedule-note", html)
         self.assertIn("estado: prediccion ? 'Tiempo real' : 'Programado'", html)
         self.assertIn("En tiempo real", html)
-        self.assertNotIn("En vivo", html[html.index("const gruposOrdenados = Array.from(grupos.values())"):html.index("const actualizado = consultarTiempoReal")])
-        self.assertNotIn("diferencia", html[html.index("const gruposOrdenados = Array.from(grupos.values())"):html.index("const actualizado = consultarTiempoReal")])
-        self.assertIn("Otra fecha: se muestra el horario oficial", html)
+        self.assertNotIn("En vivo", html[html.index("const gruposOrdenados = Array.from(grupos.values())"):html.index("const resumenSalidas")])
+        self.assertNotIn("diferencia", html[html.index("const gruposOrdenados = Array.from(grupos.values())"):html.index("const resumenSalidas")])
+        self.assertNotIn("Otra fecha: se muestra el horario oficial", html)
         self.assertIn("popup._solicitudLlegadasParada", html)
 
     def test_el_mapa_procesa_todos_los_autobuses_devuelto_por_la_api(self):

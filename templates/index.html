@@ -505,7 +505,6 @@
     .stop-favorite-button.saved { color: #b45309; border-color: #fcd34d; background: #fffbeb; }
     .stop-date-input { width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 7px; margin: 4px 0 7px; color: #0f172a; font-size: 11px; background: #fff; }
     .stop-schedule { border-top: 1px solid #e2e8f0; margin-top: 10px; padding-top: 2px; }
-    .stop-schedule-note { font-size: 9px; color: #94a3b8; padding-top: 5px; }
     .arrival-status { display: block; font-size: 9px; margin-top: 3px; font-weight: 700; }
     .arrival-status.live { color: #15803d; }
     .arrival-status.scheduled { color: #64748b; }
@@ -1698,20 +1697,11 @@
         const resumenSalidas = '<div class="stop-schedule-summary">' +
           elementos.length + ' salidas · ' + grupos.size + ' grupos de línea y destino</div>';
 
-        const avisoVigencia = datosHorario.vigencia_gtfs_hasta
-          ? '<div class="stop-arrival-updated">Horario GTFS disponible hasta ' + escaparHTML(datosHorario.vigencia_gtfs_hasta) + '</div>'
-          : '';
-        const actualizado = consultarTiempoReal && datosRT.actualizado
-          ? '<div class="stop-arrival-updated">Tiempo real consultado a las ' + escaparHTML(datosRT.actualizado) + ' · actualización cada 30 s</div>'
-          : '';
-        const fuenteTexto = consultarTiempoReal
-          ? 'En tiempo real = predicción GTFS-RT · Programado = horario oficial'
-          : funciones.tiempo_real
-            ? 'Otra fecha: se muestra el horario oficial, sin mezclar predicciones de hoy'
-            : 'Programado = horario oficial GTFS';
-        contenedor.innerHTML = resumenSalidas + html +
-          '<div class="stop-arrival-source">' + fuenteTexto + '</div>' +
-          actualizado + avisoVigencia;
+        popup._llegadaInminente = consultarTiempoReal && elementos.some(item => {
+          const segundos = Number(item.timestampMostrado) - Date.now() / 1000;
+          return item.estado === 'Tiempo real' && segundos >= -60 && segundos <= 180;
+        });
+        contenedor.innerHTML = resumenSalidas + html;
       } catch (error) {
         if (
           popup._solicitudLlegadasParada !== numeroSolicitud ||
@@ -1771,11 +1761,7 @@
                 (configuracionConcesionActiva?.funciones?.horarios
                   ? '<input type="date" class="stop-date-input" aria-label="Fecha de las salidas">' : '') +
                 '<div class="llegadas-parada stop-arrival-state">Consultando información de servicio...</div>' +
-                '<div class="stop-schedule-note">' +
-                  (configuracionConcesionActiva?.funciones?.tiempo_real
-                    ? '“En tiempo real” utiliza predicciones GTFS-RT; “Programado” corresponde al horario oficial.'
-                    : 'La información mostrada procede del horario oficial GTFS.') +
-                '</div>' +
+
               '</div>' +
             '</div>',
             {
@@ -1821,11 +1807,17 @@
 
             const funciones = configuracionConcesionActiva?.funciones || {};
             if (funciones.horarios || funciones.tiempo_real) {
-              cargarLlegadasParada(parada.id, evento.popup, hoy, parada.stop_ids);
-              intervaloLlegadasParada = setInterval(() => {
+              const actualizarLlegadasYProgramar = async () => {
                 const fechaActual = selectorFecha?.value || hoy;
-                cargarLlegadasParada(parada.id, evento.popup, fechaActual, parada.stop_ids);
-              }, 30000);
+                await cargarLlegadasParada(parada.id, evento.popup, fechaActual, parada.stop_ids);
+                if (!evento.popup.getElement()) return;
+                intervaloLlegadasParada = setTimeout(
+                  actualizarLlegadasYProgramar,
+                  evento.popup._llegadaInminente ? 5000 : 30000
+                );
+              };
+              evento.popup._llegadaInminente = false;
+              actualizarLlegadasYProgramar();
             } else {
               const llegadas = elemento?.querySelector('.llegadas-parada');
               if (llegadas) llegadas.textContent = 'Todavía no hay horarios ni predicciones disponibles para esta concesión.';
