@@ -1676,11 +1676,11 @@
               const esTiempoReal = item.estado === 'Tiempo real';
               const estado = esTiempoReal
                 ? (Number(item.minutos) <= 0 ? 'Tiempo real · Llegando' : 'Tiempo real · ' + Number(item.minutos) + ' min')
-                : 'Horario oficial';
+                : 'Horario programado';
               return '<span class="stop-schedule-time' + (esTiempoReal ? ' live' : '') +
                 '" title="' + escaparHTML(estado) + '">' +
                 '<strong>' + escaparHTML(item.tiempoPrincipal) + '</strong>' +
-                '<small>' + escaparHTML(esTiempoReal ? 'En tiempo real' : 'Oficial') + '</small>' +
+                '<small>' + escaparHTML(esTiempoReal ? 'En tiempo real' : 'Programado') + '</small>' +
               '</span>';
             }).join('');
 
