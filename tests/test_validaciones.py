@@ -1257,7 +1257,7 @@ class CapasMapaGTFSTests(unittest.TestCase):
         self.assertIn("En tiempo real", html)
         self.assertNotIn("En vivo", html[html.index("const gruposOrdenados = Array.from(grupos.values())"):html.index("const resumenSalidas")])
         self.assertNotIn("diferencia", html[html.index("const gruposOrdenados = Array.from(grupos.values())"):html.index("const resumenSalidas")])
-        self.assertIn("Otra fecha: se muestra el horario oficial", html)
+        self.assertNotIn("Otra fecha: se muestra el horario oficial", html)
         self.assertIn("popup._solicitudLlegadasParada", html)
 
     def test_el_mapa_procesa_todos_los_autobuses_devuelto_por_la_api(self):
