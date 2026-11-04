@@ -1579,7 +1579,7 @@
             horaMostrada: prediccion?.hora || item.hora,
             timestampMostrado: prediccion?.timestamp || item.timestamp,
             minutos: prediccion?.minutos,
-            estado: prediccion ? 'En vivo' : 'Programado',
+            estado: prediccion ? 'Tiempo real' : 'Programado',
             delta: prediccion ? Number(prediccion.timestamp) - Number(item.timestamp) : null
           };
         });
@@ -1594,7 +1594,7 @@
             ...item,
             horaMostrada: item.hora,
             timestampMostrado: item.timestamp,
-            estado: 'En vivo',
+            estado: 'Tiempo real',
             delta: null
           });
         });
@@ -1674,17 +1674,14 @@
           const horas = grupo.items
             .sort((a, b) => Number(a.timestampMostrado || 0) - Number(b.timestampMostrado || 0))
             .map(item => {
-              const esTiempoReal = item.estado === 'En vivo';
-              const diferencia = esTiempoReal && item.delta !== null
-                ? (item.delta > 60 ? ' · +' + Math.round(item.delta / 60) + ' min' : item.delta < -60 ? ' · ' + Math.round(item.delta / 60) + ' min' : '')
-                : '';
+              const esTiempoReal = item.estado === 'Tiempo real';
               const estado = esTiempoReal
-                ? (Number(item.minutos) <= 0 ? 'RT · Llegando' : 'RT · ' + Number(item.minutos) + ' min')
+                ? (Number(item.minutos) <= 0 ? 'Tiempo real · Llegando' : 'Tiempo real · ' + Number(item.minutos) + ' min')
                 : 'Horario oficial';
               return '<span class="stop-schedule-time' + (esTiempoReal ? ' live' : '') +
-                '" title="' + escaparHTML(estado + diferencia) + '">' +
+                '" title="' + escaparHTML(estado) + '">' +
                 '<strong>' + escaparHTML(item.tiempoPrincipal) + '</strong>' +
-                '<small>' + escaparHTML(esTiempoReal ? 'En vivo' + diferencia : 'Oficial') + '</small>' +
+                '<small>' + escaparHTML(esTiempoReal ? 'En tiempo real' : 'Oficial') + '</small>' +
               '</span>';
             }).join('');
 
@@ -1708,7 +1705,7 @@
           ? '<div class="stop-arrival-updated">Tiempo real consultado a las ' + escaparHTML(datosRT.actualizado) + ' · actualización cada 30 s</div>'
           : '';
         const fuenteTexto = consultarTiempoReal
-          ? 'En vivo = predicción GTFS-RT · Programado = horario oficial'
+          ? 'En tiempo real = predicción GTFS-RT · Programado = horario oficial'
           : funciones.tiempo_real
             ? 'Otra fecha: se muestra el horario oficial, sin mezclar predicciones de hoy'
             : 'Programado = horario oficial GTFS';
@@ -1776,7 +1773,7 @@
                 '<div class="llegadas-parada stop-arrival-state">Consultando información de servicio...</div>' +
                 '<div class="stop-schedule-note">' +
                   (configuracionConcesionActiva?.funciones?.tiempo_real
-                    ? '“En vivo” utiliza predicciones GTFS-RT; “Programado” corresponde al horario oficial.'
+                    ? '“En tiempo real” utiliza predicciones GTFS-RT; “Programado” corresponde al horario oficial.'
                     : 'La información mostrada procede del horario oficial GTFS.') +
                 '</div>' +
               '</div>' +
