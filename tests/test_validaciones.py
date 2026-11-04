@@ -1243,6 +1243,10 @@ class CapasMapaGTFSTests(unittest.TestCase):
         self.assertIn("viajesPasados.has(String(item.trip_id))", html)
         self.assertIn("mapa-tpa:viajes-pasados:", html)
         self.assertIn("const tiempoRealPendiente = tiempoReal.filter(item => !item.pasado)", html)
+        self.assertIn("const segundosRestantes = Number(item.timestampMostrado) - ahoraTimestamp", html)
+        self.assertIn("item.mostrarCuentaAtras = segundosRestantes < 30 * 60", html)
+        self.assertIn("'En ' + item.minutosRestantes + ' min' : 'Llegando'", html)
+        self.assertIn("escaparHTML(item.tiempoPrincipal)", html)
         self.assertIn("Otra fecha: se muestra el horario oficial", html)
         self.assertIn("popup._solicitudLlegadasParada", html)
 
