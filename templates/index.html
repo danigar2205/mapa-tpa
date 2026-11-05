@@ -266,6 +266,12 @@
     .feedback-counter { margin-top: 5px; color: #8393a2; font-size: 10px; font-variant-numeric: tabular-nums; }
     .feedback-counter.near-limit { color: #ad741c; font-weight: 700; }
     .feedback-counter.at-limit { color: #b83232; font-weight: 700; }
+    .feedback-guidelines {
+      margin-top: 7px;
+      color: #7b8996;
+      font-size: 10px;
+      line-height: 1.45;
+    }
     .feedback-status {
       display: flex;
       align-items: center;
@@ -1252,6 +1258,7 @@
             <textarea id="buzon-mensaje" name="mensaje" minlength="20" maxlength="5000" required placeholder="Describe tu sugerencia o el problema que has encontrado..."></textarea>
             <div class="feedback-textarea-footer">
               <p class="feedback-help">Entre 20 y 5.000 caracteres.</p>
+              <p class="feedback-guidelines">Mantén un tono respetuoso. No se admiten insultos, amenazas ni mensajes ofensivos.</p>
               <p class="feedback-counter"><span id="feedback-contador">0</span> / 5.000</p>
             </div>
           </div>
