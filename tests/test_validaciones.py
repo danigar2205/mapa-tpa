@@ -233,9 +233,9 @@ class BuzonSugerenciasQuejasTests(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 200)
         servidor.send_message.assert_called_once()
 
-    def test_limita_a_tres_envios_por_navegador_en_24_horas(self):
+    def test_limita_a_dos_envios_por_navegador_en_24_horas(self):
         ahora = 100000.0
-        for numero in range(3):
+        for numero in range(2):
             permitido, _ = app_module.comprobar_cuota_buzon(
                 "a" * 32, "192.0.2.10", ahora + numero
             )
@@ -246,9 +246,9 @@ class BuzonSugerenciasQuejasTests(unittest.TestCase):
         self.assertFalse(permitido)
         self.assertGreater(minutos, 0)
 
-    def test_limita_a_diez_envios_por_ip_entre_navegadores(self):
+    def test_limita_a_cinco_envios_por_ip_entre_navegadores(self):
         ahora = 200000.0
-        for numero in range(10):
+        for numero in range(5):
             permitido, _ = app_module.comprobar_cuota_buzon(
                 f"{numero:032x}", "192.0.2.20", ahora + numero
             )
@@ -260,7 +260,7 @@ class BuzonSugerenciasQuejasTests(unittest.TestCase):
 
     def test_cuota_se_reinicia_al_cumplirse_24_horas(self):
         ahora = 300000.0
-        for numero in range(3):
+        for numero in range(2):
             app_module.comprobar_cuota_buzon("b" * 32, "192.0.2.30", ahora + numero)
         permitido, _ = app_module.comprobar_cuota_buzon(
             "b" * 32, "192.0.2.30", ahora + app_module.BUZON_VENTANA_SEGUNDOS + 5
