@@ -50,6 +50,16 @@ class BuzonSugerenciasQuejasTests(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(respuesta.get_json(), {"disponible": False})
 
+    def test_estado_indica_disponible_con_api_key_de_resend_sin_smtp(self):
+        with patch.dict(
+            app_module.os.environ,
+            {"BUZON_RESEND_API_KEY": "re_clave_de_prueba"},
+            clear=True,
+        ):
+            respuesta = self.client.get("/api/buzon/estado")
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.get_json(), {"disponible": True})
+
     def test_configuracion_predeterminada_usa_gmail_y_el_destinatario_indicado(self):
         with patch.dict(
             app_module.os.environ,
@@ -97,6 +107,65 @@ class BuzonSugerenciasQuejasTests(unittest.TestCase):
         self.assertEqual(mensaje["To"], "ribota2010@gmail.com")
         self.assertEqual(mensaje["From"], "ribota2010@gmail.com")
         smtp.assert_called_once_with("smtp.gmail.com", 587, timeout=12)
+
+    def test_envia_por_resend_https_sin_necesitar_smtp(self):
+        datos = {
+            "tipo": "sugerencia",
+            "asunto": "Añadir aviso de incidencia",
+            "mensaje": "Estaría bien mostrar un aviso cuando una línea no presta servicio.",
+            "correo": "persona@example.com",
+        }
+        respuesta_api = type("RespuestaAPI", (), {
+            "ok": True, "status_code": 200, "text": '{"id":"email-id"}'
+        })()
+        with (
+            patch.dict(
+                app_module.os.environ,
+                {"BUZON_RESEND_API_KEY": "re_clave_de_prueba"},
+                clear=True,
+            ),
+            patch("app.requests.post", return_value=respuesta_api) as post,
+            patch("app.smtplib.SMTP") as smtp,
+        ):
+            respuesta = self.client.post("/api/buzon", json=datos)
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTrue(respuesta.get_json()["ok"])
+        llamada = post.call_args
+        self.assertEqual(llamada.args[0], "https://api.resend.com/emails")
+        self.assertEqual(llamada.kwargs["headers"]["Authorization"], "Bearer re_clave_de_prueba")
+        payload = llamada.kwargs["json"]
+        self.assertEqual(payload["from"], "Mapa TPA <onboarding@resend.dev>")
+        self.assertEqual(payload["to"], ["ribota2010@gmail.com"])
+        self.assertEqual(payload["headers"]["Reply-To"], "persona@example.com")
+        self.assertIn("Añadir aviso de incidencia", payload["text"])
+        smtp.assert_not_called()
+
+    def test_resend_no_retorna_exito_si_su_api_rechaza_el_envio(self):
+        datos = {
+            "tipo": "queja",
+            "asunto": "No funciona el buscador",
+            "mensaje": "El buscador de líneas no devuelve resultados al escribir.",
+        }
+        respuesta_api = type("RespuestaAPI", (), {
+            "ok": False,
+            "status_code": 403,
+            "text": '{"message":"forbidden"}',
+            "raise_for_status": lambda self: (_ for _ in ()).throw(
+                app_module.requests.HTTPError("HTTP 403")
+            ),
+        })()
+        with (
+            patch.dict(
+                app_module.os.environ,
+                {"BUZON_RESEND_API_KEY": "re_clave_de_prueba"},
+                clear=True,
+            ),
+            patch("app.requests.post", return_value=respuesta_api),
+        ):
+            respuesta = self.client.post("/api/buzon", json=datos)
+
+        self.assertEqual(respuesta.status_code, 502)
 
     def test_no_acepta_mensajes_si_el_buzon_no_esta_configurado(self):
         with patch.dict(app_module.os.environ, {}, clear=True):
