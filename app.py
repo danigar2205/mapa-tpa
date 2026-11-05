@@ -19,6 +19,7 @@ from requests.adapters import HTTPAdapter
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import threading
+import uuid
 from types import SimpleNamespace
 from urllib3.poolmanager import PoolManager
 
@@ -715,6 +716,52 @@ def index():
 # en variables de entorno del servidor (nunca se envían al navegador).
 BUZON_ULTIMO_ENVIO = {}
 BUZON_ULTIMO_ENVIO_LOCK = threading.Lock()
+# Cuotas antispam por navegador (cookie aleatoria HttpOnly) y por IP.
+# Ventana móvil de 24 horas: 3 envíos por navegador y 10 por IP.
+BUZON_CUOTAS = {"dispositivo": {}, "ip": {}}
+BUZON_CUOTAS_LOCK = threading.Lock()
+BUZON_VENTANA_SEGUNDOS = 24 * 60 * 60
+BUZON_MAX_DISPOSITIVO = 3
+BUZON_MAX_IP = 10
+BUZON_COOKIE_DISPOSITIVO = "mapatpa_buzon_id"
+
+
+def comprobar_cuota_buzon(dispositivo, ip, ahora=None):
+    """Comprueba y reserva un envío dentro de las cuotas por navegador e IP."""
+    ahora = time.time() if ahora is None else ahora
+    claves = (("dispositivo", dispositivo, BUZON_MAX_DISPOSITIVO),
+              ("ip", ip, BUZON_MAX_IP))
+    with BUZON_CUOTAS_LOCK:
+        for categoria, identificador, limite in claves:
+            envios = BUZON_CUOTAS[categoria].get(identificador, [])
+            recientes = [instante for instante in envios
+                         if ahora - instante < BUZON_VENTANA_SEGUNDOS]
+            BUZON_CUOTAS[categoria][identificador] = recientes
+            if len(recientes) >= limite:
+                restante = BUZON_VENTANA_SEGUNDOS - (ahora - recientes[0])
+                return False, max(1, int((restante + 59) // 60))
+        for categoria, identificador, _ in claves:
+            BUZON_CUOTAS[categoria][identificador].append(ahora)
+        # Limpieza periódica para que el diccionario no crezca indefinidamente.
+        for categoria in ("dispositivo", "ip"):
+            caducadas = [
+                clave for clave, envios in BUZON_CUOTAS[categoria].items()
+                if not envios or ahora - envios[-1] >= BUZON_VENTANA_SEGUNDOS
+            ]
+            for clave in caducadas:
+                BUZON_CUOTAS[categoria].pop(clave, None)
+        return True, 0
+
+
+def retirar_reserva_cuota_buzon(dispositivo, ip):
+    """Libera la reserva si el proveedor de correo no pudo aceptar el envío."""
+    with BUZON_CUOTAS_LOCK:
+        for categoria, identificador in (("dispositivo", dispositivo), ("ip", ip)):
+            envios = BUZON_CUOTAS[categoria].get(identificador, [])
+            if envios:
+                envios.pop()
+            if not envios:
+                BUZON_CUOTAS[categoria].pop(identificador, None)
 
 
 def obtener_configuracion_buzon():
@@ -914,10 +961,32 @@ def post_buzon():
         return jsonify({"error": "Introduce un correo electrónico válido o deja el campo vacío."}), 400
 
     ip = request.remote_addr or "desconocida"
+    dispositivo = request.cookies.get(BUZON_COOKIE_DISPOSITIVO, "")
+    if not re.fullmatch(r"[a-f0-9]{32}", dispositivo):
+        dispositivo = uuid.uuid4().hex
+
+    # Conserva una pausa breve anti-reintentos y aplica además cuotas diarias.
     if not limitar_envios_buzon(ip):
-        return jsonify({
-            "error": "Ya has enviado un mensaje hace poco. Espera un minuto antes de volver a intentarlo."
-        }), 429
+        respuesta = jsonify({
+            "error": "Has enviado un mensaje hace muy poco. Espera un minuto antes de volver a intentarlo."
+        })
+        return respuesta, 429
+
+    permitido, minutos = comprobar_cuota_buzon(dispositivo, ip)
+    if not permitido:
+        respuesta = jsonify({
+            "error": (
+                f"Has alcanzado el límite de mensajes: máximo {BUZON_MAX_DISPOSITIVO} "
+                f"por navegador y {BUZON_MAX_IP} por IP cada 24 horas. "
+                f"Podrás volver a enviar mensajes dentro de aproximadamente {minutos} minutos."
+            )
+        })
+        respuesta.status_code = 429
+        respuesta.set_cookie(
+            BUZON_COOKIE_DISPOSITIVO, dispositivo, max_age=30 * 24 * 60 * 60,
+            httponly=True, secure=request.is_secure, samesite="Lax", path="/"
+        )
+        return respuesta
 
     tipo_texto = "Sugerencia" if tipo == "sugerencia" else "Queja"
     asunto_completo = f"[Mapa TPA] {tipo_texto}: {asunto}"
@@ -996,11 +1065,17 @@ def post_buzon():
         app.logger.exception("No se pudo enviar un mensaje del buzón de Mapa TPA.")
         with BUZON_ULTIMO_ENVIO_LOCK:
             BUZON_ULTIMO_ENVIO.pop(ip, None)
+        retirar_reserva_cuota_buzon(dispositivo, ip)
         return jsonify({
             "error": "No se ha podido enviar el mensaje. Inténtalo más tarde."
         }), 502
 
-    return jsonify({"ok": True, "mensaje": "Tu mensaje se ha enviado correctamente."})
+    respuesta = jsonify({"ok": True, "mensaje": "Tu mensaje se ha enviado correctamente."})
+    respuesta.set_cookie(
+        BUZON_COOKIE_DISPOSITIVO, dispositivo, max_age=30 * 24 * 60 * 60,
+        httponly=True, secure=request.is_secure, samesite="Lax", path="/"
+    )
+    return respuesta
 
 
 @app.route('/api/mapa/<linea>')
