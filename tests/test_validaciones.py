@@ -176,6 +176,61 @@ class BuzonSugerenciasQuejasTests(unittest.TestCase):
             })
         self.assertEqual(respuesta.status_code, 503)
 
+    def test_detecta_insultos_amenazas_y_variantes_disfrazadas(self):
+        self.assertTrue(app_module.contenido_inadecuado_buzon(
+            "El conductor es un GILIPOLLÁÁÁS"
+        ))
+        self.assertTrue(app_module.contenido_inadecuado_buzon(
+            "Eres un g.i.l.i.p.o.l.l.a.s"
+        ))
+        self.assertTrue(app_module.contenido_inadecuado_buzon(
+            "Te voy a matar"
+        ))
+        self.assertFalse(app_module.contenido_inadecuado_buzon(
+            "El servicio no ha pasado por la parada y quiero comunicarlo."
+        ))
+
+    def test_bloquea_contenido_ofensivo_antes_de_contactar_con_proveedores(self):
+        datos = {
+            "tipo": "queja",
+            "asunto": "Problema con el conductor",
+            "mensaje": "El conductor es un gilipollas y no sirve para nada.",
+        }
+        entorno = {
+            **self.CONFIGURACION_SMTP,
+            "BUZON_RESEND_API_KEY": "re_clave_de_prueba",
+        }
+        with (
+            patch.dict(app_module.os.environ, entorno, clear=True),
+            patch("app.requests.post") as resend,
+            patch("app.smtplib.SMTP") as smtp,
+        ):
+            respuesta = self.client.post("/api/buzon", json=datos)
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertIn("lenguaje ofensivo", respuesta.get_json()["error"])
+        resend.assert_not_called()
+        smtp.assert_not_called()
+
+    def test_permite_una_queja_firme_sin_insultos(self):
+        datos = {
+            "tipo": "queja",
+            "asunto": "Servicio sin realizar",
+            "mensaje": (
+                "El autobús no pasó por la parada a la hora indicada y "
+                "esto me ocasionó un retraso importante."
+            ),
+        }
+        with (
+            patch.dict(app_module.os.environ, self.CONFIGURACION_SMTP, clear=True),
+            patch("app.smtplib.SMTP") as smtp,
+        ):
+            servidor = smtp.return_value.__enter__.return_value
+            respuesta = self.client.post("/api/buzon", json=datos)
+
+        self.assertEqual(respuesta.status_code, 200)
+        servidor.send_message.assert_called_once()
+
     def test_valida_el_contenido_antes_de_contactar_con_smtp(self):
         with (
             patch.dict(app_module.os.environ, self.CONFIGURACION_SMTP, clear=True),

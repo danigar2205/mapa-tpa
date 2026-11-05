@@ -762,6 +762,85 @@ def limitar_envios_buzon(ip):
         return True
 
 
+# Moderación básica del buzón. Se aplica en el servidor antes de contactar
+# con Resend o SMTP, por lo que no depende de la validación del navegador.
+PALABRAS_OFENSIVAS_BUZON = frozenset({
+    "gilipollas", "imbecil", "idiota", "estupido", "estupida",
+    "subnormal", "retrasado", "retrasada", "cabrón", "cabron",
+    "cabrona", "capullo", "capulla", "puto", "puta", "mierda",
+    "joder", "zorra", "maricon", "maricona", "soplapollas",
+    "mamón", "mamon", "pendejo", "pelotudo", "boludo", "hdp",
+    "hijoputa", "fuck", "fucking", "shit", "bitch", "asshole",
+    "bastard", "bastarda", "moron", "idiot", "dumbass", "cunt",
+    "motherfucker",
+})
+
+FRASES_OFENSIVAS_BUZON = (
+    "hijo de puta",
+    "hija de puta",
+    "vete a la mierda",
+    "vete a tomar por culo",
+    "que te jodan",
+    "que os jodan",
+    "me cago en ti",
+    "te voy a matar",
+    "os voy a matar",
+    "voy a matarte",
+    "voy a mataros",
+    "te voy a partir la cara",
+    "os voy a partir la cara",
+    "te voy a reventar",
+    "os voy a reventar",
+    "ojala te mueras",
+    "ojala os murais",
+)
+
+
+def normalizar_texto_buzon(texto):
+    """Normaliza acentos, mayúsculas y algunas sustituciones habituales."""
+    texto = unicodedata.normalize("NFKD", str(texto or "").casefold())
+    texto = "".join(
+        caracter for caracter in texto
+        if not unicodedata.combining(caracter)
+    )
+    texto = texto.translate(str.maketrans({
+        "0": "o", "1": "i", "3": "e", "4": "a",
+        "5": "s", "7": "t", "@": "a", "$": "s",
+    }))
+    # Reduce repeticiones para detectar variantes como "putaaaa" o "idiiooota".
+    texto = re.sub(r"(.)\1{2,}", r"\1", texto)
+    return re.sub(r"[^a-z0-9]+", " ", texto).strip()
+
+
+def contenido_inadecuado_buzon(*partes):
+    """Detecta insultos, tacos y amenazas claras en los campos de texto."""
+    texto = " ".join(
+        normalizar_texto_buzon(parte)
+        for parte in partes if parte
+    )
+    if not texto:
+        return False
+
+    palabras = set(texto.split())
+    if palabras.intersection(PALABRAS_OFENSIVAS_BUZON):
+        return True
+
+    texto_delimitado = f" {texto} "
+    if any(f" {frase} " in texto_delimitado for frase in FRASES_OFENSIVAS_BUZON):
+        return True
+
+    # También detecta palabras separadas por puntos o espacios, por ejemplo
+    # "g.i.l.i.p.o.l.l.a.s", sin buscar coincidencias dentro de otras palabras.
+    for palabra in PALABRAS_OFENSIVAS_BUZON:
+        patron = r"(?<![a-z0-9])" + r"\s*".join(
+            re.escape(letra) for letra in palabra
+        ) + r"(?![a-z0-9])"
+        if re.search(patron, texto):
+            return True
+
+    return False
+
+
 def obtener_configuracion_resend():
     """Devuelve la configuración de Resend cuando hay una API key disponible."""
     api_key = os.environ.get("BUZON_RESEND_API_KEY", "").strip()
@@ -819,6 +898,14 @@ def post_buzon():
         return jsonify({"error": "El mensaje debe tener entre 20 y 5.000 caracteres."}), 400
     if len(nombre) > 80:
         return jsonify({"error": "El nombre no puede superar los 80 caracteres."}), 400
+    if contenido_inadecuado_buzon(asunto, mensaje, nombre):
+        return jsonify({
+            "error": (
+                "No se puede enviar el mensaje porque contiene insultos, "
+                "lenguaje ofensivo o amenazas. Mantén un tono respetuoso; "
+                "las quejas y críticas sobre el servicio sí están permitidas."
+            )
+        }), 400
     if correo and (
         len(correo) > 254
         or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", correo)
