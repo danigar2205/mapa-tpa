@@ -721,7 +721,7 @@ def obtener_configuracion_buzon():
     """Devuelve la configuración SMTP solo cuando están todos los secretos."""
     host = os.environ.get("BUZON_SMTP_HOST", "smtp.gmail.com").strip()
     usuario = os.environ.get("BUZON_SMTP_USER", "ribota2010@gmail.com").strip()
-    password = os.environ.get("BUZON_SMTP_PASSWORD", "")
+    password = re.sub(r"\s+", "", os.environ.get("BUZON_SMTP_PASSWORD", ""))
     destino = os.environ.get("BUZON_EMAIL_DESTINO", "ribota2010@gmail.com").strip()
     remitente = os.environ.get("BUZON_EMAIL_REMITENTE", "").strip() or usuario
     try:

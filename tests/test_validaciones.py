@@ -65,6 +65,16 @@ class BuzonSugerenciasQuejasTests(unittest.TestCase):
         self.assertEqual(configuracion["remitente"], "ribota2010@gmail.com")
         self.assertFalse(configuracion["ssl"])
 
+    def test_configuracion_elimina_espacios_de_la_contrasena_de_aplicacion(self):
+        with patch.dict(
+            app_module.os.environ,
+            {"BUZON_SMTP_PASSWORD": "abcd efgh ijkl mnop"},
+            clear=True,
+        ):
+            configuracion = app_module.obtener_configuracion_buzon()
+
+        self.assertEqual(configuracion["password"], "abcdefghijklmnop")
+
     def test_envio_gmail_solo_necesita_la_contrasena_de_aplicacion_en_render(self):
         datos = {
             "tipo": "queja",
