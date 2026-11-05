@@ -717,12 +717,12 @@ def index():
 BUZON_ULTIMO_ENVIO = {}
 BUZON_ULTIMO_ENVIO_LOCK = threading.Lock()
 # Cuotas antispam por navegador (cookie aleatoria HttpOnly) y por IP.
-# Ventana móvil de 24 horas: 3 envíos por navegador y 10 por IP.
+# Ventana móvil de 24 horas: 2 envíos por navegador y 5 por IP.
 BUZON_CUOTAS = {"dispositivo": {}, "ip": {}}
 BUZON_CUOTAS_LOCK = threading.Lock()
 BUZON_VENTANA_SEGUNDOS = 24 * 60 * 60
-BUZON_MAX_DISPOSITIVO = 3
-BUZON_MAX_IP = 10
+BUZON_MAX_DISPOSITIVO = 2
+BUZON_MAX_IP = 5
 BUZON_COOKIE_DISPOSITIVO = "mapatpa_buzon_id"
 
 
