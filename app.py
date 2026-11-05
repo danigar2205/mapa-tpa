@@ -791,7 +791,7 @@ def post_buzon():
     tipo = str(datos.get("tipo", "")).strip().lower()
     asunto = re.sub(r"[\r\n]+", " ", str(datos.get("asunto", "")).strip())
     mensaje = str(datos.get("mensaje", "")).strip()
-    nombre = re.sub(r"[\\r\\n]+", " ", str(datos.get("nombre", "")).strip())
+    nombre = re.sub(r"[\r\n]+", " ", str(datos.get("nombre", "")).strip())
     correo = str(datos.get("correo", "")).strip()
 
     if tipo not in {"sugerencia", "queja"}:
