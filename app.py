@@ -789,7 +789,7 @@ def post_buzon():
         }), 503
 
     tipo = str(datos.get("tipo", "")).strip().lower()
-    asunto = re.sub(r"[\\r\\n]+", " ", str(datos.get("asunto", "")).strip())
+    asunto = re.sub(r"[\r\n]+", " ", str(datos.get("asunto", "")).strip())
     mensaje = str(datos.get("mensaje", "")).strip()
     nombre = re.sub(r"[\\r\\n]+", " ", str(datos.get("nombre", "")).strip())
     correo = str(datos.get("correo", "")).strip()
@@ -804,8 +804,8 @@ def post_buzon():
         return jsonify({"error": "El nombre no puede superar los 80 caracteres."}), 400
     if correo and (
         len(correo) > 254
-        or not re.fullmatch(r"[^\\s@]+@[^\\s@]+\\.[^\\s@]+", correo)
-        or "\\r" in correo or "\\n" in correo
+        or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", correo)
+        or "\r" in correo or "\n" in correo
     ):
         return jsonify({"error": "Introduce un correo electrónico válido o deja el campo vacío."}), 400
 
@@ -823,12 +823,12 @@ def post_buzon():
     if correo:
         correo_mensaje["Reply-To"] = correo
     correo_mensaje.set_content(
-        f"Nuevo mensaje recibido desde el buzón de Mapa TPA.\\n\\n"
-        f"Tipo: {tipo_texto}\\n"
-        f"Asunto: {asunto}\\n"
-        f"Nombre: {nombre or 'No indicado'}\\n"
-        f"Correo para responder: {correo or 'No indicado'}\\n\\n"
-        f"Mensaje:\\n{mensaje}\\n"
+        f"Nuevo mensaje recibido desde el buzón de Mapa TPA.\n\n"
+        f"Tipo: {tipo_texto}\n"
+        f"Asunto: {asunto}\n"
+        f"Nombre: {nombre or 'No indicado'}\n"
+        f"Correo para responder: {correo or 'No indicado'}\n\n"
+        f"Mensaje:\n{mensaje}\n"
     )
 
     try:
