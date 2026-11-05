@@ -762,10 +762,26 @@ def limitar_envios_buzon(ip):
         return True
 
 
+def obtener_configuracion_resend():
+    """Devuelve la configuración de Resend cuando hay una API key disponible."""
+    api_key = os.environ.get("BUZON_RESEND_API_KEY", "").strip()
+    remitente = os.environ.get(
+        "BUZON_RESEND_FROM", "Mapa TPA <onboarding@resend.dev>"
+    ).strip()
+    destino = os.environ.get("BUZON_EMAIL_DESTINO", "ribota2010@gmail.com").strip()
+    if not api_key or not remitente or not destino:
+        return None
+    return {"api_key": api_key, "remitente": remitente, "destino": destino}
+
+
 @app.route('/api/buzon/estado', methods=['GET'])
 def get_estado_buzon():
-    """Informa únicamente de si el buzón está configurado, sin revelar secretos."""
-    return jsonify({"disponible": obtener_configuracion_buzon() is not None})
+    """Informa únicamente de si hay un proveedor de correo configurado."""
+    disponible = (
+        obtener_configuracion_resend() is not None
+        or obtener_configuracion_buzon() is not None
+    )
+    return jsonify({"disponible": disponible})
 
 
 @app.route('/api/buzon', methods=['POST'])
@@ -782,8 +798,9 @@ def post_buzon():
     if str(datos.get("website", "")).strip():
         return jsonify({"ok": True})
 
+    configuracion_resend = obtener_configuracion_resend()
     configuracion = obtener_configuracion_buzon()
-    if configuracion is None:
+    if configuracion_resend is None and configuracion is None:
         return jsonify({
             "error": "El buzón no está disponible temporalmente. Inténtalo más tarde."
         }), 503
@@ -816,13 +833,8 @@ def post_buzon():
         }), 429
 
     tipo_texto = "Sugerencia" if tipo == "sugerencia" else "Queja"
-    correo_mensaje = EmailMessage()
-    correo_mensaje["Subject"] = f"[Mapa TPA] {tipo_texto}: {asunto}"
-    correo_mensaje["From"] = configuracion["remitente"]
-    correo_mensaje["To"] = configuracion["destino"]
-    if correo:
-        correo_mensaje["Reply-To"] = correo
-    correo_mensaje.set_content(
+    asunto_completo = f"[Mapa TPA] {tipo_texto}: {asunto}"
+    cuerpo_texto = (
         f"Nuevo mensaje recibido desde el buzón de Mapa TPA.\n\n"
         f"Tipo: {tipo_texto}\n"
         f"Asunto: {asunto}\n"
@@ -832,28 +844,68 @@ def post_buzon():
     )
 
     try:
-        contexto_ssl = ssl.create_default_context()
-        if configuracion["ssl"]:
-            conexion = smtplib.SMTP_SSL(
-                configuracion["host"],
-                configuracion["puerto"],
-                timeout=12,
-                context=contexto_ssl,
+        # Resend usa HTTPS (443), por lo que también funciona en los servicios
+        # gratuitos de Render, que bloquean los puertos SMTP salientes.
+        # Tiene prioridad si se ha configurado una API key.
+        if configuracion_resend is not None:
+            payload = {
+                "from": configuracion_resend["remitente"],
+                # En modo de prueba de Resend se debe enviar a la dirección
+                # propietaria de la cuenta; mantenerla como dirección simple.
+                "to": [configuracion_resend["destino"]],
+                "subject": asunto_completo,
+                "text": cuerpo_texto,
+            }
+            if correo:
+                payload["headers"] = {"Reply-To": correo}
+
+            respuesta_api = requests.post(
+                "https://api.resend.com/emails",
+                headers={
+                    "Authorization": f"Bearer {configuracion_resend['api_key']}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=15,
             )
+            if not respuesta_api.ok:
+                app.logger.error(
+                    "Resend rechazó el envío (HTTP %s): %s",
+                    respuesta_api.status_code,
+                    respuesta_api.text[:1000],
+                )
+                respuesta_api.raise_for_status()
         else:
-            conexion = smtplib.SMTP(
-                configuracion["host"],
-                configuracion["puerto"],
-                timeout=12,
-            )
-        with conexion as servidor:
-            if not configuracion["ssl"]:
-                servidor.ehlo()
-                servidor.starttls(context=contexto_ssl)
-                servidor.ehlo()
-            servidor.login(configuracion["usuario"], configuracion["password"])
-            servidor.send_message(correo_mensaje)
-    except (smtplib.SMTPException, OSError, ssl.SSLError):
+            correo_mensaje = EmailMessage()
+            correo_mensaje["Subject"] = asunto_completo
+            correo_mensaje["From"] = configuracion["remitente"]
+            correo_mensaje["To"] = configuracion["destino"]
+            if correo:
+                correo_mensaje["Reply-To"] = correo
+            correo_mensaje.set_content(cuerpo_texto)
+
+            contexto_ssl = ssl.create_default_context()
+            if configuracion["ssl"]:
+                conexion = smtplib.SMTP_SSL(
+                    configuracion["host"],
+                    configuracion["puerto"],
+                    timeout=12,
+                    context=contexto_ssl,
+                )
+            else:
+                conexion = smtplib.SMTP(
+                    configuracion["host"],
+                    configuracion["puerto"],
+                    timeout=12,
+                )
+            with conexion as servidor:
+                if not configuracion["ssl"]:
+                    servidor.ehlo()
+                    servidor.starttls(context=contexto_ssl)
+                    servidor.ehlo()
+                servidor.login(configuracion["usuario"], configuracion["password"])
+                servidor.send_message(correo_mensaje)
+    except (requests.RequestException, smtplib.SMTPException, OSError, ssl.SSLError):
         app.logger.exception("No se pudo enviar un mensaje del buzón de Mapa TPA.")
         with BUZON_ULTIMO_ENVIO_LOCK:
             BUZON_ULTIMO_ENVIO.pop(ip, None)
