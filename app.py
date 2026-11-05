@@ -928,6 +928,7 @@ def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05", stop_ids=None):
                         "pasado": pasado,
                         "fuente": "Tiempo real",
                         "trip_id": trip_id,
+                        "direccion": str(direccion) if direccion is not None else "",
                         "vehicle_id": vehicle_id,
                         "entity_id": entity_id,
                         "stop_id": stop_id_actualizacion
