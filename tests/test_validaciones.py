@@ -50,6 +50,44 @@ class BuzonSugerenciasQuejasTests(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(respuesta.get_json(), {"disponible": False})
 
+    def test_configuracion_predeterminada_usa_gmail_y_el_destinatario_indicado(self):
+        with patch.dict(
+            app_module.os.environ,
+            {"BUZON_SMTP_PASSWORD": "clave-de-aplicacion-de-prueba"},
+            clear=True,
+        ):
+            configuracion = app_module.obtener_configuracion_buzon()
+
+        self.assertEqual(configuracion["host"], "smtp.gmail.com")
+        self.assertEqual(configuracion["puerto"], 587)
+        self.assertEqual(configuracion["usuario"], "dgarrido.alsa@gmail.com")
+        self.assertEqual(configuracion["destino"], "dgarrido.alsa@gmail.com")
+        self.assertEqual(configuracion["remitente"], "dgarrido.alsa@gmail.com")
+        self.assertFalse(configuracion["ssl"])
+
+    def test_envio_gmail_solo_necesita_la_contrasena_de_aplicacion_en_render(self):
+        datos = {
+            "tipo": "queja",
+            "asunto": "Incidencia de prueba",
+            "mensaje": "El menú de inicio tiene un problema que quiero comunicar.",
+        }
+        with (
+            patch.dict(
+                app_module.os.environ,
+                {"BUZON_SMTP_PASSWORD": "clave-de-aplicacion-de-prueba"},
+                clear=True,
+            ),
+            patch("app.smtplib.SMTP") as smtp,
+        ):
+            servidor = smtp.return_value.__enter__.return_value
+            respuesta = self.client.post("/api/buzon", json=datos)
+
+        self.assertEqual(respuesta.status_code, 200)
+        mensaje = servidor.send_message.call_args.args[0]
+        self.assertEqual(mensaje["To"], "dgarrido.alsa@gmail.com")
+        self.assertEqual(mensaje["From"], "dgarrido.alsa@gmail.com")
+        smtp.assert_called_once_with("smtp.gmail.com", 587, timeout=12)
+
     def test_no_acepta_mensajes_si_el_buzon_no_esta_configurado(self):
         with patch.dict(app_module.os.environ, {}, clear=True):
             respuesta = self.client.post("/api/buzon", json={
