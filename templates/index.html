@@ -161,11 +161,11 @@
     .feedback-form-intro span:last-child { color: #0ea5e9; }
     .feedback-field { margin-top: 14px; opacity: 0; transform: translateY(10px); }
     .feedback-modal.is-open .feedback-field { animation: feedback-field-in .42s ease forwards; }
-    .feedback-modal.is-open .feedback-field:nth-of-type(1) { animation-delay: .06s; }
-    .feedback-modal.is-open .feedback-field:nth-of-type(2) { animation-delay: .11s; }
-    .feedback-modal.is-open .feedback-field:nth-of-type(3) { animation-delay: .16s; }
-    .feedback-modal.is-open .feedback-field:nth-of-type(4) { animation-delay: .21s; }
-    .feedback-modal.is-open .feedback-field:nth-of-type(5) { animation-delay: .26s; }
+    .feedback-modal.is-open .feedback-field:nth-of-type(2) { animation-delay: .06s; }
+    .feedback-modal.is-open .feedback-field:nth-of-type(3) { animation-delay: .11s; }
+    .feedback-modal.is-open .feedback-field:nth-of-type(4) { animation-delay: .16s; }
+    .feedback-modal.is-open .feedback-field:nth-of-type(5) { animation-delay: .21s; }
+    .feedback-modal.is-open .feedback-field:nth-of-type(6) { animation-delay: .26s; }
     @keyframes feedback-field-in { to { opacity: 1; transform: translateY(0); } }
     .feedback-field label { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; color: #334155; font-size: 10px; font-weight: 800; }
     .feedback-field label::before { content: ""; width: 5px; height: 5px; border-radius: 2px; background: #38bdf8; }
@@ -2480,7 +2480,7 @@
       estadoBuzon.textContent = 'Comprobando la conexión segura...';
       botonEnviarBuzon.disabled = true;
       botonEnviarBuzon.removeAttribute('data-loading');
-      if (campoTipoBuzon) modalBuzon.querySelector('.feedback-hero')?.classList.toggle('is-complaint', campoTipoBuzon.value === 'queja');
+      modalBuzon.querySelector('.feedback-card')?.classList.toggle('is-complaint', campoTipoBuzon?.value === 'queja');
       try {
         const respuesta = await fetch('/api/buzon/estado', { cache: 'no-store' });
         const datos = await respuesta.json();
