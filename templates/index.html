@@ -1570,9 +1570,63 @@
           tiempoRealPendiente.filter(item => item.trip_id)
             .map(item => [String(item.trip_id), item])
         );
+        const prediccionesAsignadas = new Set();
+        const prediccionesPorProgramada = new Map();
 
-        const elementos = programadasPendientes.map(item => {
-          const prediccion = tiempoRealPorViaje.get(String(item.trip_id));
+        // Primero se empareja por trip_id, que es el identificador más fiable.
+        programadasPendientes.forEach((programada, indice) => {
+          const prediccion = programada.trip_id
+            ? tiempoRealPorViaje.get(String(programada.trip_id))
+            : null;
+          if (prediccion) {
+            prediccionesPorProgramada.set(indice, prediccion);
+            prediccionesAsignadas.add(prediccion);
+          }
+        });
+
+        // Algunos feeds publican un trip_id distinto al del GTFS estático.
+        // En ese caso se empareja por línea, destino, sentido y hora más cercana
+        // para no enseñar dos veces el mismo autobús (una llegada programada
+        // y la misma llegada estimada por GTFS-RT).
+        const candidatosEmparejamiento = [];
+        programadasPendientes.forEach((programada, indice) => {
+          if (prediccionesPorProgramada.has(indice)) return;
+          const timestampProgramado = Number(programada.timestamp);
+          if (!Number.isFinite(timestampProgramado)) return;
+
+          tiempoRealPendiente.forEach(prediccion => {
+            if (prediccionesAsignadas.has(prediccion)) return;
+            if (String(programada.linea || '') !== String(prediccion.linea || '')) return;
+            if (normalizarTexto(programada.destino) !== normalizarTexto(prediccion.destino)) return;
+
+            const direccionProgramada = String(programada.direccion ?? '').trim();
+            const direccionTiempoReal = String(prediccion.direccion ?? '').trim();
+            if (
+              direccionProgramada && direccionTiempoReal &&
+              direccionProgramada !== direccionTiempoReal
+            ) return;
+
+            const diferenciaSegundos = Math.abs(
+              Number(prediccion.timestamp) - timestampProgramado
+            );
+            if (!Number.isFinite(diferenciaSegundos) || diferenciaSegundos > 20 * 60) return;
+            candidatosEmparejamiento.push({ indice, prediccion, diferenciaSegundos });
+          });
+        });
+        candidatosEmparejamiento.sort(
+          (a, b) => a.diferenciaSegundos - b.diferenciaSegundos
+        );
+        candidatosEmparejamiento.forEach(({ indice, prediccion }) => {
+          if (
+            prediccionesPorProgramada.has(indice) ||
+            prediccionesAsignadas.has(prediccion)
+          ) return;
+          prediccionesPorProgramada.set(indice, prediccion);
+          prediccionesAsignadas.add(prediccion);
+        });
+
+        const elementos = programadasPendientes.map((item, indice) => {
+          const prediccion = prediccionesPorProgramada.get(indice);
           return {
             ...item,
             horaMostrada: prediccion?.hora || item.hora,
@@ -1583,12 +1637,7 @@
           };
         });
 
-        const idsIncluidos = new Set(
-          programadasPendientes.map(item => String(item.trip_id)).filter(Boolean)
-        );
-        tiempoRealPendiente.filter(item =>
-          !item.trip_id || !idsIncluidos.has(String(item.trip_id))
-        ).forEach(item => {
+        tiempoRealPendiente.filter(item => !prediccionesAsignadas.has(item)).forEach(item => {
           elementos.push({
             ...item,
             horaMostrada: item.hora,
