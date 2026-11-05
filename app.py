@@ -808,7 +808,7 @@ def normalizar_texto_buzon(texto):
         "5": "s", "7": "t", "@": "a", "$": "s",
     }))
     # Reduce repeticiones para detectar variantes como "putaaaa" o "idiiooota".
-    texto = re.sub(r"(.)\\1{2,}", r"\\1", texto)
+    texto = re.sub(r"(.)\1{2,}", r"\1", texto)
     return re.sub(r"[^a-z0-9]+", " ", texto).strip()
 
 
@@ -832,7 +832,7 @@ def contenido_inadecuado_buzon(*partes):
     # También detecta palabras separadas por puntos o espacios, por ejemplo
     # "g.i.l.i.p.o.l.l.a.s", sin buscar coincidencias dentro de otras palabras.
     for palabra in PALABRAS_OFENSIVAS_BUZON:
-        patron = r"(?<![a-z0-9])" + r"\\s*".join(
+        patron = r"(?<![a-z0-9])" + r"\s*".join(
             re.escape(letra) for letra in palabra
         ) + r"(?![a-z0-9])"
         if re.search(patron, texto):
