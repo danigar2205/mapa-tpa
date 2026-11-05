@@ -60,9 +60,9 @@ class BuzonSugerenciasQuejasTests(unittest.TestCase):
 
         self.assertEqual(configuracion["host"], "smtp.gmail.com")
         self.assertEqual(configuracion["puerto"], 587)
-        self.assertEqual(configuracion["usuario"], "dgarrido.alsa@gmail.com")
-        self.assertEqual(configuracion["destino"], "dgarrido.alsa@gmail.com")
-        self.assertEqual(configuracion["remitente"], "dgarrido.alsa@gmail.com")
+        self.assertEqual(configuracion["usuario"], "ribota2010@gmail.com")
+        self.assertEqual(configuracion["destino"], "ribota2010@gmail.com")
+        self.assertEqual(configuracion["remitente"], "ribota2010@gmail.com")
         self.assertFalse(configuracion["ssl"])
 
     def test_envio_gmail_solo_necesita_la_contrasena_de_aplicacion_en_render(self):
@@ -84,8 +84,8 @@ class BuzonSugerenciasQuejasTests(unittest.TestCase):
 
         self.assertEqual(respuesta.status_code, 200)
         mensaje = servidor.send_message.call_args.args[0]
-        self.assertEqual(mensaje["To"], "dgarrido.alsa@gmail.com")
-        self.assertEqual(mensaje["From"], "dgarrido.alsa@gmail.com")
+        self.assertEqual(mensaje["To"], "ribota2010@gmail.com")
+        self.assertEqual(mensaje["From"], "ribota2010@gmail.com")
         smtp.assert_called_once_with("smtp.gmail.com", 587, timeout=12)
 
     def test_no_acepta_mensajes_si_el_buzon_no_esta_configurado(self):
