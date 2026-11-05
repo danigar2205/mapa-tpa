@@ -1244,6 +1244,7 @@ class CapasMapaGTFSTests(unittest.TestCase):
         self.assertIn("selectorFecha.value = fechaSiguiente;", html)
 
     def test_horarios_de_otras_fechas_no_consultan_ni_mezclan_tiempo_real(self):
+        app_source = open("app.py", encoding="utf-8").read()
         html = app.test_client().get("/").get_data(as_text=True)
         self.assertIn("fecha === fechaLocalISO()", html)
         self.assertIn("consultarTiempoReal", html)
@@ -1257,6 +1258,11 @@ class CapasMapaGTFSTests(unittest.TestCase):
         self.assertIn("'En ' + item.minutosRestantes + ' min' : 'Llegando'", html)
         self.assertIn("escaparHTML(item.tiempoPrincipal)", html)
         self.assertIn("popup._llegadaInminente = consultarTiempoReal && elementos.some", html)
+        self.assertIn("const prediccionesAsignadas = new Set()", html)
+        self.assertIn("prediccionesPorProgramada.set(indice, prediccion)", html)
+        self.assertIn("normalizarTexto(programada.destino) !== normalizarTexto(prediccion.destino)", html)
+        self.assertIn("diferenciaSegundos > 20 * 60", html)
+        self.assertIn('"direccion": str(direccion) if direccion is not None else ""', app_source)
         self.assertIn("evento.popup._llegadaInminente ? 5000 : 30000", html)
         self.assertNotIn("Tiempo real consultado a las", html)
         self.assertNotIn("En tiempo real = predicción GTFS-RT", html)
