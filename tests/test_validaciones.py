@@ -1,4 +1,5 @@
 import math
+import app as app_module
 import inspect
 import unittest
 from datetime import date, datetime, timedelta
@@ -27,6 +28,99 @@ from app import (
     resolver_evento_horario_gtfs,
     formatear_retraso_gtfs,
 )
+
+
+class BuzonSugerenciasQuejasTests(unittest.TestCase):
+    CONFIGURACION_SMTP = {
+        "BUZON_SMTP_HOST": "smtp.test.local",
+        "BUZON_SMTP_PORT": "587",
+        "BUZON_SMTP_USER": "usuario@test.local",
+        "BUZON_SMTP_PASSWORD": "secreto-de-prueba",
+        "BUZON_EMAIL_DESTINO": "buzon@test.local",
+        "BUZON_EMAIL_REMITENTE": "no-responder@test.local",
+    }
+
+    def setUp(self):
+        app_module.BUZON_ULTIMO_ENVIO.clear()
+        self.client = app.test_client()
+
+    def test_estado_indica_buzon_no_configurado_sin_credenciales(self):
+        with patch.dict(app_module.os.environ, {}, clear=True):
+            respuesta = self.client.get("/api/buzon/estado")
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.get_json(), {"disponible": False})
+
+    def test_no_acepta_mensajes_si_el_buzon_no_esta_configurado(self):
+        with patch.dict(app_module.os.environ, {}, clear=True):
+            respuesta = self.client.post("/api/buzon", json={
+                "tipo": "queja",
+                "asunto": "Problema con el mapa",
+                "mensaje": "He encontrado un problema al consultar las paradas.",
+            })
+        self.assertEqual(respuesta.status_code, 503)
+
+    def test_valida_el_contenido_antes_de_contactar_con_smtp(self):
+        with (
+            patch.dict(app_module.os.environ, self.CONFIGURACION_SMTP, clear=True),
+            patch("app.smtplib.SMTP") as smtp,
+        ):
+            respuesta = self.client.post("/api/buzon", json={
+                "tipo": "queja",
+                "asunto": "No",
+                "mensaje": "Mensaje demasiado corto",
+            })
+        self.assertEqual(respuesta.status_code, 400)
+        smtp.assert_not_called()
+
+    def test_envia_sugerencia_por_correo_privado_y_usa_reply_to_opcional(self):
+        datos = {
+            "tipo": "sugerencia",
+            "asunto": "Añadir más paradas al mapa",
+            "mensaje": "Estaría bien incorporar las paradas de las próximas concesiones.",
+            "nombre": "Usuario de prueba",
+            "correo": "persona@example.com",
+        }
+        with (
+            patch.dict(app_module.os.environ, self.CONFIGURACION_SMTP, clear=True),
+            patch("app.smtplib.SMTP") as smtp,
+        ):
+            servidor = smtp.return_value.__enter__.return_value
+            respuesta = self.client.post("/api/buzon", json=datos)
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTrue(respuesta.get_json()["ok"])
+        smtp.assert_called_once_with("smtp.test.local", 587, timeout=12)
+        servidor.starttls.assert_called_once()
+        servidor.login.assert_called_once_with("usuario@test.local", "secreto-de-prueba")
+        mensaje = servidor.send_message.call_args.args[0]
+        self.assertEqual(mensaje["To"], "buzon@test.local")
+        self.assertEqual(mensaje["Reply-To"], "persona@example.com")
+        self.assertIn("Sugerencia", mensaje["Subject"])
+        self.assertIn("Añadir más paradas al mapa", mensaje.get_content())
+
+    def test_el_correo_de_contacto_es_opcional(self):
+        datos = {
+            "tipo": "queja",
+            "asunto": "Error de horarios",
+            "mensaje": "La hora de salida que se muestra no coincide con el horario.",
+        }
+        with (
+            patch.dict(app_module.os.environ, self.CONFIGURACION_SMTP, clear=True),
+            patch("app.smtplib.SMTP") as smtp,
+        ):
+            servidor = smtp.return_value.__enter__.return_value
+            respuesta = self.client.post("/api/buzon", json=datos)
+        self.assertEqual(respuesta.status_code, 200)
+        mensaje = servidor.send_message.call_args.args[0]
+        self.assertIsNone(mensaje.get("Reply-To"))
+
+    def test_menu_de_inicio_incluye_buzon_y_formulario(self):
+        html = self.client.get("/").get_data(as_text=True)
+        self.assertIn('id="btn-abrir-buzon"', html)
+        self.assertIn('id="modal-buzon"', html)
+        self.assertIn('id="form-buzon"', html)
+        self.assertIn("Buzón de sugerencias y quejas", html)
+        self.assertIn("fetch('/api/buzon'", html)
 
 
 class ValidarCoordenadasTests(unittest.TestCase):
