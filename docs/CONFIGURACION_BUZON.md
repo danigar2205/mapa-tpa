@@ -1,6 +1,6 @@
 # Configuración del buzón de sugerencias y quejas
 
-El formulario del menú inicial envía los mensajes por correo electrónico desde el servidor. Los mensajes llegan a **dgarrido.alsa@gmail.com** por defecto. No se publican en GitHub ni se guardan en el disco efímero de Render.
+El formulario del menú inicial envía los mensajes por correo electrónico desde el servidor. Los mensajes llegan a **ribota2010@gmail.com** por defecto. No se publican en GitHub ni se guardan en el disco efímero de Render.
 
 ## Configuración de Gmail en Render
 
@@ -11,8 +11,8 @@ El código ya lleva estos valores predeterminados:
 | Servidor SMTP | `smtp.gmail.com` |
 | Puerto | `587` |
 | Seguridad | STARTTLS |
-| Usuario remitente | `dgarrido.alsa@gmail.com` |
-| Destinatario | `dgarrido.alsa@gmail.com` |
+| Usuario remitente | `ribota2010@gmail.com` |
+| Destinatario | `ribota2010@gmail.com` |
 
 Solo falta añadir una variable privada en el servicio web de Mapa TPA, dentro de **Render → Environment**:
 
@@ -22,7 +22,7 @@ Solo falta añadir una variable privada en el servicio web de Mapa TPA, dentro d
 
 No introduzcas tu contraseña normal de Google. Google indica que las contraseñas de aplicación requieren que la verificación en dos pasos esté activada. [Ayuda oficial sobre contraseñas de aplicación](https://support.google.com/accounts/answer/185833?hl=es).
 
-Para crearla, inicia sesión en la cuenta `dgarrido.alsa@gmail.com`, activa la verificación en dos pasos si aún no está activada y abre la sección **Contraseñas de aplicaciones** de tu cuenta de Google. Genera una contraseña para Mapa TPA y copia ese código de 16 caracteres en Render como valor de `BUZON_SMTP_PASSWORD`. No la compartas en el chat ni la guardes en GitHub.
+Para crearla, inicia sesión en la cuenta `ribota2010@gmail.com`, activa la verificación en dos pasos si aún no está activada y abre la sección **Contraseñas de aplicaciones** de tu cuenta de Google. Genera una contraseña para Mapa TPA y copia ese código de 16 caracteres en Render como valor de `BUZON_SMTP_PASSWORD`. No la compartas en el chat ni la guardes en GitHub.
 
 Al guardar la variable, Render reiniciará el servicio y el buzón podrá comprobar que está disponible.
 
