@@ -42,6 +42,8 @@ class BuzonSugerenciasQuejasTests(unittest.TestCase):
 
     def setUp(self):
         app_module.BUZON_ULTIMO_ENVIO.clear()
+        for categoria in app_module.BUZON_CUOTAS:
+            app_module.BUZON_CUOTAS[categoria].clear()
         self.client = app.test_client()
 
     def test_estado_indica_buzon_no_configurado_sin_credenciales(self):
@@ -230,6 +232,59 @@ class BuzonSugerenciasQuejasTests(unittest.TestCase):
 
         self.assertEqual(respuesta.status_code, 200)
         servidor.send_message.assert_called_once()
+
+    def test_limita_a_tres_envios_por_navegador_en_24_horas(self):
+        ahora = 100000.0
+        for numero in range(3):
+            permitido, _ = app_module.comprobar_cuota_buzon(
+                "a" * 32, "192.0.2.10", ahora + numero
+            )
+            self.assertTrue(permitido)
+        permitido, minutos = app_module.comprobar_cuota_buzon(
+            "a" * 32, "192.0.2.10", ahora + 4
+        )
+        self.assertFalse(permitido)
+        self.assertGreater(minutos, 0)
+
+    def test_limita_a_diez_envios_por_ip_entre_navegadores(self):
+        ahora = 200000.0
+        for numero in range(10):
+            permitido, _ = app_module.comprobar_cuota_buzon(
+                f"{numero:032x}", "192.0.2.20", ahora + numero
+            )
+            self.assertTrue(permitido)
+        permitido, _ = app_module.comprobar_cuota_buzon(
+            "f" * 32, "192.0.2.20", ahora + 11
+        )
+        self.assertFalse(permitido)
+
+    def test_cuota_se_reinicia_al_cumplirse_24_horas(self):
+        ahora = 300000.0
+        for numero in range(3):
+            app_module.comprobar_cuota_buzon("b" * 32, "192.0.2.30", ahora + numero)
+        permitido, _ = app_module.comprobar_cuota_buzon(
+            "b" * 32, "192.0.2.30", ahora + app_module.BUZON_VENTANA_SEGUNDOS + 5
+        )
+        self.assertTrue(permitido)
+
+    def test_cookie_de_dispositivo_es_http_only_y_persistente(self):
+        datos = {
+            "tipo": "sugerencia",
+            "asunto": "Añadir un aviso visual",
+            "mensaje": "Sería útil mostrar un aviso cuando se produzca una incidencia.",
+        }
+        with (
+            patch.dict(app_module.os.environ, self.CONFIGURACION_SMTP, clear=True),
+            patch("app.smtplib.SMTP") as smtp,
+        ):
+            smtp.return_value.__enter__.return_value.send_message.return_value = {}
+            respuesta = self.client.post("/api/buzon", json=datos)
+        self.assertEqual(respuesta.status_code, 200)
+        cookie = respuesta.headers.get("Set-Cookie", "")
+        self.assertIn("mapatpa_buzon_id=", cookie)
+        self.assertIn("HttpOnly", cookie)
+        self.assertIn("SameSite=Lax", cookie)
+        self.assertIn("Max-Age=2592000", cookie)
 
     def test_valida_el_contenido_antes_de_contactar_con_smtp(self):
         with (
