@@ -60,66 +60,203 @@
     }
 
     .feedback-open-button {
-      display: flex; align-items: center; gap: 13px; width: 100%; margin-top: 12px;
-      padding: 12px 14px; border: 1px solid rgba(56,189,248,.28); border-radius: 12px;
-      background: rgba(14,165,233,.12); color: #e0f2fe; text-align: left; cursor: pointer;
-      transition: background .18s ease, border-color .18s ease;
+      position: relative; display: flex; align-items: center; gap: 14px; width: 100%; margin-top: 12px;
+      padding: 14px 15px; overflow: hidden; border: 1px solid rgba(56,189,248,.32); border-radius: 15px;
+      background: linear-gradient(115deg, rgba(14,165,233,.2), rgba(99,102,241,.14));
+      color: #e0f2fe; text-align: left; cursor: pointer;
+      transition: transform .24s ease, background .24s ease, border-color .24s ease, box-shadow .24s ease;
     }
-    .feedback-open-button:hover { background: rgba(14,165,233,.2); border-color: rgba(56,189,248,.55); }
-    .feedback-open-button > i { color: #7dd3fc; font-size: 19px; }
-    .feedback-open-button span { display: flex; flex-direction: column; gap: 3px; }
+    .feedback-open-button::after {
+      content: "→"; margin-left: auto; color: #7dd3fc; font-size: 20px;
+      transition: transform .24s ease;
+    }
+    .feedback-open-button:hover {
+      transform: translateY(-3px); background: linear-gradient(115deg, rgba(14,165,233,.3), rgba(99,102,241,.22));
+      border-color: rgba(125,211,252,.7); box-shadow: 0 12px 28px rgba(2,132,199,.18);
+    }
+    .feedback-open-button:hover::after { transform: translateX(4px); }
+    .feedback-open-icon {
+      position: relative; display: grid; place-items: center; flex: 0 0 42px; width: 42px; height: 42px;
+      border: 1px solid rgba(125,211,252,.32); border-radius: 13px;
+      background: linear-gradient(145deg, rgba(14,165,233,.28), rgba(99,102,241,.22));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.12);
+    }
+    .feedback-open-icon i { color: #bae6fd; font-size: 18px; animation: feedback-envelope-float 3s ease-in-out infinite; }
+    .feedback-open-button span { display: flex; flex-direction: column; gap: 4px; }
     .feedback-open-button strong { font-size: 12px; font-weight: 800; }
-    .feedback-open-button small { color: #94a3b8; font-size: 10px; }
+    .feedback-open-button small { color: #a5b4c8; font-size: 10px; }
+    @keyframes feedback-envelope-float { 0%,100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-3px) rotate(-5deg); } }
 
     .feedback-modal[hidden] { display: none; }
     .feedback-modal {
       position: fixed; inset: 0; z-index: 10030; display: flex; align-items: center;
-      justify-content: center; padding: 16px; background: rgba(2,6,23,.76);
-      backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+      justify-content: center; padding: 18px; opacity: 0; background: rgba(2,6,23,.78);
+      backdrop-filter: blur(0); -webkit-backdrop-filter: blur(0);
+      transition: opacity .24s ease, backdrop-filter .24s ease;
     }
+    .feedback-modal.is-open { opacity: 1; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+    .feedback-modal.is-closing { opacity: 0; }
     .feedback-card {
-      width: 100%; max-width: 490px; max-height: calc(100vh - 32px); overflow-y: auto;
-      padding: 22px; border: 1px solid #e2e8f0; border-radius: 18px; background: #fff;
-      color: #0f172a; box-shadow: 0 24px 60px rgba(0,0,0,.35);
+      position: relative; width: 100%; max-width: 550px; max-height: min(92vh, 820px); overflow: auto;
+      padding: 0; border: 1px solid rgba(255,255,255,.68); border-radius: 25px;
+      background: #fff; color: #0f172a; box-shadow: 0 34px 100px rgba(0,0,0,.42);
+      transform: translateY(22px) scale(.965); opacity: .85;
+      transition: transform .36s cubic-bezier(.2,.8,.2,1), opacity .3s ease;
+      scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent;
     }
-    .feedback-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 7px; }
-    .feedback-heading h2 { font-size: 18px; line-height: 1.25; font-weight: 800; }
-    .feedback-heading p { margin-top: 5px; color: #64748b; font-size: 11px; line-height: 1.45; }
+    .feedback-modal.is-open .feedback-card { transform: translateY(0) scale(1); opacity: 1; }
+    .feedback-modal.is-closing .feedback-card { transform: translateY(12px) scale(.98); opacity: 0; }
+    .feedback-hero {
+      position: relative; display: flex; align-items: flex-start; gap: 16px; min-height: 158px;
+      padding: 25px 26px 22px; overflow: hidden; color: #fff;
+      background: radial-gradient(circle at 88% 5%, rgba(129,140,248,.44), transparent 34%),
+                  linear-gradient(128deg, #0c4a6e 0%, #075985 45%, #3730a3 100%);
+      isolation: isolate;
+    }
+    .feedback-hero::before, .feedback-hero::after {
+      content: ""; position: absolute; z-index: -1; border: 1px solid rgba(255,255,255,.15);
+      border-radius: 50%; pointer-events: none;
+    }
+    .feedback-hero::before { width: 230px; height: 230px; right: -70px; top: -125px; animation: feedback-orbit 12s linear infinite; }
+    .feedback-hero::after { width: 160px; height: 160px; right: -35px; top: -90px; border-style: dashed; animation: feedback-orbit 18s linear infinite reverse; }
+    @keyframes feedback-orbit { to { transform: rotate(360deg); } }
+    .feedback-hero-icon {
+      position: relative; display: grid; place-items: center; flex: 0 0 54px; width: 54px; height: 54px;
+      margin-top: 2px; border: 1px solid rgba(255,255,255,.34); border-radius: 18px;
+      background: rgba(255,255,255,.14); box-shadow: 0 8px 22px rgba(2,6,23,.16), inset 0 1px 0 rgba(255,255,255,.2);
+      backdrop-filter: blur(10px);
+    }
+    .feedback-hero-icon i { font-size: 22px; animation: feedback-icon-bob 3.2s ease-in-out infinite; }
+    .feedback-hero-icon::after {
+      content: ""; position: absolute; right: -3px; bottom: -3px; width: 12px; height: 12px;
+      border: 2px solid #075985; border-radius: 50%; background: #4ade80;
+      box-shadow: 0 0 0 0 rgba(74,222,128,.55); animation: feedback-live-pulse 2s ease-out infinite;
+    }
+    @keyframes feedback-icon-bob { 0%,100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-4px) rotate(4deg); } }
+    @keyframes feedback-live-pulse { 70% { box-shadow: 0 0 0 8px rgba(74,222,128,0); } 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); } }
+    .feedback-hero-copy { position: relative; z-index: 1; min-width: 0; padding-right: 26px; }
+    .feedback-eyebrow {
+      display: inline-flex; align-items: center; gap: 7px; margin-bottom: 8px;
+      color: #bae6fd; font-size: 9px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
+    }
+    .feedback-eyebrow::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #67e8f9; box-shadow: 0 0 12px #67e8f9; }
+    .feedback-hero h2 { color: #fff; font-size: clamp(20px, 4vw, 25px); font-weight: 800; line-height: 1.16; letter-spacing: -.035em; }
+    .feedback-hero p { max-width: 360px; margin-top: 8px; color: rgba(224,242,254,.84); font-size: 11px; line-height: 1.55; }
     .feedback-close {
-      flex: 0 0 30px; width: 30px; height: 30px; border: 1px solid #e2e8f0;
-      border-radius: 8px; background: #fff; color: #64748b; font-size: 18px; cursor: pointer;
+      position: absolute; z-index: 2; top: 18px; right: 18px; display: grid; place-items: center;
+      width: 34px; height: 34px; border: 1px solid rgba(255,255,255,.25);
+      border-radius: 11px; background: rgba(255,255,255,.12); color: #fff; font-size: 20px; cursor: pointer;
+      transition: transform .2s ease, background .2s ease;
     }
-    .feedback-field { margin-top: 13px; }
-    .feedback-field label { display: block; margin-bottom: 5px; color: #334155; font-size: 11px; font-weight: 800; }
+    .feedback-close:hover { transform: rotate(90deg); background: rgba(255,255,255,.24); }
+    .feedback-privacy {
+      display: flex; align-items: center; gap: 8px; margin: 17px 25px 4px; padding: 10px 12px;
+      border: 1px solid #dbeafe; border-radius: 12px; background: linear-gradient(90deg,#eff6ff,#f5f3ff);
+      color: #475569; font-size: 10px; font-weight: 700;
+    }
+    .feedback-privacy i { color: #0284c7; font-size: 13px; }
+    .feedback-privacy-dot { width: 6px; height: 6px; margin-left: auto; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 4px rgba(34,197,94,.12); }
+    #form-buzon { padding: 4px 25px 24px; }
+    .feedback-form-intro { display: flex; align-items: center; justify-content: space-between; margin: 14px 0 2px; color: #94a3b8; font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .feedback-form-intro span:last-child { color: #0ea5e9; }
+    .feedback-field { margin-top: 14px; opacity: 0; transform: translateY(10px); }
+    .feedback-modal.is-open .feedback-field { animation: feedback-field-in .42s ease forwards; }
+    .feedback-modal.is-open .feedback-field:nth-of-type(1) { animation-delay: .06s; }
+    .feedback-modal.is-open .feedback-field:nth-of-type(2) { animation-delay: .11s; }
+    .feedback-modal.is-open .feedback-field:nth-of-type(3) { animation-delay: .16s; }
+    .feedback-modal.is-open .feedback-field:nth-of-type(4) { animation-delay: .21s; }
+    .feedback-modal.is-open .feedback-field:nth-of-type(5) { animation-delay: .26s; }
+    @keyframes feedback-field-in { to { opacity: 1; transform: translateY(0); } }
+    .feedback-field label { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; color: #334155; font-size: 10px; font-weight: 800; }
+    .feedback-field label::before { content: ""; width: 5px; height: 5px; border-radius: 2px; background: #38bdf8; }
     .feedback-field input, .feedback-field select, .feedback-field textarea {
-      display: block; width: 100%; min-height: 39px; padding: 9px 10px;
-      border: 1px solid #cbd5e1; border-radius: 8px; background: #fff;
+      display: block; width: 100%; min-height: 43px; padding: 11px 13px;
+      border: 1px solid #dbe3ee; border-radius: 12px; background: #f8fafc;
       color: #0f172a; font: inherit; font-size: 12px; outline: none;
+      transition: border-color .2s ease, background .2s ease, box-shadow .2s ease, transform .2s ease;
     }
-    .feedback-field textarea { min-height: 132px; resize: vertical; line-height: 1.45; }
+    .feedback-field input:hover, .feedback-field select:hover, .feedback-field textarea:hover { border-color: #a5cfe6; background: #fff; }
     .feedback-field input:focus, .feedback-field select:focus, .feedback-field textarea:focus {
-      border-color: #38bdf8; box-shadow: 0 0 0 3px rgba(56,189,248,.14);
+      transform: translateY(-1px); border-color: #38bdf8; background: #fff;
+      box-shadow: 0 0 0 4px rgba(56,189,248,.13), 0 5px 16px rgba(14,165,233,.07);
     }
-    .feedback-help { margin-top: 5px; color: #94a3b8; font-size: 10px; line-height: 1.4; }
-    .feedback-status { min-height: 18px; margin-top: 12px; color: #64748b; font-size: 11px; line-height: 1.4; }
-    .feedback-status.success { color: #15803d; font-weight: 700; }
-    .feedback-status.error { color: #b91c1c; font-weight: 700; }
-    .feedback-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+    .feedback-field textarea { min-height: 122px; resize: vertical; line-height: 1.55; }
+    .feedback-textarea-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .feedback-help { margin-top: 6px; color: #94a3b8; font-size: 10px; line-height: 1.4; }
+    .feedback-counter { margin-top: 6px; color: #94a3b8; font-size: 10px; font-variant-numeric: tabular-nums; transition: color .2s ease; }
+    .feedback-counter.near-limit { color: #d97706; font-weight: 800; }
+    .feedback-counter.at-limit { color: #dc2626; font-weight: 800; }
+    .feedback-status {
+      display: flex; align-items: center; gap: 10px; min-height: 42px; margin-top: 16px; padding: 10px 12px;
+      border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; color: #64748b;
+      font-size: 10px; line-height: 1.45; transition: background .2s ease, border-color .2s ease, color .2s ease;
+    }
+    .feedback-status:empty { display: none; }
+    .feedback-status::before {
+      display: grid; place-items: center; flex: 0 0 20px; width: 20px; height: 20px;
+      border-radius: 7px; background: #e2e8f0; color: #64748b; font-size: 11px; font-weight: 900;
+    }
+    .feedback-status.checking::before, .feedback-status.loading::before {
+      content: ""; border: 2px solid #bae6fd; border-top-color: #0284c7; border-radius: 50%;
+      background: transparent; animation: feedback-spin .75s linear infinite;
+    }
+    @keyframes feedback-spin { to { transform: rotate(360deg); } }
+    .feedback-status.success { border-color: #bbf7d0; background: #f0fdf4; color: #166534; font-weight: 700; animation: feedback-status-pop .35s ease; }
+    .feedback-status.success::before { content: "✓"; background: #dcfce7; color: #15803d; }
+    .feedback-status.error { border-color: #fecaca; background: #fef2f2; color: #991b1b; font-weight: 700; animation: feedback-status-pop .35s ease; }
+    .feedback-status.error::before { content: "!"; background: #fee2e2; color: #dc2626; }
+    .feedback-status:not(.success):not(.error):not(.checking):not(.loading)::before { content: "i"; }
+    @keyframes feedback-status-pop { from { transform: translateY(5px); opacity: .5; } to { transform: translateY(0); opacity: 1; } }
+    .feedback-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
     .feedback-action {
-      min-height: 38px; padding: 0 13px; border: 1px solid #cbd5e1; border-radius: 8px;
+      position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+      min-height: 43px; padding: 0 16px; border: 1px solid #dbe3ee; border-radius: 12px;
       background: #fff; color: #475569; font-size: 11px; font-weight: 800; cursor: pointer;
+      transition: transform .2s ease, box-shadow .2s ease, background .2s ease, border-color .2s ease;
     }
-    .feedback-action.primary { border-color: #0284c7; background: #0284c7; color: #fff; }
-    .feedback-action.primary:hover:not(:disabled) { background: #0369a1; }
-    .feedback-action:disabled { opacity: .55; cursor: not-allowed; }
+    .feedback-action:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 7px 17px rgba(15,23,42,.08); }
+    .feedback-action.primary { border-color: #0284c7; background: linear-gradient(110deg,#0284c7,#2563eb 62%,#4f46e5); color: #fff; box-shadow: 0 7px 18px rgba(2,132,199,.23); }
+    .feedback-action.primary::after { content: "→"; font-size: 17px; line-height: 1; transition: transform .2s ease; }
+    .feedback-action.primary:hover:not(:disabled) { background: linear-gradient(110deg,#0369a1,#1d4ed8 62%,#4338ca); box-shadow: 0 10px 22px rgba(2,132,199,.3); }
+    .feedback-action.primary:hover:not(:disabled)::after { transform: translateX(3px); }
+    .feedback-action.primary[data-loading="true"]::before {
+      content: ""; width: 13px; height: 13px; border: 2px solid rgba(255,255,255,.35);
+      border-top-color: #fff; border-radius: 50%; animation: feedback-spin .7s linear infinite;
+    }
+    .feedback-action.primary[data-loading="true"]::after { content: ""; }
+    .feedback-action:disabled { opacity: .55; cursor: not-allowed; box-shadow: none; }
     .feedback-honeypot { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+    .feedback-card.is-complaint .feedback-hero { background: radial-gradient(circle at 88% 5%, rgba(251,146,60,.34), transparent 34%), linear-gradient(128deg,#713f12 0%,#9a3412 48%,#9f1239 100%); }
+    .feedback-card.is-complaint .feedback-hero-icon::after { border-color: #9a3412; background: #fbbf24; }
+    @media (prefers-reduced-motion: reduce) {
+      .feedback-open-button, .feedback-open-icon i, .feedback-hero::before, .feedback-hero::after,
+      .feedback-hero-icon i, .feedback-hero-icon::after, .feedback-modal, .feedback-card,
+      .feedback-field, .feedback-status, .feedback-action, .feedback-action::after {
+        animation: none !important; transition: none !important;
+      }
+      .feedback-field { opacity: 1; transform: none; }
+    }
+    @media (max-height: 760px) {
+      .feedback-hero { min-height: 132px; padding-top: 19px; padding-bottom: 17px; }
+      #form-buzon { padding-bottom: 18px; }
+      .feedback-field { margin-top: 10px; }
+      .feedback-field textarea { min-height: 92px; }
+    }
+    @media (max-width: 480px) {
+      .feedback-modal { padding: 8px; }
+      .feedback-card { max-height: 95vh; border-radius: 20px; }
+      .feedback-hero { min-height: 142px; gap: 12px; padding: 21px 18px 18px; }
+      .feedback-hero-icon { flex-basis: 45px; width: 45px; height: 45px; border-radius: 15px; }
+      .feedback-hero-copy { padding-right: 12px; }
+      .feedback-close { top: 12px; right: 12px; width: 31px; height: 31px; }
+      .feedback-privacy { margin: 13px 16px 3px; }
+      #form-buzon { padding: 3px 16px 18px; }
+      .feedback-actions { position: sticky; bottom: -18px; padding: 10px 0 0; background: linear-gradient(transparent,#fff 22%); }
+      .feedback-action { padding: 0 13px; }
+    }
     @media (max-height: 700px) {
       .lista-botones { max-height: calc(55vh - 48px); }
       .menu-card { padding-top: 22px; padding-bottom: 18px; }
-    }
-    @media (max-width: 480px) {
-      .feedback-card { padding: 18px; }
-      .feedback-modal { padding: 10px; }
     }
 
     .menu-header i {
@@ -882,10 +1019,10 @@
         </button>
       </div>
       <button type="button" class="feedback-open-button" id="btn-abrir-buzon">
-        <i class="fa-regular fa-envelope"></i>
+        <span class="feedback-open-icon"><i class="fa-regular fa-envelope"></i></span>
         <span>
           <strong>Buzón de sugerencias y quejas</strong>
-          <small>Ayúdanos a mejorar Mapa TPA</small>
+          <small>Tu opinión nos ayuda a mejorar Mapa TPA</small>
         </span>
       </button>
     </div>
@@ -893,19 +1030,30 @@
 
   <div class="feedback-modal" id="modal-buzon" hidden>
     <section class="feedback-card" role="dialog" aria-modal="true" aria-labelledby="feedback-titulo">
-      <div class="feedback-heading">
-        <div>
-          <h2 id="feedback-titulo">Buzón de sugerencias y quejas</h2>
-          <p>Cuéntanos qué podemos mejorar o qué problema has encontrado. No necesitas registrarte.</p>
+      <div class="feedback-hero">
+        <div class="feedback-hero-icon"><i class="fa-regular fa-paper-plane"></i></div>
+        <div class="feedback-hero-copy">
+          <span class="feedback-eyebrow">Tu voz cuenta · Mapa TPA</span>
+          <h2 id="feedback-titulo">Ayúdanos a mejorar</h2>
+          <p>Cuéntanos una idea o algo que no funciona. Leemos cada mensaje para seguir mejorando.</p>
         </div>
         <button type="button" class="feedback-close" id="btn-cerrar-buzon" aria-label="Cerrar">×</button>
       </div>
+      <div class="feedback-privacy">
+        <i class="fa-solid fa-shield-halved"></i>
+        <span>Mensaje privado · No necesitas registrarte</span>
+        <span class="feedback-privacy-dot" aria-hidden="true"></span>
+      </div>
       <form id="form-buzon">
+        <div class="feedback-form-intro">
+          <span>01 / Cuéntanos</span>
+          <span>Todos los campos marcados son necesarios</span>
+        </div>
         <div class="feedback-field">
-          <label for="buzon-tipo">Tipo de mensaje</label>
+          <label for="buzon-tipo">¿Qué quieres comunicarnos?</label>
           <select id="buzon-tipo" name="tipo" required>
-            <option value="sugerencia">Sugerencia</option>
-            <option value="queja">Queja</option>
+            <option value="sugerencia">💡  Sugerencia</option>
+            <option value="queja">⚠️  Queja o incidencia</option>
           </select>
         </div>
         <div class="feedback-field">
@@ -913,24 +1061,27 @@
           <input id="buzon-asunto" name="asunto" type="text" minlength="4" maxlength="120" required placeholder="Resume el motivo del mensaje">
         </div>
         <div class="feedback-field">
-          <label for="buzon-mensaje">Mensaje</label>
-          <textarea id="buzon-mensaje" name="mensaje" minlength="20" maxlength="5000" required placeholder="Describe tu sugerencia o queja con el mayor detalle posible..."></textarea>
-          <p class="feedback-help">Entre 20 y 5.000 caracteres.</p>
+          <label for="buzon-mensaje">Tu mensaje</label>
+          <textarea id="buzon-mensaje" name="mensaje" minlength="20" maxlength="5000" required placeholder="Describe tu sugerencia o cuéntanos qué ha ocurrido..."></textarea>
+          <div class="feedback-textarea-footer">
+            <p class="feedback-help">Cuantos más detalles, mejor podremos ayudarte.</p>
+            <p class="feedback-counter"><span id="feedback-contador">0</span> / 5.000</p>
+          </div>
         </div>
         <div class="feedback-field">
-          <label for="buzon-nombre">Nombre (opcional)</label>
+          <label for="buzon-nombre">Nombre <span style="font-weight:500;color:#94a3b8;">(opcional)</span></label>
           <input id="buzon-nombre" name="nombre" type="text" maxlength="80" placeholder="Cómo podemos llamarte">
         </div>
         <div class="feedback-field">
-          <label for="buzon-correo">Correo electrónico (opcional)</label>
+          <label for="buzon-correo">Correo electrónico <span style="font-weight:500;color:#94a3b8;">(opcional)</span></label>
           <input id="buzon-correo" name="correo" type="email" maxlength="254" placeholder="Para poder responderte">
-          <p class="feedback-help">Solo lo usaremos para responder a tu mensaje.</p>
+          <p class="feedback-help">Solo lo utilizaremos para responder a tu mensaje.</p>
         </div>
         <div class="feedback-honeypot" aria-hidden="true">
           <label for="buzon-web">No rellenes este campo</label>
           <input id="buzon-web" name="website" type="text" tabindex="-1" autocomplete="off">
         </div>
-        <p class="feedback-status" id="feedback-estado" role="status" aria-live="polite"></p>
+        <p class="feedback-status checking" id="feedback-estado" role="status" aria-live="polite">Preparando el buzón...</p>
         <div class="feedback-actions">
           <button type="button" class="feedback-action" id="btn-cancelar-buzon">Cancelar</button>
           <button type="submit" class="feedback-action primary" id="btn-enviar-buzon" disabled>Enviar mensaje</button>
@@ -2291,39 +2442,76 @@
     const botonEnviarBuzon = document.getElementById('btn-enviar-buzon');
     const estadoBuzon = document.getElementById('feedback-estado');
     let buzonDisponible = false;
+    let temporizadorCierreBuzon = null;
+    const campoTipoBuzon = document.getElementById('buzon-tipo');
+    const campoMensajeBuzon = document.getElementById('buzon-mensaje');
+    const contadorMensajeBuzon = document.getElementById('feedback-contador');
+
+    function actualizarContadorBuzon() {
+      if (!campoMensajeBuzon || !contadorMensajeBuzon) return;
+      const longitud = campoMensajeBuzon.value.length;
+      contadorMensajeBuzon.textContent = longitud.toLocaleString('es-ES');
+      const contador = contadorMensajeBuzon.parentElement;
+      contador?.classList.toggle('near-limit', longitud >= 4500 && longitud < 5000);
+      contador?.classList.toggle('at-limit', longitud >= 5000);
+    }
 
     function cerrarBuzon() {
-      if (!modalBuzon) return;
-      modalBuzon.hidden = true;
-      document.body.style.overflow = '';
-      botonAbrirBuzon?.focus();
+      if (!modalBuzon || modalBuzon.hidden) return;
+      modalBuzon.classList.remove('is-open');
+      modalBuzon.classList.add('is-closing');
+      window.clearTimeout(temporizadorCierreBuzon);
+      temporizadorCierreBuzon = window.setTimeout(() => {
+        modalBuzon.hidden = true;
+        modalBuzon.classList.remove('is-closing');
+        document.body.style.overflow = '';
+        botonAbrirBuzon?.focus();
+      }, 240);
     }
 
     async function abrirBuzon() {
       if (!modalBuzon) return;
+      window.clearTimeout(temporizadorCierreBuzon);
       modalBuzon.hidden = false;
+      modalBuzon.classList.remove('is-closing', 'is-complaint');
       document.body.style.overflow = 'hidden';
-      estadoBuzon.className = 'feedback-status';
-      estadoBuzon.textContent = 'Comprobando disponibilidad del buzón...';
+      window.requestAnimationFrame(() => modalBuzon.classList.add('is-open'));
+      estadoBuzon.className = 'feedback-status checking';
+      estadoBuzon.textContent = 'Comprobando la conexión segura...';
       botonEnviarBuzon.disabled = true;
+      botonEnviarBuzon.removeAttribute('data-loading');
+      if (campoTipoBuzon) modalBuzon.querySelector('.feedback-hero')?.classList.toggle('is-complaint', campoTipoBuzon.value === 'queja');
       try {
         const respuesta = await fetch('/api/buzon/estado', { cache: 'no-store' });
         const datos = await respuesta.json();
         buzonDisponible = Boolean(respuesta.ok && datos.disponible);
         if (buzonDisponible) {
-          estadoBuzon.textContent = 'El mensaje se enviará de forma privada al equipo de Mapa TPA.';
+          estadoBuzon.className = 'feedback-status';
+          estadoBuzon.textContent = 'Todo listo. Tu mensaje llegará de forma privada al equipo de Mapa TPA.';
           botonEnviarBuzon.disabled = false;
         } else {
           estadoBuzon.className = 'feedback-status error';
-          estadoBuzon.textContent = 'El buzón no está configurado en este momento. No envíes todavía tu mensaje.';
+          estadoBuzon.textContent = 'El buzón no está disponible ahora mismo. Vuelve a intentarlo más tarde.';
         }
       } catch (error) {
         buzonDisponible = false;
         estadoBuzon.className = 'feedback-status error';
-        estadoBuzon.textContent = 'No se ha podido comprobar la disponibilidad del buzón. Inténtalo más tarde.';
+        estadoBuzon.textContent = 'No hemos podido comprobar la conexión. Inténtalo de nuevo más tarde.';
       }
-      document.getElementById('buzon-tipo')?.focus();
+      if (!modalBuzon.hidden) campoTipoBuzon?.focus();
     }
+
+    campoTipoBuzon?.addEventListener('change', () => {
+      modalBuzon?.querySelector('.feedback-card')?.classList.toggle('is-complaint', campoTipoBuzon.value === 'queja');
+    });
+    campoMensajeBuzon?.addEventListener('input', actualizarContadorBuzon);
+    campoMensajeBuzon?.addEventListener('input', () => {
+      if (estadoBuzon.classList.contains('error') || estadoBuzon.classList.contains('success')) {
+        estadoBuzon.className = 'feedback-status';
+        estadoBuzon.textContent = '';
+      }
+    });
+    actualizarContadorBuzon();
 
     botonAbrirBuzon?.addEventListener('click', abrirBuzon);
     botonCerrarBuzon?.addEventListener('click', cerrarBuzon);
@@ -2341,9 +2529,10 @@
       const formulario = new FormData(formularioBuzon);
       const datos = Object.fromEntries(formulario.entries());
       botonEnviarBuzon.disabled = true;
+      botonEnviarBuzon.setAttribute('data-loading', 'true');
       botonEnviarBuzon.textContent = 'Enviando...';
-      estadoBuzon.className = 'feedback-status';
-      estadoBuzon.textContent = 'Enviando tu mensaje de forma segura...';
+      estadoBuzon.className = 'feedback-status loading';
+      estadoBuzon.textContent = 'Estamos enviando tu mensaje de forma segura...';
       try {
         const respuesta = await fetch('/api/buzon', {
           method: 'POST',
@@ -2353,12 +2542,15 @@
         const resultado = await respuesta.json();
         if (!respuesta.ok) throw new Error(resultado.error || 'No se ha podido enviar el mensaje.');
         formularioBuzon.reset();
+        actualizarContadorBuzon();
+        modalBuzon.querySelector('.feedback-card')?.classList.remove('is-complaint');
         estadoBuzon.className = 'feedback-status success';
-        estadoBuzon.textContent = resultado.mensaje || 'Tu mensaje se ha enviado correctamente. Gracias por ayudarnos a mejorar.';
+        estadoBuzon.textContent = resultado.mensaje || '¡Mensaje enviado! Gracias por ayudarnos a mejorar Mapa TPA.';
       } catch (error) {
         estadoBuzon.className = 'feedback-status error';
         estadoBuzon.textContent = error.message || 'No se ha podido enviar el mensaje. Inténtalo más tarde.';
       } finally {
+        botonEnviarBuzon.removeAttribute('data-loading');
         botonEnviarBuzon.textContent = 'Enviar mensaje';
         botonEnviarBuzon.disabled = !buzonDisponible;
       }
