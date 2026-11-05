@@ -719,10 +719,10 @@ BUZON_ULTIMO_ENVIO_LOCK = threading.Lock()
 
 def obtener_configuracion_buzon():
     """Devuelve la configuración SMTP solo cuando están todos los secretos."""
-    host = os.environ.get("BUZON_SMTP_HOST", "").strip()
-    usuario = os.environ.get("BUZON_SMTP_USER", "").strip()
+    host = os.environ.get("BUZON_SMTP_HOST", "smtp.gmail.com").strip()
+    usuario = os.environ.get("BUZON_SMTP_USER", "dgarrido.alsa@gmail.com").strip()
     password = os.environ.get("BUZON_SMTP_PASSWORD", "")
-    destino = os.environ.get("BUZON_EMAIL_DESTINO", "").strip()
+    destino = os.environ.get("BUZON_EMAIL_DESTINO", "dgarrido.alsa@gmail.com").strip()
     remitente = os.environ.get("BUZON_EMAIL_REMITENTE", "").strip() or usuario
     try:
         puerto = int(os.environ.get("BUZON_SMTP_PORT", "587"))
