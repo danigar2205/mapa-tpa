@@ -3,12 +3,15 @@ import os
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
 from flask import Flask, render_template, jsonify, request
+from email.message import EmailMessage
 import requests
 import urllib3
 import gzip
 import time
 import ssl
 import math
+import re
+import smtplib
 import unicodedata
 import base64
 import json
@@ -706,6 +709,160 @@ def obtener_estimaciones_tripupdates(linea_objetivo):
 @app.route('/')
 def index():
     return render_template('index.html')
+
+
+# Buzón privado de sugerencias y quejas. Las credenciales SMTP viven solo
+# en variables de entorno del servidor (nunca se envían al navegador).
+BUZON_ULTIMO_ENVIO = {}
+BUZON_ULTIMO_ENVIO_LOCK = threading.Lock()
+
+
+def obtener_configuracion_buzon():
+    """Devuelve la configuración SMTP solo cuando están todos los secretos."""
+    host = os.environ.get("BUZON_SMTP_HOST", "").strip()
+    usuario = os.environ.get("BUZON_SMTP_USER", "").strip()
+    password = os.environ.get("BUZON_SMTP_PASSWORD", "")
+    destino = os.environ.get("BUZON_EMAIL_DESTINO", "").strip()
+    remitente = os.environ.get("BUZON_EMAIL_REMITENTE", "").strip() or usuario
+    try:
+        puerto = int(os.environ.get("BUZON_SMTP_PORT", "587"))
+    except (TypeError, ValueError):
+        return None
+    if (
+        not host or not usuario or not password or not destino or not remitente
+        or not 1 <= puerto <= 65535
+    ):
+        return None
+    return {
+        "host": host,
+        "puerto": puerto,
+        "usuario": usuario,
+        "password": password,
+        "destino": destino,
+        "remitente": remitente,
+        "ssl": os.environ.get("BUZON_SMTP_SSL", "").strip().lower()
+            in {"1", "true", "yes", "si"},
+    }
+
+
+def limitar_envios_buzon(ip):
+    """Evita envíos repetidos desde una misma IP durante un minuto."""
+    ahora = time.monotonic()
+    with BUZON_ULTIMO_ENVIO_LOCK:
+        caducadas = [
+            direccion for direccion, instante in BUZON_ULTIMO_ENVIO.items()
+            if ahora - instante > 3600
+        ]
+        for direccion in caducadas:
+            BUZON_ULTIMO_ENVIO.pop(direccion, None)
+        ultimo = BUZON_ULTIMO_ENVIO.get(ip)
+        if ultimo is not None and ahora - ultimo < 60:
+            return False
+        BUZON_ULTIMO_ENVIO[ip] = ahora
+        return True
+
+
+@app.route('/api/buzon/estado', methods=['GET'])
+def get_estado_buzon():
+    """Informa únicamente de si el buzón está configurado, sin revelar secretos."""
+    return jsonify({"disponible": obtener_configuracion_buzon() is not None})
+
+
+@app.route('/api/buzon', methods=['POST'])
+def post_buzon():
+    """Envía de forma privada una sugerencia o queja al correo configurado."""
+    if request.content_length and request.content_length > 12000:
+        return jsonify({"error": "El mensaje es demasiado grande."}), 413
+
+    datos = request.get_json(silent=True)
+    if not isinstance(datos, dict):
+        return jsonify({"error": "El formulario no contiene datos válidos."}), 400
+
+    # Campo trampa para bots: se responde como aceptado, pero no se envía nada.
+    if str(datos.get("website", "")).strip():
+        return jsonify({"ok": True})
+
+    configuracion = obtener_configuracion_buzon()
+    if configuracion is None:
+        return jsonify({
+            "error": "El buzón no está disponible temporalmente. Inténtalo más tarde."
+        }), 503
+
+    tipo = str(datos.get("tipo", "")).strip().lower()
+    asunto = re.sub(r"[\\r\\n]+", " ", str(datos.get("asunto", "")).strip())
+    mensaje = str(datos.get("mensaje", "")).strip()
+    nombre = re.sub(r"[\\r\\n]+", " ", str(datos.get("nombre", "")).strip())
+    correo = str(datos.get("correo", "")).strip()
+
+    if tipo not in {"sugerencia", "queja"}:
+        return jsonify({"error": "Selecciona si quieres enviar una sugerencia o una queja."}), 400
+    if len(asunto) < 4 or len(asunto) > 120:
+        return jsonify({"error": "El asunto debe tener entre 4 y 120 caracteres."}), 400
+    if len(mensaje) < 20 or len(mensaje) > 5000:
+        return jsonify({"error": "El mensaje debe tener entre 20 y 5.000 caracteres."}), 400
+    if len(nombre) > 80:
+        return jsonify({"error": "El nombre no puede superar los 80 caracteres."}), 400
+    if correo and (
+        len(correo) > 254
+        or not re.fullmatch(r"[^\\s@]+@[^\\s@]+\\.[^\\s@]+", correo)
+        or "\\r" in correo or "\\n" in correo
+    ):
+        return jsonify({"error": "Introduce un correo electrónico válido o deja el campo vacío."}), 400
+
+    ip = request.remote_addr or "desconocida"
+    if not limitar_envios_buzon(ip):
+        return jsonify({
+            "error": "Ya has enviado un mensaje hace poco. Espera un minuto antes de volver a intentarlo."
+        }), 429
+
+    tipo_texto = "Sugerencia" if tipo == "sugerencia" else "Queja"
+    correo_mensaje = EmailMessage()
+    correo_mensaje["Subject"] = f"[Mapa TPA] {tipo_texto}: {asunto}"
+    correo_mensaje["From"] = configuracion["remitente"]
+    correo_mensaje["To"] = configuracion["destino"]
+    if correo:
+        correo_mensaje["Reply-To"] = correo
+    correo_mensaje.set_content(
+        f"Nuevo mensaje recibido desde el buzón de Mapa TPA.\\n\\n"
+        f"Tipo: {tipo_texto}\\n"
+        f"Asunto: {asunto}\\n"
+        f"Nombre: {nombre or 'No indicado'}\\n"
+        f"Correo para responder: {correo or 'No indicado'}\\n\\n"
+        f"Mensaje:\\n{mensaje}\\n"
+    )
+
+    try:
+        contexto_ssl = ssl.create_default_context()
+        if configuracion["ssl"]:
+            conexion = smtplib.SMTP_SSL(
+                configuracion["host"],
+                configuracion["puerto"],
+                timeout=12,
+                context=contexto_ssl,
+            )
+        else:
+            conexion = smtplib.SMTP(
+                configuracion["host"],
+                configuracion["puerto"],
+                timeout=12,
+            )
+        with conexion as servidor:
+            if not configuracion["ssl"]:
+                servidor.ehlo()
+                servidor.starttls(context=contexto_ssl)
+                servidor.ehlo()
+            servidor.login(configuracion["usuario"], configuracion["password"])
+            servidor.send_message(correo_mensaje)
+    except (smtplib.SMTPException, OSError, ssl.SSLError):
+        app.logger.exception("No se pudo enviar un mensaje del buzón de Mapa TPA.")
+        with BUZON_ULTIMO_ENVIO_LOCK:
+            BUZON_ULTIMO_ENVIO.pop(ip, None)
+        return jsonify({
+            "error": "No se ha podido enviar el mensaje. Inténtalo más tarde."
+        }), 502
+
+    return jsonify({"ok": True, "mensaje": "Tu mensaje se ha enviado correctamente."})
+
 
 @app.route('/api/mapa/<linea>')
 def get_mapa_lineas(linea):
