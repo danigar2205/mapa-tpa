@@ -60,8 +60,10 @@ class BuzonSugerenciasQuejasTests(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 503)
 
     def test_valida_el_contenido_antes_de_contactar_con_smtp(self):
-        with patch.dict(app_module.os.environ, self.CONFIGURACION_SMTP, clear=True), \\
-             patch("app.smtplib.SMTP") as smtp:
+        with (
+            patch.dict(app_module.os.environ, self.CONFIGURACION_SMTP, clear=True),
+            patch("app.smtplib.SMTP") as smtp,
+        ):
             respuesta = self.client.post("/api/buzon", json={
                 "tipo": "queja",
                 "asunto": "No",
@@ -78,8 +80,10 @@ class BuzonSugerenciasQuejasTests(unittest.TestCase):
             "nombre": "Usuario de prueba",
             "correo": "persona@example.com",
         }
-        with patch.dict(app_module.os.environ, self.CONFIGURACION_SMTP, clear=True), \\
-             patch("app.smtplib.SMTP") as smtp:
+        with (
+            patch.dict(app_module.os.environ, self.CONFIGURACION_SMTP, clear=True),
+            patch("app.smtplib.SMTP") as smtp,
+        ):
             servidor = smtp.return_value.__enter__.return_value
             respuesta = self.client.post("/api/buzon", json=datos)
 
@@ -100,8 +104,10 @@ class BuzonSugerenciasQuejasTests(unittest.TestCase):
             "asunto": "Error de horarios",
             "mensaje": "La hora de salida que se muestra no coincide con el horario.",
         }
-        with patch.dict(app_module.os.environ, self.CONFIGURACION_SMTP, clear=True), \\
-             patch("app.smtplib.SMTP") as smtp:
+        with (
+            patch.dict(app_module.os.environ, self.CONFIGURACION_SMTP, clear=True),
+            patch("app.smtplib.SMTP") as smtp,
+        ):
             servidor = smtp.return_value.__enter__.return_value
             respuesta = self.client.post("/api/buzon", json=datos)
         self.assertEqual(respuesta.status_code, 200)
