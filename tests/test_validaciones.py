@@ -1079,13 +1079,20 @@ class FusionParadasYTerminalesTests(unittest.TestCase):
     def test_horarios_fusionados_conservan_pasada_intermedia(self):
         parada = self._paradas_por_nombre("T04", "Huesca. Estación de Autobuses")[0]
         ids = ",".join(parada["stop_ids"])
-        fecha = datetime.now(ZoneInfo("Europe/Madrid")).date() + timedelta(days=7)
-        respuesta = self.client.get(
-            "/api/paradas/" + parada["id"] + "/horarios"
-            "?concesion=T04&fecha=" + fecha.isoformat() + "&stop_ids=" + ids
-        )
-        self.assertEqual(respuesta.status_code, 200)
-        horas = [item["hora"] for item in respuesta.get_json()["horarios"]]
+        fecha_inicio = datetime.now(ZoneInfo("Europe/Madrid")).date() + timedelta(days=1)
+        horas = []
+        # Busca el siguiente día con servicio: el test no debe depender de que
+        # se ejecute exactamente un día de la semana concreto.
+        for desplazamiento in range(14):
+            fecha = fecha_inicio + timedelta(days=desplazamiento)
+            respuesta = self.client.get(
+                "/api/paradas/" + parada["id"] + "/horarios"
+                "?concesion=T04&fecha=" + fecha.isoformat() + "&stop_ids=" + ids
+            )
+            self.assertEqual(respuesta.status_code, 200)
+            horas = [item["hora"] for item in respuesta.get_json()["horarios"]]
+            if "08:13" in horas:
+                break
         self.assertIn("08:13", horas)  # Inicio de un servicio hacia otro destino.
         self.assertNotIn("08:09", horas)  # El viaje vuelve a terminar en esta misma estación.
         self.assertNotIn("08:22", horas)  # La llamada terminal no se anuncia como llegada a sí misma.
@@ -1581,8 +1588,10 @@ class CapasMapaGTFSTests(unittest.TestCase):
         self.assertIn("popup._llegadaInminente = consultarTiempoReal && elementos.some", html)
         self.assertIn("const prediccionesAsignadas = new Set()", html)
         self.assertIn("prediccionesPorProgramada.set(indice, prediccion)", html)
-        self.assertIn("normalizarTexto(programada.destino) !== normalizarTexto(prediccion.destino)", html)
-        self.assertIn("diferenciaSegundos > 20 * 60", html)
+        self.assertIn("const toleraDestinoDistinto = mismaLinea === 'T05-20' && mismoSentido;", html)
+        self.assertIn("if (!mismoDestino && !toleraDestinoDistinto) return;", html)
+        self.assertIn("const margenEmparejamiento = toleraDestinoDistinto ? 60 * 60 : 20 * 60;", html)
+        self.assertIn("diferenciaSegundos > margenEmparejamiento", html)
         self.assertIn('"direccion": str(direccion) if direccion is not None else ""', app_source)
         self.assertIn("evento.popup._llegadaInminente ? 5000 : 30000", html)
         self.assertNotIn("Tiempo real consultado a las", html)

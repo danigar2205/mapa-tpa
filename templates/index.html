@@ -2074,21 +2074,40 @@
 
           tiempoRealPendiente.forEach(prediccion => {
             if (prediccionesAsignadas.has(prediccion)) return;
-            if (String(programada.linea || '') !== String(prediccion.linea || '')) return;
-            if (normalizarTexto(programada.destino) !== normalizarTexto(prediccion.destino)) return;
+            if (
+              String(programada.linea || '').trim().toUpperCase() !==
+              String(prediccion.linea || '').trim().toUpperCase()
+            ) return;
 
             const direccionProgramada = String(programada.direccion ?? '').trim();
             const direccionTiempoReal = String(prediccion.direccion ?? '').trim();
-            if (
-              direccionProgramada && direccionTiempoReal &&
-              direccionProgramada !== direccionTiempoReal
-            ) return;
+            const ambosConSentido = Boolean(direccionProgramada && direccionTiempoReal);
+            if (ambosConSentido && direccionProgramada !== direccionTiempoReal) return;
+
+            const mismaLinea = String(programada.linea || '').trim().toUpperCase();
+            const mismoSentido = ambosConSentido &&
+              direccionProgramada === direccionTiempoReal;
+            const mismoDestino =
+              normalizarTexto(programada.destino) === normalizarTexto(prediccion.destino);
+            const toleraDestinoDistinto = mismaLinea === 'T05-20' && mismoSentido;
+
+            // En T05-20 el proveedor puede publicar destinos con textos distintos
+            // para el mismo sentido. Solo en esa línea, un sentido coincidente
+            // permite emparejar aunque el texto del destino no sea idéntico.
+            // Sin sentido fiable, exigimos destino coincidente.
+            if (!mismoDestino && !toleraDestinoDistinto) return;
 
             const diferenciaSegundos = Math.abs(
               Number(prediccion.timestamp) - timestampProgramado
             );
-            if (!Number.isFinite(diferenciaSegundos) || diferenciaSegundos > 20 * 60) return;
-            candidatosEmparejamiento.push({ indice, prediccion, diferenciaSegundos });
+            const margenEmparejamiento = toleraDestinoDistinto ? 60 * 60 : 20 * 60;
+            if (
+              !Number.isFinite(diferenciaSegundos) ||
+              diferenciaSegundos > margenEmparejamiento
+            ) return;
+            candidatosEmparejamiento.push({
+              indice, prediccion, diferenciaSegundos, mismoDestino
+            });
           });
         });
         candidatosEmparejamiento.sort(
