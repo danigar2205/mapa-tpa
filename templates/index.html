@@ -2110,11 +2110,48 @@
             });
           });
         });
-        candidatosEmparejamiento.sort(
-          (a, b) => a.diferenciaSegundos - b.diferenciaSegundos
-        );
-        candidatosEmparejamiento.forEach(({ indice, prediccion }) => {
+        // Se priorizan las coincidencias de destino: son la señal más precisa.
+        const candidatosMismoDestino = candidatosEmparejamiento
+          .filter(candidato => candidato.mismoDestino)
+          .sort((a, b) => a.diferenciaSegundos - b.diferenciaSegundos);
+        candidatosMismoDestino.forEach(({ indice, prediccion }) => {
           if (
+            prediccionesPorProgramada.has(indice) ||
+            prediccionesAsignadas.has(prediccion)
+          ) return;
+          prediccionesPorProgramada.set(indice, prediccion);
+          prediccionesAsignadas.add(prediccion);
+        });
+
+        // Si T05-20 trae un destino distinto, solo se empareja cuando queda
+        // una única combinación posible entre salida programada y predicción.
+        // Así la ventana ampliada no puede absorber otra expedición cercana.
+        const candidatosDestinoDistinto = candidatosEmparejamiento.filter(
+          candidato =>
+            !candidato.mismoDestino &&
+            !prediccionesPorProgramada.has(candidato.indice) &&
+            !prediccionesAsignadas.has(candidato.prediccion)
+        );
+        const alternativasPorProgramada = new Map();
+        const alternativasPorPrediccion = new Map();
+        candidatosDestinoDistinto.forEach(({ indice, prediccion }) => {
+          if (!alternativasPorProgramada.has(indice)) {
+            alternativasPorProgramada.set(indice, new Set());
+          }
+          alternativasPorProgramada.get(indice).add(prediccion);
+
+          if (!alternativasPorPrediccion.has(prediccion)) {
+            alternativasPorPrediccion.set(prediccion, new Set());
+          }
+          alternativasPorPrediccion.get(prediccion).add(indice);
+        });
+
+        candidatosDestinoDistinto.forEach(({ indice, prediccion }) => {
+          const salidasPosibles = alternativasPorProgramada.get(indice);
+          const prediccionesPosibles = alternativasPorPrediccion.get(prediccion);
+          if (
+            salidasPosibles?.size !== 1 ||
+            prediccionesPosibles?.size !== 1 ||
             prediccionesPorProgramada.has(indice) ||
             prediccionesAsignadas.has(prediccion)
           ) return;
