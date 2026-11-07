@@ -2084,21 +2084,23 @@
             const ambosConSentido = Boolean(direccionProgramada && direccionTiempoReal);
             if (ambosConSentido && direccionProgramada !== direccionTiempoReal) return;
 
+            const mismaLinea = String(programada.linea || '').trim().toUpperCase();
             const mismoSentido = ambosConSentido &&
               direccionProgramada === direccionTiempoReal;
             const mismoDestino =
               normalizarTexto(programada.destino) === normalizarTexto(prediccion.destino);
+            const toleraDestinoDistinto = mismaLinea === 'T05-20' && mismoSentido;
 
             // En T05-20 el proveedor puede publicar destinos con textos distintos
-            // para el mismo sentido. Si ambos sentidos están informados y coinciden,
-            // la coincidencia sigue siendo válida aunque difiera el nombre del destino.
-            // Sin sentido fiable, exigimos que el destino coincida.
-            if (!mismoDestino && !mismoSentido) return;
+            // para el mismo sentido. Solo en esa línea, un sentido coincidente
+            // permite emparejar aunque el texto del destino no sea idéntico.
+            // Sin sentido fiable, exigimos destino coincidente.
+            if (!mismoDestino && !toleraDestinoDistinto) return;
 
             const diferenciaSegundos = Math.abs(
               Number(prediccion.timestamp) - timestampProgramado
             );
-            const margenEmparejamiento = mismoSentido ? 60 * 60 : 20 * 60;
+            const margenEmparejamiento = toleraDestinoDistinto ? 60 * 60 : 20 * 60;
             if (
               !Number.isFinite(diferenciaSegundos) ||
               diferenciaSegundos > margenEmparejamiento
