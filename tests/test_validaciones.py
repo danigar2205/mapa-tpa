@@ -1584,7 +1584,7 @@ class CapasMapaGTFSTests(unittest.TestCase):
         self.assertIn("const mismoSentido = ambosConSentido", html)
         self.assertIn("if (!mismoDestino && !mismoSentido) return;", html)
         self.assertIn("const margenEmparejamiento = mismoSentido ? 60 * 60 : 20 * 60;", html)
-        self.assertIn("diferenciaSegundos > 20 * 60", html)
+        self.assertIn("diferenciaSegundos > margenEmparejamiento", html)
         self.assertIn('"direccion": str(direccion) if direccion is not None else ""', app_source)
         self.assertIn("evento.popup._llegadaInminente ? 5000 : 30000", html)
         self.assertNotIn("Tiempo real consultado a las", html)
