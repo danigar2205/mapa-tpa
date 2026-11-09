@@ -3086,6 +3086,262 @@
       .btn-action { box-shadow: 0 4px 12px rgba(122,14,22,.16); }
     }
 
+  
+    
+    /* MAPA TPA · AJUSTE DE ALINEACIÓN Y PALETA EQUILIBRADA */
+    /* La cabecera usa una sola columna de texto: evita el desplazamiento
+       a la derecha que provocaban los align-self heredados del diseño antiguo. */
+    .menu-header {
+      display: grid;
+      grid-template-columns: 62px minmax(0, 1fr);
+      grid-template-rows: minmax(62px, auto);
+      align-items: center;
+      column-gap: 18px;
+      text-align: left;
+    }
+
+    .menu-header-copy {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 4px;
+      width: 100%;
+      min-width: 0;
+      grid-column: 2;
+      grid-row: 1;
+      text-align: left;
+    }
+
+    .menu-header-copy .menu-eyebrow,
+    .menu-header-copy h1,
+    .menu-header-copy p {
+      align-self: flex-start !important;
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      text-align: left !important;
+    }
+
+    .menu-header-copy .menu-eyebrow {
+      color: #a9c5dc;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: .14em;
+      line-height: 1.3;
+    }
+
+    .menu-header-copy h1 {
+      color: #f7faff;
+      font-size: clamp(22px, 2.8vw, 31px);
+      font-weight: 800;
+      line-height: 1.12;
+      letter-spacing: -.045em;
+      overflow-wrap: anywhere;
+    }
+
+    .menu-header-copy p {
+      color: #a8b9ca;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    /* La identidad DGA queda como acento, no como relleno de toda la interfaz. */
+    .menu-card::before {
+      height: 2px;
+      background: linear-gradient(90deg,
+        transparent 0%, #ed1d23 22%, rgba(255,255,255,.9) 50%,
+        #fec30f 78%, transparent 100%);
+      opacity: .82;
+    }
+
+    .menu-header > i {
+      color: #d8e9f8;
+      border-color: rgba(160, 194, 224, .22);
+      background: linear-gradient(145deg, rgba(65, 112, 153, .22), rgba(31, 58, 88, .2));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 10px 24px rgba(2, 8, 20, .15);
+    }
+
+    .menu-eyebrow { color: #a9c5dc; }
+
+    .menu-section-count {
+      border-color: rgba(74, 222, 128, .2);
+      background: rgba(22, 101, 52, .13);
+      color: #a7e8ba;
+    }
+
+    .btn-menu:not(.btn-deshabilitado),
+    .btn-menu.is-available {
+      border-color: rgba(116, 169, 211, .3);
+      background: linear-gradient(145deg, #245b86 0%, #173e68 100%);
+      box-shadow: 0 9px 22px rgba(2, 22, 44, .23), inset 0 1px 0 rgba(255,255,255,.1);
+    }
+
+    .btn-menu:not(.btn-deshabilitado) .btn-title {
+      border-color: rgba(255,255,255,.15);
+      background: rgba(255,255,255,.13);
+      color: #f5f9fd;
+      box-shadow: none;
+    }
+
+    .btn-menu.is-available::after {
+      width: 3px;
+      background: linear-gradient(180deg, #ed1d23 0%, #ffffff 50%, #fec30f 100%);
+      box-shadow: none;
+    }
+
+    .btn-menu.is-available .concession-status {
+      border-color: rgba(134, 239, 172, .2);
+      background: rgba(12, 76, 48, .24);
+      color: #c7f4d4;
+    }
+
+    .btn-menu.is-available .concession-status::before {
+      background: #86efac;
+      box-shadow: 0 0 0 3px rgba(134,239,172,.1);
+    }
+
+    /* Panel: predominio de azul petróleo y blanco; rojo/amarillo solo en filetes. */
+    .header-card::before {
+      height: 2px;
+      background: linear-gradient(90deg, #ed1d23 0%, rgba(255,255,255,.9) 48%, #fec30f 100%);
+      opacity: .75;
+    }
+
+    .header-card .badge-tag {
+      border-color: rgba(138, 187, 226, .26);
+      background: linear-gradient(145deg, #286a9d, #1d4e7b);
+      color: #fff;
+      box-shadow: 0 7px 18px rgba(3, 20, 39, .22);
+    }
+
+    .header-card .info-value { color: #d9edff !important; }
+
+    .fleet-count {
+      border-color: rgba(125, 180, 221, .22);
+      background: rgba(50, 104, 151, .15);
+      color: #d9edff;
+    }
+
+    .fleet-overline { color: #9dc7e8; }
+    .fleet-next-stop > i { color: #9dc7e8; }
+    .tools-section-heading i { color: #9ab8d3; }
+
+    .btn-action {
+      border-color: rgba(91, 154, 205, .28);
+      background: linear-gradient(145deg, #286b9c, #1d4f7b);
+      box-shadow: 0 5px 14px rgba(3, 20, 39, .18);
+    }
+
+    .btn-action:hover {
+      border-color: rgba(143, 194, 233, .4);
+      background: linear-gradient(145deg, #317cac, #225d8c);
+    }
+
+    .btn-menu-back {
+      border-color: rgba(255,255,255,.15);
+      background: rgba(255,255,255,.075);
+      box-shadow: none;
+    }
+
+    .btn-menu-back:hover {
+      border-color: rgba(255,255,255,.27);
+      background: rgba(255,255,255,.13);
+    }
+
+    .btn-layer.active {
+      border-color: rgba(254, 195, 15, .38);
+      background: rgba(254, 195, 15, .09);
+      color: #ffe29a;
+    }
+
+    .panel-show-button {
+      border-color: rgba(125, 180, 221, .26);
+      background: rgba(9, 20, 36, .96);
+      box-shadow: 0 12px 30px rgba(2,8,20,.25);
+    }
+
+    #buscador-paradas:focus,
+    #buscador-filtros-lineas:focus {
+      border-color: rgba(125, 180, 221, .6);
+      box-shadow: 0 0 0 3px rgba(80, 150, 205, .1);
+    }
+
+    .tool-button:hover,
+    .line-filter-toggle:hover {
+      border-color: rgba(125, 180, 221, .32);
+      background: rgba(65, 112, 153, .12);
+    }
+
+    .line-filter-toggle[aria-expanded="true"] {
+      border-color: rgba(125, 180, 221, .34);
+      background: rgba(65, 112, 153, .12);
+    }
+
+    .fleet-vehicle-card:hover,
+    .fleet-vehicle-card:focus-visible {
+      border-color: rgba(125, 180, 221, .38);
+    }
+
+    .stop-next-service-button {
+      border-color: #cbdced;
+      background: #f1f7fc;
+      color: #225b86;
+    }
+
+    .stop-next-service-button:hover,
+    .stop-next-service-button:focus-visible {
+      border-color: #7daed3;
+      background: #e5f1fa;
+    }
+
+    @media (max-width: 700px) {
+      .menu-header {
+        grid-template-columns: 48px minmax(0, 1fr);
+        grid-template-rows: auto;
+        column-gap: 13px;
+      }
+
+      .menu-header > i {
+        grid-column: 1;
+        grid-row: 1;
+        width: 48px;
+        height: 48px;
+        margin: 0;
+      }
+
+      .menu-header-copy {
+        grid-column: 2;
+        grid-row: 1;
+        gap: 3px;
+      }
+
+      .menu-header-copy h1 {
+        font-size: clamp(19px, 5.3vw, 24px);
+        line-height: 1.13;
+      }
+
+      .menu-header-copy p { font-size: 10px; }
+    }
+
+    @media (max-width: 380px) {
+      .menu-header {
+        grid-template-columns: 42px minmax(0, 1fr);
+        column-gap: 10px;
+      }
+
+      .menu-header > i {
+        width: 42px;
+        height: 42px;
+        border-radius: 13px;
+        font-size: 18px;
+      }
+
+      .menu-header-copy .menu-eyebrow { font-size: 7px; }
+      .menu-header-copy h1 { font-size: 18px; }
+      .menu-header-copy p { font-size: 9px; }
+    }
+
   </style>
 </head>
 <body>
@@ -3267,10 +3523,6 @@
 
   <!-- Tarjeta Flotante sobre el Mapa -->
   <div class="header-card" id="header-card" style="display: none;">
-    <div class="panel-eyebrow">
-      <span><i class="fa-solid fa-tower-broadcast"></i> CENTRO DE CONTROL</span>
-      <span class="panel-network-label">TPA · ARAGÓN</span>
-    </div>
     <div class="header-title">
       <div class="line-badge">
         <span class="badge-tag" id="badge-linea-tag">T05</span>
