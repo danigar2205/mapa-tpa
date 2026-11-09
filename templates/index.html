@@ -2264,6 +2264,636 @@
       }
     }
 
+  
+    
+    /* MAPA TPA · CONTROL CENTER / EXPERIENCE UPDATE */
+    .menu-header {
+      grid-template-columns: 62px minmax(0, 1fr);
+      grid-template-rows: auto;
+      align-items: center;
+      column-gap: 18px;
+      margin-bottom: 26px;
+    }
+
+    .menu-header > i {
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    .menu-header-copy {
+      grid-column: 2;
+      grid-row: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+    }
+
+    .menu-eyebrow, .fleet-overline {
+      color: #7dd3fc;
+      font-size: 9px;
+      font-weight: 850;
+      letter-spacing: .16em;
+      line-height: 1.3;
+    }
+
+    .menu-header h1 {
+      font-size: clamp(24px, 3vw, 33px);
+      line-height: 1.08;
+      letter-spacing: -.05em;
+    }
+
+    .menu-header p {
+      color: #a8bbcf;
+      font-size: 12px;
+    }
+
+    .menu-section-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin: 2px 0 13px;
+      padding: 15px 0 0;
+      border-top: 1px solid rgba(187, 213, 239, .12);
+    }
+
+    .menu-section-heading h2 {
+      color: #edf6ff;
+      font-size: 14px;
+      line-height: 1.25;
+      font-weight: 800;
+      letter-spacing: -.02em;
+    }
+
+    .menu-section-heading p {
+      margin-top: 4px;
+      color: #91a7bf;
+      font-size: 10px;
+      line-height: 1.4;
+    }
+
+    .menu-section-count {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex: 0 0 auto;
+      padding: 7px 10px;
+      border: 1px solid rgba(74, 222, 128, .22);
+      border-radius: 99px;
+      background: rgba(22, 101, 52, .16);
+      color: #9be9b4;
+      font-size: 10px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .lista-botones { gap: 11px; }
+
+    .btn-menu {
+      position: relative;
+      overflow: hidden;
+      border-radius: 16px;
+      text-align: left;
+      transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease, background .2s ease;
+    }
+
+    .btn-menu.btn-deshabilitado {
+      opacity: .72;
+      filter: saturate(.62);
+    }
+
+    .btn-menu:not(.btn-deshabilitado) {
+      border-color: rgba(125, 211, 252, .34);
+      background: linear-gradient(140deg, rgba(22, 126, 190, .98), rgba(24, 77, 150, .98));
+      box-shadow: 0 10px 26px rgba(2, 25, 58, .25), inset 0 1px 0 rgba(255,255,255,.12);
+    }
+
+    .btn-menu.is-available::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 3px;
+      height: 100%;
+      background: linear-gradient(180deg, #6ee7b7, #38bdf8);
+      box-shadow: 0 0 18px rgba(56, 189, 248, .45);
+    }
+
+    .btn-menu.is-available .concession-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      width: fit-content;
+      margin-top: 5px;
+      padding: 3px 7px;
+      border: 1px solid rgba(134, 239, 172, .23);
+      border-radius: 99px;
+      background: rgba(4, 50, 48, .28);
+      color: #bbf7d0;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: .025em;
+    }
+
+    .btn-menu.is-available .concession-status::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #86efac;
+      box-shadow: 0 0 0 3px rgba(134,239,172,.12);
+    }
+
+    .btn-menu.btn-deshabilitado .concession-status {
+      color: #93a4b8;
+      font-size: 9px;
+      letter-spacing: .02em;
+    }
+
+    /* Encabezado y estado del centro de control. */
+    .panel-eyebrow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 0 1px 13px;
+      color: #83cfee;
+      font-size: 9px;
+      font-weight: 850;
+      letter-spacing: .15em;
+    }
+
+    .panel-eyebrow > span:first-child {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .panel-network-label {
+      color: #8298b0;
+      font-size: 8px;
+      letter-spacing: .12em;
+    }
+
+    .header-card .header-title {
+      padding-bottom: 14px;
+      border-bottom: 1px solid rgba(190, 213, 239, .11);
+    }
+
+    .header-card .badge-tag {
+      min-width: 54px;
+      min-height: 48px;
+      border-radius: 14px;
+      font-size: 16px;
+      background: linear-gradient(145deg, #1686c8, #2056c4);
+    }
+
+    .header-card .badge-text h1 {
+      font-size: 14px;
+      letter-spacing: -.025em;
+    }
+
+    .header-card .badge-text p {
+      color: #9aafc5;
+      font-size: 10px;
+    }
+
+    .header-card .live-status {
+      border-radius: 99px;
+      transition: color .2s ease, background .2s ease, border-color .2s ease;
+    }
+
+    .header-card .live-status[data-estado="online"] {
+      color: #9bf2b7;
+      border-color: rgba(74, 222, 128, .28);
+      background: rgba(22, 101, 52, .2);
+    }
+
+    .header-card .live-status[data-estado="offline"] {
+      color: #fecaca;
+      border-color: rgba(248, 113, 113, .3);
+      background: rgba(127, 29, 29, .2);
+    }
+
+    .header-card .live-status[data-estado="empty"] {
+      color: #fcd38d;
+      border-color: rgba(251, 191, 36, .25);
+      background: rgba(120, 73, 12, .18);
+    }
+
+    .header-card .info-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
+      gap: 9px;
+      margin-top: 13px;
+      padding: 11px;
+      border: 1px solid rgba(190, 213, 239, .12);
+      border-radius: 15px;
+      background: linear-gradient(120deg, rgba(255,255,255,.065), rgba(255,255,255,.025));
+    }
+
+    .header-card .info-item { min-width: 0; gap: 4px; }
+    .header-card .info-label {
+      color: #90a7bf;
+      font-size: 8px;
+      letter-spacing: .12em;
+    }
+
+    .header-card .info-value {
+      color: #e7f4ff !important;
+      font-size: 11px;
+      line-height: 1.4;
+      font-weight: 750;
+      overflow-wrap: anywhere;
+    }
+
+    .fleet-section {
+      margin-top: 17px;
+      min-width: 0;
+    }
+
+    .fleet-section-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+
+    .fleet-section-heading > div {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .fleet-overline {
+      color: #78c9ef;
+      font-size: 8px;
+      letter-spacing: .14em;
+    }
+
+    .fleet-section-heading h2 {
+      color: #f2f7fc;
+      font-size: 14px;
+      line-height: 1.2;
+      letter-spacing: -.025em;
+      font-weight: 800;
+    }
+
+    .fleet-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 34px;
+      height: 34px;
+      padding: 0 9px;
+      border: 1px solid rgba(96, 165, 250, .23);
+      border-radius: 12px;
+      background: rgba(37, 99, 235, .16);
+      color: #bfdbfe;
+      font-size: 15px;
+      font-weight: 850;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .fleet-state {
+      margin: 0 0 9px;
+      color: #8da4bc;
+      font-size: 9px;
+      line-height: 1.4;
+    }
+
+    .fleet-list {
+      display: grid;
+      gap: 8px;
+      max-height: 276px;
+      overflow: auto;
+      padding: 1px 4px 3px 1px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148, 176, 205, .28) transparent;
+      overscroll-behavior: contain;
+    }
+
+    .fleet-list.is-stale { opacity: .63; }
+
+    .fleet-vehicle-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      width: 100%;
+      min-width: 0;
+      padding: 11px 12px 10px;
+      overflow: hidden;
+      border: 1px solid rgba(169, 199, 229, .14);
+      border-radius: 14px;
+      background: linear-gradient(125deg, rgba(32, 54, 80, .64), rgba(17, 32, 52, .7));
+      color: #eaf3fb;
+      text-align: left;
+      cursor: pointer;
+      transition: transform .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease;
+    }
+
+    .fleet-vehicle-card::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 3px;
+      background: var(--fleet-route-color, #38bdf8);
+      opacity: .95;
+    }
+
+    .fleet-vehicle-card:hover,
+    .fleet-vehicle-card:focus-visible {
+      transform: translateY(-1px);
+      border-color: rgba(125, 211, 252, .38);
+      background: linear-gradient(125deg, rgba(34, 66, 99, .8), rgba(17, 39, 64, .82));
+      box-shadow: 0 8px 20px rgba(0,0,0,.16);
+    }
+
+    .fleet-card-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .fleet-route-tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 50px;
+      padding: 5px 7px;
+      border: 1px solid color-mix(in srgb, var(--fleet-route-color, #38bdf8) 42%, transparent);
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--fleet-route-color, #38bdf8) 20%, transparent);
+      color: #f4f9ff;
+      font-size: 10px;
+      font-weight: 850;
+      letter-spacing: .025em;
+    }
+
+    .fleet-vehicle-number {
+      min-width: 0;
+      color: #9eb2c8;
+      font-size: 10px;
+    }
+
+    .fleet-vehicle-number strong {
+      color: #f0f6fc;
+      font-size: 11px;
+    }
+
+    .fleet-card-open {
+      margin-left: auto;
+      color: #7691ac;
+      font-size: 10px;
+    }
+
+    .fleet-destination-label {
+      color: #7f99b3;
+      font-size: 7px;
+      font-weight: 850;
+      letter-spacing: .14em;
+    }
+
+    .fleet-destination {
+      display: -webkit-box;
+      overflow: hidden;
+      color: #f4f8fd;
+      font-size: 12px;
+      line-height: 1.3;
+      font-weight: 750;
+      overflow-wrap: anywhere;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+
+    .fleet-card-metrics {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .fleet-metric, .fleet-occupancy {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      min-height: 24px;
+      padding: 4px 7px;
+      border: 1px solid rgba(174, 199, 225, .12);
+      border-radius: 8px;
+      background: rgba(255,255,255,.055);
+      color: #c8d8e8;
+      font-size: 9px;
+      line-height: 1.2;
+      font-weight: 750;
+    }
+
+    .fleet-metric i { color: #83d3f7; }
+    .fleet-occupancy.occ-green { color: #bbf7d0; border-color: rgba(74,222,128,.2); background: rgba(22,101,52,.19); }
+    .fleet-occupancy.occ-yellow { color: #fde68a; border-color: rgba(250,204,21,.2); background: rgba(133,77,14,.18); }
+    .fleet-occupancy.occ-orange { color: #fed7aa; border-color: rgba(251,146,60,.22); background: rgba(154,52,18,.18); }
+    .fleet-occupancy.occ-red { color: #fecaca; border-color: rgba(248,113,113,.22); background: rgba(127,29,29,.2); }
+    .fleet-occupancy.occ-gray { color: #cbd5e1; }
+
+    .fleet-next-stop {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      padding-top: 7px;
+      border-top: 1px solid rgba(180, 204, 228, .1);
+      color: #92a9c1;
+      font-size: 9px;
+      line-height: 1.35;
+    }
+
+    .fleet-next-stop > i { margin-top: 1px; color: #7dd3fc; }
+    .fleet-next-stop strong { color: #d7e7f5; font-weight: 700; }
+
+    .fleet-empty {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      min-height: 68px;
+      padding: 13px;
+      border: 1px dashed rgba(155, 183, 212, .2);
+      border-radius: 13px;
+      background: rgba(255,255,255,.025);
+      color: #9db2c8;
+      font-size: 10px;
+      line-height: 1.45;
+    }
+
+    .fleet-empty i {
+      display: grid;
+      place-items: center;
+      flex: 0 0 32px;
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      background: rgba(56,189,248,.1);
+      color: #7dd3fc;
+      font-size: 13px;
+    }
+
+    .tools-section-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 17px;
+      margin-bottom: 9px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(190, 213, 239, .11);
+      color: #e1ebf5;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .tools-section-heading i { color: #80a2c2; font-size: 11px; }
+
+    /* Ficha del autobús: mismo lenguaje visual del panel lateral. */
+    .bus-popup {
+      min-width: 236px;
+      max-width: 300px;
+      color: #152b42;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    .bus-popup-heading {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      margin-bottom: 13px;
+    }
+
+    .bus-popup-line {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      min-width: 51px;
+      min-height: 44px;
+      padding: 7px;
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--fleet-route-color, #1689d4) 13%, white);
+      color: var(--fleet-route-color, #1689d4);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .bus-popup-heading > div {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .bus-popup-overline {
+      color: #7a8fa4;
+      font-size: 8px;
+      font-weight: 850;
+      letter-spacing: .13em;
+    }
+
+    .bus-popup-title { color: #142c45; font-size: 15px; line-height: 1.2; }
+    .bus-popup-plate { color: #6b7e91; font-size: 10px; }
+
+    .bus-popup-destination {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-bottom: 10px;
+      padding: 11px 12px;
+      border: 1px solid #e3edf5;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #f4f9fd, #edf5fb);
+    }
+
+    .bus-popup-destination span {
+      color: #70869a;
+      font-size: 8px;
+      font-weight: 850;
+      letter-spacing: .13em;
+    }
+
+    .bus-popup-destination strong {
+      color: #17324d;
+      font-size: 13px;
+      line-height: 1.3;
+    }
+
+    .bus-popup-details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+    }
+
+    .bus-popup-details > div {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+      padding: 9px;
+      border: 1px solid #e7edf3;
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    .bus-popup-details > div span { color: #8293a4; font-size: 8px; font-weight: 750; }
+    .bus-popup-details > div strong { color: #243d56; font-size: 10px; line-height: 1.35; overflow-wrap: anywhere; }
+
+    .bus-popup-occupancy {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 10px;
+      padding: 7px 10px;
+      border-radius: 9px;
+      font-size: 10px;
+    }
+
+    @media (max-width: 700px) {
+      .menu-header {
+        grid-template-columns: 48px minmax(0, 1fr);
+        grid-template-rows: auto;
+        column-gap: 13px;
+        margin-bottom: 17px;
+      }
+
+      .menu-header > i { grid-column: 1; grid-row: 1; }
+      .menu-header-copy { grid-column: 2; grid-row: 1; gap: 3px; }
+      .menu-eyebrow { font-size: 8px; }
+      .menu-header h1 { font-size: clamp(19px, 5.4vw, 24px); }
+      .menu-header p { font-size: 10px; }
+      .menu-section-heading { margin-bottom: 10px; padding-top: 12px; }
+      .menu-section-heading h2 { font-size: 12px; }
+      .menu-section-heading p { font-size: 9px; }
+      .menu-section-count { padding: 6px 8px; font-size: 9px; }
+
+      .panel-eyebrow { margin-bottom: 9px; font-size: 8px; }
+      .header-card .header-title { padding-bottom: 10px; margin-bottom: 10px; }
+      .fleet-section { margin-top: 12px; }
+      .fleet-section-heading h2 { font-size: 12px; }
+      .fleet-count { min-width: 30px; height: 30px; font-size: 13px; }
+      .fleet-state { margin-bottom: 6px; font-size: 8px; }
+      .fleet-list { max-height: 142px; gap: 6px; }
+      .fleet-vehicle-card { gap: 5px; padding: 8px 9px; border-radius: 11px; }
+      .fleet-destination { font-size: 10px; }
+      .fleet-card-metrics { gap: 5px; }
+      .fleet-metric, .fleet-occupancy { min-height: 21px; font-size: 8px; }
+      .fleet-next-stop { padding-top: 5px; font-size: 8px; }
+      .tools-section-heading { margin-top: 12px; margin-bottom: 7px; padding-top: 10px; font-size: 10px; }
+      .bus-popup { min-width: min(236px, calc(100vw - 100px)); max-width: calc(100vw - 88px); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .fleet-vehicle-card, .btn-menu, .feedback-open-button { transition: none !important; }
+    }
+
   </style>
 </head>
 <body>
@@ -2273,8 +2903,19 @@
     <div class="menu-card">
       <div class="menu-header">
         <i class="fa-solid fa-bus-simple"></i>
-        <h1>Mapa de concesiones TPA</h1>
-        <p>Selecciona una concesión para consultar sus servicios</p>
+        <div class="menu-header-copy">
+          <span class="menu-eyebrow">MOVILIDAD · ARAGÓN</span>
+          <h1>Mapa de concesiones TPA</h1>
+          <p>Explora la red de transporte y consulta sus servicios.</p>
+        </div>
+      </div>
+
+      <div class="menu-section-heading">
+        <div>
+          <h2>Concesiones de transporte</h2>
+          <p>Selecciona una zona para abrir su mapa</p>
+        </div>
+        <span class="menu-section-count"><i class="fa-solid fa-signal"></i> 1 activa</span>
       </div>
 
       <div class="lista-botones">
@@ -2434,6 +3075,10 @@
 
   <!-- Tarjeta Flotante sobre el Mapa -->
   <div class="header-card" id="header-card" style="display: none;">
+    <div class="panel-eyebrow">
+      <span><i class="fa-solid fa-tower-broadcast"></i> CENTRO DE CONTROL</span>
+      <span class="panel-network-label">TPA · ARAGÓN</span>
+    </div>
     <div class="header-title">
       <div class="line-badge">
         <span class="badge-tag" id="badge-linea-tag">T05</span>
@@ -2457,7 +3102,7 @@
 
     <div class="info-grid">
       <div class="info-item">
-        <span class="info-label">Coches Activos</span>
+        <span class="info-label">Coches identificados</span>
         <span class="info-value" id="bus-info">Conectando...</span>
       </div>
       <div class="info-item">
@@ -2466,6 +3111,24 @@
       </div>
     </div>
 
+    <section class="fleet-section" aria-label="Autobuses en circulación">
+      <div class="fleet-section-heading">
+        <div>
+          <span class="fleet-overline">SEGUIMIENTO EN DIRECTO</span>
+          <h2>Autobuses en circulación</h2>
+        </div>
+        <span class="fleet-count" id="fleet-count">—</span>
+      </div>
+      <p class="fleet-state" id="fleet-state" role="status" aria-live="polite">Esperando datos de posición…</p>
+      <div class="fleet-list" id="fleet-list">
+        <div class="fleet-empty"><i class="fa-solid fa-satellite-dish"></i><span>Conectando con el sistema de posiciones…</span></div>
+      </div>
+    </section>
+
+    <div class="tools-section-heading">
+      <span>Herramientas del mapa</span>
+      <i class="fa-solid fa-sliders" aria-hidden="true"></i>
+    </div>
     <div class="map-tools">
       <div class="stop-search-row">
         <input id="buscador-paradas" type="search" autocomplete="off"
@@ -2603,6 +3266,7 @@
 
           boton.disabled = !disponible;
           boton.classList.toggle('btn-deshabilitado', !disponible);
+          boton.classList.toggle('is-available', disponible);
           boton.title = estadoInterfaz;
           if (subtitulo) subtitulo.innerHTML = escaparHTML(configuracion.descripcion) +
             '<small class="concession-status">' + escaparHTML(estadoInterfaz) + '</small>';
@@ -2611,7 +3275,11 @@
       } catch (error) {
         console.warn('No se pudo cargar el catálogo de concesiones:', error);
         const botonT05 = lista.querySelector('[data-concesion="T05"]');
-        if (botonT05) botonT05.onclick = () => iniciarMapa('T05');
+        if (botonT05) {
+          botonT05.classList.add('is-available');
+          botonT05.classList.remove('btn-deshabilitado');
+          botonT05.onclick = () => iniciarMapa('T05');
+        }
       }
     }
 
@@ -3644,7 +4312,10 @@
       if (configuracionConcesionActiva.funciones.tiempo_real) {
         document.getElementById('vehicle-subtitle').innerText = 'Localización en tiempo real';
         document.getElementById('vehicle-title').innerText = 'Buscando autobuses...';
-        document.getElementById('bus-info').innerText = 'Conectando con el servicio GTFS-RT...';
+        document.getElementById('bus-info').innerText = 'Consultando vehículos...';
+        document.getElementById('fleet-count').innerText = '—';
+        document.getElementById('fleet-list').classList.remove('is-stale');
+        document.getElementById('fleet-list').innerHTML = '<div class="fleet-empty"><i class="fa-solid fa-satellite-dish"></i><span>Conectando con el sistema de posiciones…</span></div>';
         actualizarEstadoConexion('connecting', 'CONECTANDO');
         actualizarBus();
         intervaloTimer = setInterval(actualizarBus, 5000);
@@ -3652,8 +4323,10 @@
         document.getElementById('vehicle-subtitle').innerText = 'Mapa de paradas y horarios oficiales';
         actualizarEstadoConexion('empty', 'SIN TIEMPO REAL');
         document.getElementById('vehicle-title').innerText = 'Seguimiento en directo no disponible';
-        document.getElementById('bus-info').innerText = 'Esta concesión no dispone de un feed GTFS-RT.';
+        document.getElementById('bus-info').innerText = 'Seguimiento GPS no disponible';
         document.getElementById('last-updated').innerText = '—';
+        document.getElementById('fleet-count').innerText = '—';
+        document.getElementById('fleet-list').innerHTML = '<div class="fleet-empty"><i class="fa-solid fa-map-location-dot"></i><span>Esta concesión ofrece el mapa de paradas y los horarios oficiales.</span></div>';
       }
     }
 
@@ -3683,6 +4356,16 @@
       if (!indicador || !punto || !etiqueta) return;
       etiqueta.innerText = texto;
       indicador.dataset.estado = estado;
+      const resumenFlota = document.getElementById('fleet-state');
+      if (resumenFlota) {
+        const mensajes = {
+          online: 'Posiciones recibidas correctamente',
+          connecting: 'Estableciendo conexión con los vehículos…',
+          offline: 'Conexión interrumpida · última posición conocida',
+          empty: 'No hay autobuses publicados en este momento'
+        };
+        resumenFlota.textContent = mensajes[estado] || texto;
+      }
       punto.style.backgroundColor = estado === 'online' ? '#22c55e' : (estado === 'offline' ? '#ef4444' : '#f59e0b');
       punto.style.animation = estado === 'online' ? 'pulse-green 2s infinite' : 'none';
     }
@@ -3703,6 +4386,7 @@
           actualizarEstadoConexion('online', 'EN VIVO');
           const idsVivos = new Set();
           const detallesCoches = [];
+          const tarjetasFlota = [];
           const puntosLatLng = [];
 
           datos.forEach((bus) => {
@@ -3725,26 +4409,52 @@
             puntosLatLng.push([lat, lon]);
             detallesCoches.push(matricula ? `${coche} (${matricula})` : `${coche}`);
 
-            const popupContent = `
-              <div style="text-align: center; font-family: sans-serif; padding: 6px; min-width: 180px;">
-                <b style="font-size: 1.1rem; color: #2563eb;">Línea ${escaparHTML(bus.linea || lineaSolicitada)}</b><br>
-                <span style="font-size: 0.95rem; font-weight: bold; color: #1e293b;">Nº Coche: ${escaparHTML(coche)}</span><br>
-                ${matricula ? `<span style="font-size: 0.8rem; color: #64748b;">Matrícula: ${escaparHTML(matricula)}</span><br>` : ''}
-                
-                <div style="margin: 8px 0; padding: 6px 8px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 0.78rem; text-align: left;">
-                  <div style="margin-bottom: 3px;"><i class="fa-solid fa-route" style="color: #8b5cf6; width: 16px;"></i> <b>Destino:</b> ${escaparHTML(destino)}</div>
-                  <div style="margin-bottom: 3px;"><i class="fa-solid fa-clock" style="color: #2563eb; width: 16px;"></i> <b>Estado:</b> ${escaparHTML(retraso)}</div>
-                  <div><i class="fa-solid fa-location-dot" style="color: #ef4444; width: 16px;"></i> <b>Próxima:</b> ${escaparHTML(proximaParada)}</div>
-                  <div><i class="fa-solid fa-gauge-high" style="color: #0f766e; width: 16px;"></i> <b>Velocidad:</b> ${escaparHTML(velocidadTexto)}</div>
-                </div>
+            const lineaBus = bus.linea || lineaSolicitada;
+            const colorFlota = COLORES_LINEA[lineaBus] || '#1689d4';
+            const colorOcupacion = ['green', 'yellow', 'orange', 'red', 'gray'].includes(occColor) ? occColor : 'gray';
+            tarjetasFlota.push(`
+              <button type="button" class="fleet-vehicle-card" data-bus-id="${escaparHTML(idUnico)}"
+                aria-label="Localizar autobús ${escaparHTML(coche)}">
+                <span class="fleet-card-top">
+                  <span class="fleet-route-tag" style="--fleet-route-color: ${colorFlota}">${escaparHTML(lineaBus)}</span>
+                  <span class="fleet-vehicle-number">Coche <strong>${escaparHTML(coche)}</strong></span>
+                  <i class="fa-solid fa-arrow-up-right-from-square fleet-card-open" aria-hidden="true"></i>
+                </span>
+                <span class="fleet-destination-label">DESTINO</span>
+                <span class="fleet-destination">${escaparHTML(destino)}</span>
+                <span class="fleet-card-metrics">
+                  <span class="fleet-metric"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i>${escaparHTML(velocidadTexto)}</span>
+                  <span class="fleet-occupancy occ-${colorOcupacion}"><i class="fa-solid fa-users" aria-hidden="true"></i>${escaparHTML(ocupacion)}</span>
+                </span>
+                <span class="fleet-next-stop"><i class="fa-solid fa-location-dot" aria-hidden="true"></i><span>Próxima parada: <strong>${escaparHTML(proximaParada)}</strong></span></span>
+              </button>
+            `);
 
-                <div class="occ-badge occ-${occColor}">
-                  <i class="fa-solid fa-users" style="margin-right: 4px;"></i>${escaparHTML(ocupacion)}
+            const popupContent = `
+              <div class="bus-popup">
+                <div class="bus-popup-heading">
+                  <span class="bus-popup-line" style="--fleet-route-color: ${colorFlota}">${escaparHTML(lineaBus)}</span>
+                  <div>
+                    <span class="bus-popup-overline">VEHÍCULO EN SERVICIO</span>
+                    <strong class="bus-popup-title">Autobús ${escaparHTML(coche)}</strong>
+                    ${matricula ? `<span class="bus-popup-plate">${escaparHTML(matricula)}</span>` : ''}
+                  </div>
+                </div>
+                <div class="bus-popup-destination">
+                  <span>DESTINO</span>
+                  <strong>${escaparHTML(destino)}</strong>
+                </div>
+                <div class="bus-popup-details">
+                  <div><span>Estado</span><strong>${escaparHTML(retraso)}</strong></div>
+                  <div><span>Próxima parada</span><strong>${escaparHTML(proximaParada)}</strong></div>
+                  <div><span>Velocidad</span><strong>${escaparHTML(velocidadTexto)}</strong></div>
+                </div>
+                <div class="bus-popup-occupancy occ-badge occ-${colorOcupacion}">
+                  <i class="fa-solid fa-users" aria-hidden="true"></i>${escaparHTML(ocupacion)}
                 </div>
               </div>
             `;
 
-            const lineaBus = bus.linea || lineaSolicitada;
             const iconoBus = obtenerIconoBus(lineaBus);
             if (marcadoresBuses[idUnico]) {
               marcadoresBuses[idUnico].setLatLng([lat, lon]);
@@ -3760,6 +4470,9 @@
           });
 
           aplicarFiltrosLineas();
+          document.getElementById('fleet-count').innerText = String(datos.length);
+          document.getElementById('fleet-list').classList.remove('is-stale');
+          document.getElementById('fleet-list').innerHTML = tarjetasFlota.join('');
 
           // Eliminar marcadores inactivos
           Object.keys(marcadoresBuses).forEach(id => {
@@ -3770,8 +4483,8 @@
           });
 
           const ahora = new Date();
-          document.getElementById('vehicle-title').innerText = `${datos.length} coche(s) en servicio`;
-          document.getElementById('bus-info').innerText = detallesCoches.join(' | ');
+          document.getElementById('vehicle-title').innerText = `${datos.length} autobús(es) en servicio`;
+          document.getElementById('bus-info').innerText = detallesCoches.join(' · ');
           document.getElementById('last-updated').innerText = ahora.toLocaleTimeString();
 
           if (primeraCarga && puntosLatLng.length > 0) {
@@ -3790,8 +4503,11 @@
             map.removeLayer(marcadoresBuses[id]);
             delete marcadoresBuses[id];
           });
-          document.getElementById('vehicle-title').innerText = "Sin servicio";
-          document.getElementById('bus-info').innerText = "Sin señal de bus";
+          document.getElementById('vehicle-title').innerText = "Sin autobuses en circulación";
+          document.getElementById('bus-info').innerText = "No hay vehículos identificados";
+          document.getElementById('fleet-count').innerText = '0';
+          document.getElementById('fleet-list').classList.remove('is-stale');
+          document.getElementById('fleet-list').innerHTML = '<div class="fleet-empty"><i class="fa-solid fa-bus-simple"></i><span>No se han recibido autobuses en esta actualización.</span></div>';
         }
       } catch (error) {
         actualizarEstadoConexion('offline', 'SIN CONEXIÓN');
@@ -3803,13 +4519,43 @@
             ? "Conexión perdida · última posición"
             : "Sin conexión";
           document.getElementById('bus-info').innerText = marcadoresConocidos.length
-            ? "Las posiciones visibles son las últimas conocidas, no datos actuales."
+            ? "Mostrando las últimas posiciones conocidas."
             : "No se han podido actualizar los datos";
+          document.getElementById('fleet-list').classList.add('is-stale');
+          if (!document.getElementById('fleet-list').children.length) {
+            document.getElementById('fleet-list').innerHTML = '<div class="fleet-empty"><i class="fa-solid fa-cloud-arrow-down"></i><span>No se ha podido recuperar la posición de los vehículos.</span></div>';
+          }
         }
       } finally {
         solicitudEnCurso = false;
       }
     }
+
+    function centrarEnVehiculo(id) {
+      const marcador = marcadoresBuses[String(id)];
+      if (!map || !marcador) return;
+
+      // Si el usuario había ocultado esta línea con los filtros, la activamos
+      // para que el vehículo elegido también sea visible en el mapa.
+      const linea = marcador._lineaBus;
+      if (linea && filtrosLineas[linea] === false) {
+        filtrosLineas[linea] = true;
+        const botonFiltro = document.querySelector('[data-line-filter="' + CSS.escape(linea) + '"]');
+        botonFiltro?.classList.add('active');
+        botonFiltro?.setAttribute('aria-pressed', 'true');
+        actualizarResumenFiltrosLineas();
+        aplicarFiltrosLineas();
+      }
+
+      if (!map.hasLayer(marcador)) marcador.addTo(map);
+      map.flyTo(marcador.getLatLng(), Math.max(15, map.getZoom()), { duration: 0.9 });
+      map.once('moveend', () => marcador.openPopup());
+    }
+
+    document.getElementById('fleet-list')?.addEventListener('click', evento => {
+      const tarjeta = evento.target.closest('.fleet-vehicle-card');
+      if (tarjeta) centrarEnVehiculo(tarjeta.dataset.busId);
+    });
 
     function centrarEnBus() {
       const marcadores = Object.values(marcadoresBuses).filter(marcador => map.hasLayer(marcador));
