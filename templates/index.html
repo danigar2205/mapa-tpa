@@ -3349,6 +3349,128 @@
       .menu-header-copy p { font-size: 9px; }
     }
 
+  
+    
+    /* MAPA TPA · FLOTA AGRUPADA Y FILTROS SINCRONIZADOS */
+    .fleet-filter-summary {
+      margin: -3px 0 9px;
+      color: #9fb4c9;
+      font-size: 9px;
+      line-height: 1.4;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .fleet-list {
+      gap: 10px;
+    }
+
+    .fleet-route-group[hidden],
+    .fleet-route-vehicles[hidden],
+    .fleet-vehicle-card[hidden] {
+      display: none !important;
+    }
+
+    .fleet-route-group {
+      display: grid;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .fleet-route-group-toggle {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      width: 100%;
+      min-height: 48px;
+      padding: 7px 10px;
+      border: 1px solid rgba(169, 199, 229, .16);
+      border-radius: 12px;
+      background: linear-gradient(120deg, rgba(47, 73, 101, .62), rgba(19, 36, 57, .7));
+      color: #eaf3fb;
+      text-align: left;
+      cursor: pointer;
+      transition: border-color .16s ease, background .16s ease;
+    }
+
+    .fleet-route-group-toggle:hover,
+    .fleet-route-group-toggle:focus-visible {
+      border-color: rgba(125, 180, 221, .38);
+      background: rgba(49, 81, 114, .68);
+    }
+
+    .fleet-route-group-toggle .fleet-route-tag {
+      flex: 0 0 auto;
+      min-width: 62px;
+      min-height: 31px;
+      border-radius: 9px;
+    }
+
+    .fleet-route-group-copy {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .fleet-route-group-copy strong {
+      color: #f2f7fc;
+      font-size: 10px;
+      font-weight: 850;
+      line-height: 1.2;
+    }
+
+    .fleet-route-group-copy small {
+      color: #91a9c1;
+      font-size: 8px;
+      line-height: 1.2;
+    }
+
+    .fleet-group-chevron {
+      margin-left: auto;
+      color: #9ab4cc;
+      font-size: 10px;
+    }
+
+    .fleet-route-vehicles {
+      display: grid;
+      gap: 7px;
+      padding-left: 8px;
+    }
+
+    .fleet-vehicle-card {
+      gap: 6px;
+      padding: 9px 11px 9px 13px;
+      border-radius: 12px;
+    }
+
+    .fleet-vehicle-number {
+      font-size: 10px;
+    }
+
+    .fleet-vehicle-plate {
+      min-width: 0;
+      overflow: hidden;
+      color: #8fa7bf;
+      font-size: 8px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .fleet-route-group-toggle[aria-expanded="false"] {
+      border-color: rgba(169, 199, 229, .12);
+      background: rgba(255,255,255,.035);
+    }
+
+    @media (max-width: 700px) {
+      .fleet-filter-summary { margin-bottom: 7px; font-size: 8px; }
+      .fleet-route-group-toggle { min-height: 42px; padding: 6px 8px; border-radius: 10px; }
+      .fleet-route-group-toggle .fleet-route-tag { min-width: 56px; min-height: 28px; font-size: 9px; }
+      .fleet-route-group-copy strong { font-size: 9px; }
+      .fleet-route-group-copy small { font-size: 7px; }
+      .fleet-route-vehicles { gap: 6px; padding-left: 5px; }
+      .fleet-vehicle-card { padding: 8px 9px 8px 11px; }
+    }
+
   </style>
 </head>
 <body>
@@ -3571,6 +3693,7 @@
         <span class="fleet-count" id="fleet-count">—</span>
       </div>
       <p class="fleet-state" id="fleet-state" role="status" aria-live="polite">Esperando datos de posición…</p>
+      <p class="fleet-filter-summary" id="fleet-filter-summary" aria-live="polite">Esperando autobuses para organizar la flota…</p>
       <div class="fleet-list" id="fleet-list">
         <div class="fleet-empty"><i class="fa-solid fa-satellite-dish"></i><span>Conectando con el sistema de posiciones…</span></div>
       </div>
@@ -3673,6 +3796,7 @@
     let marcadoresParadas = {};
     let listaParadas = [];
     let filtrosLineas = { 'T05-01': true, 'T05-20': true, 'T05-50': true };
+    const gruposFlotaPlegados = new Set();
     const CLAVE_FAVORITOS = 'mapa-tpa-favoritos-v1';
     let favoritosParadas = leerFavoritos();
     let intervaloAlertasFavoritos = null;
@@ -4120,12 +4244,43 @@
       aplicarFiltrosLineas();
     }
 
+    function actualizarVisibilidadFlota() {
+      const lista = document.getElementById('fleet-list');
+      if (!lista) return;
+
+      const grupos = Array.from(lista.querySelectorAll('[data-fleet-group]'));
+      let total = 0;
+      let visibles = 0;
+
+      grupos.forEach(grupo => {
+        const linea = grupo.dataset.fleetGroup;
+        const visible = filtrosLineas[linea] !== false;
+        const tarjetas = Array.from(grupo.querySelectorAll('.fleet-vehicle-card'));
+        total += tarjetas.length;
+        tarjetas.forEach(tarjeta => { tarjeta.hidden = !visible; });
+        grupo.hidden = !visible;
+        if (visible) visibles += tarjetas.length;
+      });
+
+      const contador = document.getElementById('fleet-count');
+      const resumen = document.getElementById('fleet-filter-summary');
+      if (contador) contador.textContent = String(visibles);
+
+      if (resumen) {
+        if (!total) resumen.textContent = 'No hay autobuses recibidos en esta actualización.';
+        else if (!visibles) resumen.textContent = 'Todas las líneas están ocultas. Activa alguna para ver autobuses.';
+        else if (visibles === total) resumen.textContent = 'Mostrando los ' + total + ' autobuses recibidos.';
+        else resumen.textContent = 'Mostrando ' + visibles + ' de ' + total + ' autobuses según los filtros.';
+      }
+    }
+
     function aplicarFiltrosLineas() {
       Object.values(marcadoresBuses).forEach(marcador => {
         const visible = filtrosLineas[marcador._lineaBus] !== false;
         if (visible && !map.hasLayer(marcador)) marcador.addTo(map);
         else if (!visible && map.hasLayer(marcador)) map.removeLayer(marcador);
       });
+      actualizarVisibilidadFlota();
     }
 
     const iconosBus = {};
@@ -4751,6 +4906,7 @@
       marcadoresParadas = {};
       listaParadas = [];
       lineaActiva = codigo;
+      gruposFlotaPlegados.clear();
       configuracionConcesionActiva = config || { funciones: { paradas: true, horarios: true, tiempo_real: true } };
       inicializarHerramientas();
       document.getElementById('badge-linea-tag').innerText = codigo;
@@ -4837,7 +4993,7 @@
           actualizarEstadoConexion('online', 'EN VIVO');
           const idsVivos = new Set();
           const detallesCoches = [];
-          const tarjetasFlota = [];
+          const autobusesFlota = [];
           const puntosLatLng = [];
 
           datos.forEach((bus) => {
@@ -4863,23 +5019,18 @@
             const lineaBus = bus.linea || lineaSolicitada;
             const colorFlota = COLORES_LINEA[lineaBus] || '#1689d4';
             const colorOcupacion = ['green', 'yellow', 'orange', 'red', 'gray'].includes(occColor) ? occColor : 'gray';
-            tarjetasFlota.push(`
-              <button type="button" class="fleet-vehicle-card" data-bus-id="${escaparHTML(idUnico)}"
-                aria-label="Localizar autobús ${escaparHTML(coche)}">
-                <span class="fleet-card-top">
-                  <span class="fleet-route-tag" style="--fleet-route-color: ${colorFlota}">${escaparHTML(lineaBus)}</span>
-                  <span class="fleet-vehicle-number">Coche <strong>${escaparHTML(coche)}</strong></span>
-                  <i class="fa-solid fa-arrow-up-right-from-square fleet-card-open" aria-hidden="true"></i>
-                </span>
-                <span class="fleet-destination-label">DESTINO</span>
-                <span class="fleet-destination">${escaparHTML(destino)}</span>
-                <span class="fleet-card-metrics">
-                  <span class="fleet-metric"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i>${escaparHTML(velocidadTexto)}</span>
-                  <span class="fleet-occupancy occ-${colorOcupacion}"><i class="fa-solid fa-users" aria-hidden="true"></i>${escaparHTML(ocupacion)}</span>
-                </span>
-                <span class="fleet-next-stop"><i class="fa-solid fa-location-dot" aria-hidden="true"></i><span>Próxima parada: <strong>${escaparHTML(proximaParada)}</strong></span></span>
-              </button>
-            `);
+            autobusesFlota.push({
+              id: idUnico,
+              coche,
+              matricula,
+              linea: lineaBus,
+              color: colorFlota,
+              ocupacion,
+              colorOcupacion,
+              velocidad: velocidadTexto,
+              destino,
+              proximaParada
+            });
 
             // Etiqueta histórica conservada como referencia: Velocidad:</b>
             // La ficha actual presenta este dato con una etiqueta semántica.
@@ -4922,10 +5073,66 @@
             }
           });
 
-          aplicarFiltrosLineas();
-          document.getElementById('fleet-count').innerText = String(datos.length);
+          // Agrupar la flota por línea y ordenar los coches de forma natural
+          // (por ejemplo, 8 antes que 10). El Set conserva qué grupos ha plegado
+          // el usuario durante las actualizaciones periódicas del GTFS-RT.
+          autobusesFlota.sort((a, b) =>
+            String(a.linea).localeCompare(String(b.linea), 'es', { numeric: true, sensitivity: 'base' }) ||
+            String(a.coche).localeCompare(String(b.coche), 'es', { numeric: true, sensitivity: 'base' })
+          );
+
+          const gruposPorLinea = new Map();
+          autobusesFlota.forEach(bus => {
+            if (!gruposPorLinea.has(bus.linea)) gruposPorLinea.set(bus.linea, []);
+            gruposPorLinea.get(bus.linea).push(bus);
+          });
+
+          const htmlFlota = Array.from(gruposPorLinea.entries()).map(([linea, autobuses], indice) => {
+            const color = autobuses[0]?.color || '#1689d4';
+            const idPanel = 'fleet-route-panel-' + indice;
+            const plegado = gruposFlotaPlegados.has(linea);
+            const tarjetas = autobuses.map(bus => `
+              <button type="button" class="fleet-vehicle-card"
+                data-bus-id="${escaparHTML(bus.id)}"
+                data-linea-bus="${escaparHTML(bus.linea)}"
+                aria-label="Localizar autobús ${escaparHTML(bus.coche)} de la línea ${escaparHTML(bus.linea)}">
+                <span class="fleet-card-top">
+                  <span class="fleet-vehicle-number">Coche <strong>${escaparHTML(bus.coche)}</strong></span>
+                  ${bus.matricula ? `<span class="fleet-vehicle-plate">${escaparHTML(bus.matricula)}</span>` : ''}
+                  <i class="fa-solid fa-arrow-up-right-from-square fleet-card-open" aria-hidden="true"></i>
+                </span>
+                <span class="fleet-destination-label">DESTINO</span>
+                <span class="fleet-destination">${escaparHTML(bus.destino)}</span>
+                <span class="fleet-card-metrics">
+                  <span class="fleet-metric"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i>${escaparHTML(bus.velocidad)}</span>
+                  <span class="fleet-occupancy occ-${bus.colorOcupacion}"><i class="fa-solid fa-users" aria-hidden="true"></i>${escaparHTML(bus.ocupacion)}</span>
+                </span>
+                <span class="fleet-next-stop"><i class="fa-solid fa-location-dot" aria-hidden="true"></i><span>Próxima parada: <strong>${escaparHTML(bus.proximaParada)}</strong></span></span>
+              </button>
+            `).join('');
+
+            return `
+              <section class="fleet-route-group" data-fleet-group="${escaparHTML(linea)}">
+                <button type="button" class="fleet-route-group-toggle"
+                  data-toggle-fleet-group="${escaparHTML(linea)}"
+                  aria-expanded="${String(!plegado)}" aria-controls="${idPanel}">
+                  <span class="fleet-route-tag" style="--fleet-route-color: ${color}">${escaparHTML(linea)}</span>
+                  <span class="fleet-route-group-copy">
+                    <strong>${escaparHTML(linea)}</strong>
+                    <small>${autobuses.length} ${autobuses.length === 1 ? 'autobús' : 'autobuses'}</small>
+                  </span>
+                  <i class="fa-solid fa-chevron-${plegado ? 'down' : 'up'} fleet-group-chevron" aria-hidden="true"></i>
+                </button>
+                <div class="fleet-route-vehicles" id="${idPanel}" ${plegado ? 'hidden' : ''}>
+                  ${tarjetas}
+                </div>
+              </section>
+            `;
+          }).join('');
+
           document.getElementById('fleet-list').classList.remove('is-stale');
-          document.getElementById('fleet-list').innerHTML = tarjetasFlota.join('');
+          document.getElementById('fleet-list').innerHTML = htmlFlota;
+          aplicarFiltrosLineas();
 
           // Eliminar marcadores inactivos
           Object.keys(marcadoresBuses).forEach(id => {
@@ -4961,6 +5168,7 @@
           document.getElementById('fleet-count').innerText = '0';
           document.getElementById('fleet-list').classList.remove('is-stale');
           document.getElementById('fleet-list').innerHTML = '<div class="fleet-empty"><i class="fa-solid fa-bus-simple"></i><span>No se han recibido autobuses en esta actualización.</span></div>';
+          document.getElementById('fleet-filter-summary').textContent = 'No hay autobuses que mostrar.';
         }
       } catch (error) {
         actualizarEstadoConexion('offline', 'SIN CONEXIÓN');
@@ -5006,6 +5214,24 @@
     }
 
     document.getElementById('fleet-list')?.addEventListener('click', evento => {
+      const botonGrupo = evento.target.closest('[data-toggle-fleet-group]');
+      if (botonGrupo) {
+        const linea = botonGrupo.dataset.toggleFleetGroup;
+        const grupo = botonGrupo.closest('[data-fleet-group]');
+        const panel = grupo?.querySelector('.fleet-route-vehicles');
+        if (!panel) return;
+
+        const plegar = !panel.hidden;
+        panel.hidden = plegar;
+        botonGrupo.setAttribute('aria-expanded', String(!plegar));
+        const chevron = botonGrupo.querySelector('.fleet-group-chevron');
+        chevron?.classList.toggle('fa-chevron-down', plegar);
+        chevron?.classList.toggle('fa-chevron-up', !plegar);
+        if (plegar) gruposFlotaPlegados.add(linea);
+        else gruposFlotaPlegados.delete(linea);
+        return;
+      }
+
       const tarjeta = evento.target.closest('.fleet-vehicle-card');
       if (tarjeta) centrarEnVehiculo(tarjeta.dataset.busId);
     });
