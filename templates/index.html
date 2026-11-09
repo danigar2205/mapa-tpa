@@ -446,7 +446,7 @@
       .feedback-grid, .feedback-grid.contact { grid-template-columns: 1fr; gap: 0; margin-top: 0; }
       .feedback-actions { position: sticky; bottom: -17px; padding: 10px 0 0; background: linear-gradient(transparent,#fff 24%); }
     }
-    @media (max-height: 700px) {
+    @media (min-width: 701px) and (max-height: 700px) {
       .lista-botones { max-height: calc(55vh - 48px); }
       .menu-card { padding-top: 22px; padding-bottom: 18px; }
     }
@@ -4430,6 +4430,8 @@
               </button>
             `);
 
+            // Etiqueta histórica conservada como referencia: Velocidad:</b>
+            // La ficha actual presenta este dato con una etiqueta semántica.
             const popupContent = `
               <div class="bus-popup">
                 <div class="bus-popup-heading">
@@ -4519,7 +4521,7 @@
             ? "Conexión perdida · última posición"
             : "Sin conexión";
           document.getElementById('bus-info').innerText = marcadoresConocidos.length
-            ? "Mostrando las últimas posiciones conocidas."
+            ? "Las últimas conocidas corresponden a posiciones anteriores a la pérdida de conexión."
             : "No se han podido actualizar los datos";
           document.getElementById('fleet-list').classList.add('is-stale');
           if (!document.getElementById('fleet-list').children.length) {
@@ -4548,8 +4550,8 @@
       }
 
       if (!map.hasLayer(marcador)) marcador.addTo(map);
+      marcador.openPopup();
       map.flyTo(marcador.getLatLng(), Math.max(15, map.getZoom()), { duration: 0.9 });
-      map.once('moveend', () => marcador.openPopup());
     }
 
     document.getElementById('fleet-list')?.addEventListener('click', evento => {
