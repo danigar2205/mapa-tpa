@@ -2227,8 +2227,10 @@
           const segundosRestantes = Number(item.timestampMostrado) - ahoraTimestamp;
           item.mostrarCuentaAtras = segundosRestantes < 30 * 60;
           item.minutosRestantes = Math.max(0, Math.ceil(segundosRestantes / 60));
+          const estaLlegando = item.minutosRestantes <= 0 ||
+            (item.estado === 'Tiempo real' && item.minutosRestantes <= 1);
           item.tiempoPrincipal = item.mostrarCuentaAtras
-            ? (item.minutosRestantes > 0 ? 'En ' + item.minutosRestantes + ' min' : 'Llegando')
+            ? (estaLlegando ? 'Llegando' : 'En ' + item.minutosRestantes + ' min')
             : item.horaMostrada;
         });
 
