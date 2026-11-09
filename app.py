@@ -1150,6 +1150,23 @@ def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05", stop_ids=None):
     mapa = dataset["map"]
     lookup = dataset["lookup"]
     ahora = time.time()
+
+    # Nombres de las paradas seleccionadas, incluidos los marcadores fusionados.
+    # Sirve como segunda protección cuando el proveedor RT no permite resolver
+    # el stop_sequence terminal mediante el trip_id estático.
+    nombres_parada_objetivo = set()
+    for paradas_linea in mapa.get("stops", {}).values():
+        for parada in paradas_linea:
+            ids_registro = {
+                str(valor) for valor in (parada.get("stop_ids") or [
+                    parada.get("id") or parada.get("stop_id") or ""
+                ]) if valor
+            }
+            if ids_registro.intersection(ids_parada_objetivo):
+                nombre = normalizar_nombre_parada_gtfs(parada.get("name"))
+                if nombre:
+                    nombres_parada_objetivo.add(nombre)
+
     llegadas = []
     feed_disponible = False
     headers = {
@@ -1204,6 +1221,11 @@ def obtener_llegadas_en_tiempo_real(stop_id, concesion="T05", stop_ids=None):
                 destino, _ = resolver_destino_y_parada(codigo, route_id, direccion, None)
                 if not destino or destino == "En trayecto":
                     destino = info_ruta.get("long_name", "Destino no disponible")
+
+                # No anunciar como salida un servicio cuyo destino es la misma
+                # parada terminal seleccionada (incluida puntuación variable).
+                if normalizar_nombre_parada_gtfs(destino) in nombres_parada_objetivo:
+                    continue
 
                 for actualizacion_parada in actualizacion.stop_time_update:
                     if actualizacion_parada.HasField("schedule_relationship") and actualizacion_parada.schedule_relationship == gtfs_realtime_pb2.TripUpdate.StopTimeUpdate.SKIPPED:
@@ -1478,10 +1500,17 @@ def obtener_proxima_fecha_servicio_gtfs(horario, service_ids, fecha_inicio, fech
     return None
 
 def normalizar_nombre_parada_gtfs(valor):
-    """Normaliza nombres para comparar el destino con la parada seleccionada."""
+    """Normaliza nombres para comparar destinos aunque GTFS añada puntuación."""
     texto = unicodedata.normalize("NFKD", str(valor or "").casefold())
+    sin_acentos = "".join(
+        caracter for caracter in texto if not unicodedata.combining(caracter)
+    )
+    # En GTFS algunos destinos llevan un punto final (p. ej. «Castejón de
+    # Monegros.») y el nombre de la parada no. Convertimos la puntuación en
+    # espacios para que ambos nombres se comparen como la misma localidad.
     return " ".join(
-        "".join(caracter for caracter in texto if not unicodedata.combining(caracter)).split()
+        "".join(caracter if caracter.isalnum() or caracter.isspace() else " "
+                for caracter in sin_acentos).split()
     )
 
 
