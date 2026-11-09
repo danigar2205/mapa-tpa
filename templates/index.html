@@ -2041,6 +2041,229 @@
       }
     }
 
+  
+    
+    /* MAPA TPA · iOS POLISH 2026
+       Selector inicial más limpio y panel de escritorio ajustado al contenido. */
+    @media (min-width: 701px) {
+      #pantalla-inicio {
+        align-items: center;
+        justify-content: center;
+        padding: clamp(22px, 3vh, 38px) clamp(20px, 3vw, 48px);
+      }
+
+      .menu-card {
+        width: min(100%, 1040px);
+        max-width: 1040px;
+        max-height: calc(100dvh - 52px);
+        padding: clamp(28px, 3.2vw, 42px);
+        border-radius: 30px;
+        border-color: rgba(214, 232, 250, .19);
+        background:
+          linear-gradient(145deg, rgba(22, 39, 62, .96), rgba(10, 20, 35, .97));
+        box-shadow:
+          0 36px 100px rgba(0, 0, 0, .46),
+          inset 0 1px 0 rgba(255, 255, 255, .09),
+          inset 0 -1px 0 rgba(125, 180, 225, .045);
+      }
+
+      .menu-header {
+        grid-template-columns: 66px minmax(0, 1fr);
+        column-gap: 19px;
+        margin-bottom: 27px;
+      }
+
+      .menu-header > i {
+        width: 66px;
+        height: 66px;
+        border-radius: 21px;
+        border-color: rgba(125, 211, 252, .31);
+        background: linear-gradient(145deg, rgba(56, 189, 248, .24), rgba(37, 99, 235, .15));
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,.12),
+          0 14px 34px rgba(2, 132, 199, .17);
+      }
+
+      .menu-header h1 {
+        font-size: clamp(26px, 2.8vw, 34px);
+        letter-spacing: -.05em;
+      }
+
+      .menu-header p {
+        font-size: 13px;
+        color: #afc0d3;
+      }
+
+      .lista-botones {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        max-height: min(56dvh, 520px);
+        padding: 3px 7px 5px 2px;
+      }
+
+      .btn-menu {
+        min-height: 76px;
+        gap: 13px;
+        padding: 12px 14px;
+        border-radius: 17px;
+        box-shadow: 0 8px 22px rgba(2, 30, 69, .2);
+      }
+
+      .btn-menu:not(.btn-deshabilitado) {
+        background: linear-gradient(145deg, #147fc0 0%, #155bb2 100%);
+        border-color: rgba(125, 211, 252, .34);
+        box-shadow:
+          0 9px 24px rgba(2, 30, 69, .24),
+          inset 0 1px 0 rgba(255,255,255,.16);
+      }
+
+      .btn-menu.btn-deshabilitado {
+        background: linear-gradient(145deg, rgba(44, 60, 81, .62), rgba(25, 39, 58, .66));
+      }
+
+      .btn-title {
+        min-width: 56px;
+        min-height: 44px;
+        border-radius: 12px;
+        font-size: 15px;
+      }
+
+      .btn-subtitle {
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .feedback-open-button {
+        min-height: 70px;
+        margin-top: 19px;
+        padding: 13px 16px;
+        border-radius: 17px;
+        border-color: rgba(172, 199, 226, .17);
+        background: linear-gradient(110deg, rgba(255,255,255,.065), rgba(255,255,255,.025));
+        transition: transform .2s ease, background .2s ease, border-color .2s ease;
+      }
+
+      .feedback-open-button:hover {
+        transform: translateY(-1px);
+        border-color: rgba(125, 211, 252, .38);
+        background: rgba(255,255,255,.085);
+      }
+
+      /* El panel deja de estirarse hasta el borde inferior de la pantalla. */
+      .header-card {
+        position: fixed;
+        top: max(20px, env(safe-area-inset-top));
+        bottom: auto !important;
+        left: 20px;
+        right: auto;
+        width: min(386px, calc(100vw - 40px));
+        max-width: 386px;
+        height: auto;
+        max-height: calc(100dvh - 40px);
+        display: flex;
+        flex-direction: column;
+        padding: 19px 19px 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+        border-radius: 25px;
+        border-color: rgba(205, 225, 245, .18);
+        background:
+          linear-gradient(155deg, rgba(16, 31, 51, .97), rgba(8, 18, 33, .965));
+        box-shadow:
+          0 28px 76px rgba(2, 8, 20, .38),
+          inset 0 1px 0 rgba(255,255,255,.075);
+      }
+
+      .header-title {
+        margin-bottom: 15px;
+      }
+
+      .info-grid {
+        grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr);
+      }
+
+      .map-tools {
+        margin-top: 14px;
+      }
+
+      .footer-actions {
+        position: relative;
+        bottom: auto;
+        flex: 0 0 auto;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        gap: 8px;
+        margin: 17px -19px 0;
+        padding: 13px 19px max(14px, env(safe-area-inset-bottom));
+        border-top: 1px solid rgba(190, 213, 239, .13);
+        border-radius: 0 0 25px 25px;
+        background: linear-gradient(180deg, rgba(15, 29, 48, .96), rgba(8, 18, 33, .99));
+      }
+
+      .footer-actions .btn-menu-back {
+        margin-right: auto;
+      }
+
+      .btn-action {
+        min-height: 42px;
+        padding: 0 12px;
+        border-radius: 12px;
+        font-size: 11px;
+      }
+
+      .panel-show-button {
+        top: max(20px, env(safe-area-inset-top));
+        left: 20px;
+        border-radius: 15px;
+      }
+    }
+
+    @media (min-width: 701px) and (max-width: 900px) {
+      .lista-botones {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        max-height: min(52dvh, 470px);
+      }
+
+      .header-card {
+        left: 14px;
+        width: min(366px, calc(100vw - 28px));
+        max-width: 366px;
+        max-height: calc(100dvh - 28px);
+        padding-left: 17px;
+        padding-right: 17px;
+      }
+
+      .footer-actions {
+        margin-left: -17px;
+        margin-right: -17px;
+        padding-left: 17px;
+        padding-right: 17px;
+      }
+    }
+
+    @media (min-width: 701px) and (max-height: 620px) {
+      .header-card {
+        top: 10px;
+        max-height: calc(100dvh - 20px);
+      }
+
+      .menu-card {
+        max-height: calc(100dvh - 28px);
+        padding-top: 22px;
+        padding-bottom: 22px;
+      }
+
+      .menu-header { margin-bottom: 16px; }
+      .lista-botones { max-height: 43dvh; }
+      .feedback-open-button { min-height: 58px; margin-top: 12px; }
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .header-card, .menu-card, .btn-menu, .feedback-open-button {
+        transition-timing-function: cubic-bezier(.2, .75, .25, 1);
+      }
+    }
+
   </style>
 </head>
 <body>
