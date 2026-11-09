@@ -1116,6 +1116,17 @@ class FusionParadasYTerminalesTests(unittest.TestCase):
 
 
 class HorariosGTFSTests(unittest.TestCase):
+    def test_normaliza_destino_terminal_con_puntuacion(self):
+        normalizar = app_module.normalizar_nombre_parada_gtfs
+        self.assertEqual(
+            normalizar("Castejón de Monegros."),
+            normalizar("Castejón de Monegros"),
+        )
+        self.assertEqual(
+            normalizar("Castejón-de Monegros"),
+            normalizar("Castejón de Monegros"),
+        )
+
     def test_se_carga_el_horario_de_las_tres_lineas(self):
         nombres = {
             info["short_name"] for info in GTFS_T05_SCHEDULE["routes"].values()
