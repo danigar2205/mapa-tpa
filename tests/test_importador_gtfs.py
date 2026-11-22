@@ -5,6 +5,7 @@ from pathlib import Path
 
 from gtfs_datasets import cargar_datasets_gtfs
 from scripts.importar_gtfs import convertir_gtfs
+from scripts.importar_gtfs_lote import importar_gtfs_lote
 
 
 GTFS_FILES = {
@@ -42,6 +43,45 @@ def escribir_zip(ruta, contenidos):
         for nombre, contenido in contenidos.items():
             archivo.writestr("feed/" + nombre, contenido)
 
+
+class ImportadorGTFSLoteTests(unittest.TestCase):
+    def test_importa_agencias_con_rutas_y_conserva_agencias_vacias(self):
+        with tempfile.TemporaryDirectory() as temporal:
+            raiz = Path(temporal)
+            zip_path = raiz / "gtfs_aragon.zip"
+            data_dir = raiz / "data"
+            multi = dict(GTFS_FILES)
+            multi["agency.txt"] = (
+                "agency_id,agency_name,agency_url,agency_timezone\\n"
+                "T01,Concesión T01,,Europe/Madrid\\n"
+                "T02,Concesión T02,,Europe/Madrid\\n"
+                "T03,Concesión T03,,Europe/Madrid\\n"
+            )
+            multi["routes.txt"] += "ruta-2,T02,T02-01,Ejemplo T02,0088CC\\n"
+            multi["stops.txt"] += "parada-3,Parada T02,41.6700,-0.9000\\n"
+            multi["trips.txt"] += "ruta-2,servicio-2,viaje-2,Barbastro,1\\n"
+            multi["stop_times.txt"] += (
+                "viaje-2,09:00:00,09:00:00,parada-3,1\\n"
+            )
+            multi["calendar.txt"] += (
+                "servicio-2,0,0,0,0,0,1,1,20260101,20271231\\n"
+            )
+            escribir_zip(zip_path, multi)
+
+            data_dir.mkdir()
+            sentinel = data_dir / "gtfs_t03_map.json.gz.b64"
+            sentinel.write_text("datos T03 anteriores", encoding="ascii")
+
+            resultado = importar_gtfs_lote(zip_path, data_dir)
+
+            self.assertEqual(set(resultado["importadas"]), {"T01", "T02"})
+            self.assertEqual(resultado["sin_rutas"], ["T03"])
+            self.assertEqual(
+                sentinel.read_text(encoding="ascii"),
+                "datos T03 anteriores",
+            )
+            self.assertTrue((data_dir / "gtfs_t01_map.json.gz.b64").is_file())
+            self.assertTrue((data_dir / "gtfs_t02_map.json.gz.b64").is_file())
 
 class ImportadorGTFSTests(unittest.TestCase):
     def test_importa_zip_y_deja_datos_listos_para_la_aplicacion(self):
