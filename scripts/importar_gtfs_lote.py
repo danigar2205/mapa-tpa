@@ -14,7 +14,11 @@ import sys
 import zipfile
 from pathlib import Path
 
-from scripts.importar_gtfs import convertir_gtfs, leer_csv
+# Admite tanto la ejecución directa del script como su importación desde tests.
+try:
+    from scripts.importar_gtfs import convertir_gtfs, leer_csv
+except ModuleNotFoundError:
+    from importar_gtfs import convertir_gtfs, leer_csv
 
 
 def descubrir_concesiones(zip_path: Path) -> tuple[list[str], list[str]]:
