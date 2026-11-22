@@ -1,0 +1,100 @@
+name: Importar actualización GTFS de Aragón
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "gtfs_actualizacion_aragon.zip"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: importar-gtfs-aragon
+  cancel-in-progress: false
+
+jobs:
+  importar:
+    if: ${{ contains(join(github.event.head_commit.added, ','), 'gtfs_actualizacion_aragon.zip') || contains(join(github.event.head_commit.modified, ','), 'gtfs_actualizacion_aragon.zip') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Comprobar ZIP
+        run: |
+          test -f gtfs_actualizacion_aragon.zip
+          python - <<'PY'
+          from pathlib import Path
+          import zipfile
+          path = Path("gtfs_actualizacion_aragon.zip")
+          print(f"ZIP recibido: {path.stat().st_size:,} bytes")
+          if not zipfile.is_zipfile(path):
+              raise SystemExit("El archivo no es un ZIP válido.")
+          with zipfile.ZipFile(path) as z:
+              names = {name.rsplit("/", 1)[-1].lower() for name in z.namelist()}
+              required = {"agency.txt", "routes.txt", "stops.txt", "trips.txt", "stop_times.txt"}
+              missing = required - names
+              if missing:
+                  raise SystemExit(f"Faltan archivos GTFS: {sorted(missing)}")
+          PY
+
+      - name: Instalar dependencias
+        run: python -m pip install -r requirements.txt
+
+      - name: Importar todas las concesiones con rutas
+        run: python scripts/importar_gtfs_lote.py gtfs_actualizacion_aragon.zip
+
+      - name: Validar datos, conservar concesiones vacías y comprobar tiempo real
+        run: |
+          python - <<'PY'
+          from gtfs_datasets import CONCESIONES_CON_TIEMPO_REAL, cargar_datasets_gtfs
+
+          expected = [
+              "T01", "T02", "T04", "T05", "T07", "T08",
+              "T09", "T10", "T12", "T13", "T14", "T15",
+          ]
+          if set(CONCESIONES_CON_TIEMPO_REAL) != {"T05"}:
+              raise SystemExit("La configuración de tiempo real debe seguir limitada a T05.")
+
+          datasets = cargar_datasets_gtfs("data")
+          for code in expected:
+              item = datasets.get(code)
+              if not item or not item.get("has_map") or not item["map"].get("routes"):
+                  raise SystemExit(f"{code}: mapa vacío o no válido.")
+              if not item.get("has_schedules") or not item["schedule"].get("stop_times"):
+                  raise SystemExit(f"{code}: horarios vacíos o no válidos.")
+              if bool(item.get("has_realtime")) != (code == "T05"):
+                  raise SystemExit(f"{code}: configuración de tiempo real inesperada.")
+              print(
+                  f"{code}: {len(item['map']['routes'])} rutas y "
+                  f"{len(item['schedule']['stop_times'])} pasos horarios"
+              )
+
+          # El nuevo ZIP no trae rutas para estas concesiones: se mantienen los datos anteriores.
+          for code in ("T06", "T11"):
+              item = datasets.get(code)
+              if not item or not item.get("has_map") or not item["map"].get("routes"):
+                  raise SystemExit(f"{code}: no se han conservado los datos anteriores.")
+          print("Validación correcta: T06 y T11 conservadas; solo T05 con tiempo real.")
+          PY
+
+      - name: Retirar ZIP y guardar la actualización en main
+        shell: bash
+        run: |
+          rm gtfs_actualizacion_aragon.zip
+          git add -A data/ gtfs_actualizacion_aragon.zip
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Actualiza GTFS estático de Autobuses de Aragón"
+          git push origin HEAD:main
