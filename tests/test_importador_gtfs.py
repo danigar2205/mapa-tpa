@@ -52,19 +52,19 @@ class ImportadorGTFSLoteTests(unittest.TestCase):
             data_dir = raiz / "data"
             multi = dict(GTFS_FILES)
             multi["agency.txt"] = (
-                "agency_id,agency_name,agency_url,agency_timezone\\n"
-                "T01,Concesión T01,,Europe/Madrid\\n"
-                "T02,Concesión T02,,Europe/Madrid\\n"
-                "T03,Concesión T03,,Europe/Madrid\\n"
+                "agency_id,agency_name,agency_url,agency_timezone\n"
+                "T01,Concesión T01,,Europe/Madrid\n"
+                "T02,Concesión T02,,Europe/Madrid\n"
+                "T03,Concesión T03,,Europe/Madrid\n"
             )
-            multi["routes.txt"] += "ruta-2,T02,T02-01,Ejemplo T02,0088CC\\n"
-            multi["stops.txt"] += "parada-3,Parada T02,41.6700,-0.9000\\n"
-            multi["trips.txt"] += "ruta-2,servicio-2,viaje-2,Barbastro,1\\n"
+            multi["routes.txt"] += "ruta-2,T02,T02-01,Ejemplo T02,0088CC\n"
+            multi["stops.txt"] += "parada-3,Parada T02,41.6700,-0.9000\n"
+            multi["trips.txt"] += "ruta-2,servicio-2,viaje-2,Barbastro,1\n"
             multi["stop_times.txt"] += (
-                "viaje-2,09:00:00,09:00:00,parada-3,1\\n"
+                "viaje-2,09:00:00,09:00:00,parada-3,1\n"
             )
             multi["calendar.txt"] += (
-                "servicio-2,0,0,0,0,0,1,1,20260101,20271231\\n"
+                "servicio-2,0,0,0,0,0,1,1,20260101,20271231\n"
             )
             escribir_zip(zip_path, multi)
 
