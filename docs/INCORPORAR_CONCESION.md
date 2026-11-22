@@ -4,6 +4,17 @@ La aplicación carga los datos GTFS de cada concesión de forma independiente. U
 
 ## 1. Importar GTFS estático
 
+Para un ZIP que incluye varias agencias/concesiones, puedes importar de una vez todas las que tengan rutas:
+
+```bash
+python scripts/importar_gtfs_lote.py descarga_gtfs.zip
+```
+
+El importador genera los tres ficheros de cada concesión en `data/`. Si `agency.txt` declara una concesión pero `routes.txt` no contiene ninguna ruta para ella, la omite y conserva los ficheros existentes. Esto evita vaciar por accidente concesiones incompletas del ZIP.
+
+También puedes importar una sola concesión con el comando individual que aparece más abajo.
+
+
 Descarga el ZIP GTFS oficial y ejecuta el importador desde la raíz del proyecto:
 
 ```bash
