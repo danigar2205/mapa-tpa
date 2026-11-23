@@ -3194,10 +3194,12 @@ def consultar_flota_avanza_urbana():
             "de recorridos y se ha recurrido a los postes configurados o al poste 14. " +
             "Este resultado no representa toda la flota."
         )
-    elif errores_catalogo:
+    elif errores_catalogo or errores:
+        paradas_sin_respuesta = max(0, total_postes - len(paradas_por_id))
         aviso_cobertura = (
-            "Cobertura parcial: algunos recorridos no se han podido leer. "
-            "Se han deduplicado los coches recibidos, pero pueden faltar vehículos."
+            f"Cobertura parcial: {len(paradas_por_id)} de {total_postes} paradas respondieron; "
+            f"{paradas_sin_respuesta} no devolvieron respuesta válida. "
+            "Puede faltar algún vehículo hasta el siguiente barrido."
         )
     else:
         aviso_cobertura = (
@@ -3220,6 +3222,7 @@ def consultar_flota_avanza_urbana():
         ),
         "total_paradas": total_postes,
         "paradas_descubiertas": total_postes,
+        "paradas_sin_respuesta": max(0, total_postes - len(paradas_por_id)),
         "_postes_red": postes,
         "lineas_descubiertas": lineas_descubiertas,
         "sentidos_consultados": sentidos_consultados,
@@ -3443,7 +3446,7 @@ def _trabajador_barrido_avanza(descriptor_bloqueo=None):
                 "total_progreso_general": resultado["sentidos_consultados"] + resultado["total_paradas"],
                 "sentidos_consultados": resultado["sentidos_consultados"],
                 "total_sentidos": resultado["sentidos_consultados"],
-                "paradas_gps_completadas": resultado["total_paradas"],
+                "paradas_gps_completadas": len(resultado["paradas_consultadas"]),
                 "coches_unicos_detectados": len(resultado["buses"]),
                 "buses_parciales": [],
                 "buses_gps_parciales": [],
