@@ -1,4 +1,5 @@
 import os
+import html
 # Desactivar extensión C de Protobuf para compatibilidad con Python 3.11+
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
@@ -1874,6 +1875,264 @@ def get_buses(linea):
     return jsonify({
         "error": "No se pudo conectar con ningún feed de posiciones GTFS-RT."
     }), 503
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AVANZA ZARAGOZA · POSICIONES GPS POR PARADA
+#
+# Avanza no ofrece en este endpoint un volcado global documentado de la flota:
+# cada POST devuelve los vehículos que llegan a UN poste concreto. La lista se
+# puede ampliar mediante AVANZA_URBAN_POSTES, separada por comas. Por defecto
+# solo se usa el poste 14, cuya respuesta GPS se ha comprobado manualmente.
+# ─────────────────────────────────────────────────────────────────────────────
+
+AVANZA_URBANOS_ENDPOINT = (
+    "https://gps.avanzabus.com/index.php/zaragoza/fRefrescaEmpresaExternos"
+)
+AVANZA_URBANOS_TTL = 15
+AVANZA_URBANOS_CACHE = {"timestamp": 0.0, "data": None}
+AVANZA_URBANOS_LOCK = threading.Lock()
+
+
+def obtener_postes_avanza_urbanos():
+    """Códigos de poste configurados; 14 es el único validado hasta ahora."""
+    raw = os.environ.get("AVANZA_URBAN_POSTES", "14")
+    postes = []
+    for fragmento in raw.split(","):
+        try:
+            poste = int(fragmento.strip())
+        except (TypeError, ValueError):
+            continue
+        if poste > 0 and poste not in postes:
+            postes.append(poste)
+    return postes or [14]
+
+
+def limpiar_texto_html_avanza(valor):
+    """Convierte celdas HTML del popup de Avanza a texto plano."""
+    texto = re.sub(r"<[^>]*>", " ", str(valor or ""))
+    return re.sub(r"\s+", " ", html.unescape(texto)).strip()
+
+
+def extraer_bus_avanza(maquina, poste, nombre_parada=None):
+    """Interpreta una entrada bus.png de maquinas; ignora marcadores de parada."""
+    if not isinstance(maquina, dict):
+        return None
+
+    icono = str(maquina.get("icon") or "").split("?")[0].rsplit("/", 1)[-1].lower()
+    if icono != "bus.png":
+        return None
+
+    coordenadas = maquina.get("coordenadas") or {}
+    punto = None
+    if isinstance(coordenadas, dict):
+        punto = coordenadas.get("0")
+        if punto is None and coordenadas:
+            punto = next(iter(coordenadas.values()))
+    elif isinstance(coordenadas, list) and coordenadas:
+        punto = coordenadas[0]
+    if not isinstance(punto, dict):
+        return None
+
+    validas = validar_coordenadas(punto.get("LAT"), punto.get("LON"))
+    if validas is None:
+        return None
+    lat, lon = validas
+
+    titulo = str(maquina.get("title") or "").strip()
+    titulo_match = re.match(r"^([^\s]+)\s+(\d+)\s*$", titulo)
+    linea = titulo_match.group(1) if titulo_match else ""
+    coche = titulo_match.group(2) if titulo_match else ""
+
+    celdas = [
+        limpiar_texto_html_avanza(celda)
+        for celda in re.findall(r"<td\b[^>]*>(.*?)</td>", str(maquina.get("info") or ""), flags=re.I | re.S)
+    ]
+    destino = ""
+    eta_minutos = None
+    distancia_km = None
+
+    # La respuesta de Avanza coloca los valores debajo de los cuatro títulos
+    # (Bus, Línea, Tiempo, Distancia). El título del marcador sirve de respaldo.
+    if len(celdas) >= 8:
+        coche = re.sub(r"^\D+", "", celdas[4]) or coche
+        linea_destino = celdas[5]
+        coincidencia = re.match(r"^\s*([^\s]+)\s*->\s*(.*?)\s*$", linea_destino)
+        if coincidencia:
+            linea = coincidencia.group(1) or linea
+            destino = coincidencia.group(2).strip()
+        eta_match = re.search(r"(-?\d+)\s*min", celdas[6], flags=re.I)
+        if eta_match:
+            eta_minutos = int(eta_match.group(1))
+        distancia_match = re.search(r"([\d.,]+)\s*km", celdas[7], flags=re.I)
+        if distancia_match:
+            try:
+                distancia_km = float(distancia_match.group(1).replace(",", "."))
+            except ValueError:
+                distancia_km = None
+
+    if not coche:
+        return None
+    if not linea:
+        linea = "?"
+    return {
+        "id": coche,
+        "coche": coche,
+        "linea": linea,
+        "destino": destino or "Destino no indicado",
+        "lat": float(lat),
+        "lon": float(lon),
+        "eta_minutos": eta_minutos,
+        "distancia_km": distancia_km,
+        "poste": int(poste),
+        "parada": nombre_parada or f"Parada {poste}",
+    }
+
+
+def consultar_flota_avanza_urbana():
+    """
+    Consulta los postes configurados y deduplica los vehículos por coche.
+    La caché global evita repetir el POST por cada navegador conectado.
+    """
+    with AVANZA_URBANOS_LOCK:
+        ahora = time.monotonic()
+        cacheada = AVANZA_URBANOS_CACHE.get("data")
+        if cacheada is not None and ahora - AVANZA_URBANOS_CACHE["timestamp"] < AVANZA_URBANOS_TTL:
+            return cacheada
+
+        postes = obtener_postes_avanza_urbanos()
+        headers = {
+            "User-Agent": "Mozilla/5.0 (compatible; MapaTPA/1.0)",
+            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "X-Requested-With": "XMLHttpRequest",
+        }
+        buses_por_coche = {}
+        paradas_consultadas = []
+        errores = []
+
+        for poste in postes:
+            try:
+                respuesta = requests.post(
+                    AVANZA_URBANOS_ENDPOINT,
+                    data={"poste": str(poste), "coche": "0"},
+                    headers={
+                        **headers,
+                        "Referer": f"https://gps.avanzabus.com/zaragoza/fParadas/{poste}",
+                    },
+                    timeout=(4, 8),
+                )
+                if respuesta.status_code != 200:
+                    errores.append(f"poste {poste}: HTTP {respuesta.status_code}")
+                    continue
+
+                datos = respuesta.json()
+                if not isinstance(datos, dict) or "maquinas" not in datos:
+                    errores.append(f"poste {poste}: respuesta sin máquinas GPS")
+                    continue
+
+                maquinas = datos.get("maquinas") or {}
+                if isinstance(maquinas, dict):
+                    entradas = maquinas.values()
+                elif isinstance(maquinas, list):
+                    entradas = maquinas
+                else:
+                    entradas = []
+
+                nombre_parada = None
+                # Primero se recupera el nombre del marcador rojo de la parada.
+                for maquina in entradas:
+                    if not isinstance(maquina, dict):
+                        continue
+                    icono = str(maquina.get("icon") or "").split("?")[0].rsplit("/", 1)[-1].lower()
+                    if icono == "bus_rojo.png":
+                        nombre_parada = limpiar_texto_html_avanza(
+                            maquina.get("info") or maquina.get("title")
+                        ) or None
+                        break
+
+                # Un segundo recorrido evita perder los autobuses al consumir valores.
+                if isinstance(maquinas, dict):
+                    entradas_buses = maquinas.values()
+                elif isinstance(maquinas, list):
+                    entradas_buses = maquinas
+                else:
+                    entradas_buses = []
+
+                for maquina in entradas_buses:
+                    bus = extraer_bus_avanza(maquina, poste, nombre_parada)
+                    if not bus:
+                        continue
+                    clave = bus["coche"]
+                    anterior = buses_por_coche.get(clave)
+                    # El mismo autobús puede aparecer en varias paradas; se conserva
+                    # la estimación más próxima y se guarda el poste que la aportó.
+                    eta_nueva = bus["eta_minutos"]
+                    eta_anterior = anterior.get("eta_minutos") if anterior else None
+                    if anterior is None or (
+                        eta_nueva is not None
+                        and (eta_anterior is None or eta_nueva < eta_anterior)
+                    ):
+                        buses_por_coche[clave] = bus
+
+                paradas_consultadas.append({
+                    "poste": poste,
+                    "nombre": nombre_parada or f"Parada {poste}",
+                })
+            except (requests.RequestException, ValueError, TypeError) as exc:
+                errores.append(f"poste {poste}: {str(exc)[:160]}")
+
+        if not paradas_consultadas and errores:
+            resultado = {
+                "buses": [],
+                "paradas_consultadas": [],
+                "total_paradas": len(postes),
+                "actualizado": datetime.now(ZONA_HORARIA).isoformat(),
+                "error": "No se ha podido consultar el GPS de Avanza.",
+                "detalle": errores[:5],
+            }
+            # Un error se mantiene en caché brevemente para evitar una cascada
+            # de peticiones idénticas si hay varios clientes abiertos.
+            AVANZA_URBANOS_CACHE.update({
+                "timestamp": time.monotonic(),
+                "data": resultado,
+            })
+            return resultado
+
+        resultado = {
+            "buses": sorted(
+                buses_por_coche.values(),
+                key=lambda bus: (
+                    str(bus["linea"]),
+                    int(bus["coche"]) if str(bus["coche"]).isdigit() else 0,
+                ),
+            ),
+            "paradas_consultadas": paradas_consultadas,
+            "total_paradas": len(postes),
+            "actualizado": datetime.now(ZONA_HORARIA).isoformat(),
+            "fuente": "GPS de Avanza Zaragoza",
+            "aviso_cobertura": (
+                "La fuente devuelve los próximos vehículos por parada. "
+                "Añade los códigos de todas las paradas en AVANZA_URBAN_POSTES "
+                "para ampliar la cobertura; no es todavía un volcado global de flota."
+            ),
+            "errores": errores[:5],
+        }
+        AVANZA_URBANOS_CACHE.update({
+            "timestamp": time.monotonic(),
+            "data": resultado,
+        })
+        return resultado
+
+
+@app.route('/api/avanza/urbanos')
+def get_avanza_urbanos():
+    """Posiciones GPS de los autobuses anunciados en los postes configurados."""
+    datos = consultar_flota_avanza_urbana()
+    if datos.get("error"):
+        return jsonify(datos), 503
+    respuesta = jsonify(datos)
+    respuesta.headers["Cache-Control"] = "no-store"
+    return respuesta
 
 
 if __name__ == '__main__':
