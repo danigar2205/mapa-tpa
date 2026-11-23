@@ -7860,9 +7860,9 @@
     .avanza-refresh-button:hover:not(:disabled) { background: rgba(14,116,144,.32); }
     .avanza-refresh-button:disabled { opacity: .55; cursor: wait; }
     .avanza-bus-marker { background: transparent; border: 0; }
-    .avanza-map-bus { display: flex; align-items: center; justify-content: center; gap: 5px; width: 58px; height: 34px; padding: 0 6px; border: 2px solid #fff; border-radius: 10px; background: var(--avanza-line-color,#176f94); color: #fff; box-shadow: 0 4px 12px rgba(15,23,42,.35); }
+    .avanza-map-bus { display: flex; align-items: center; justify-content: center; gap: 5px; width: var(--avanza-marker-width,68px); min-width: var(--avanza-marker-width,68px); height: 34px; padding: 0 7px; border: 2px solid #fff; border-radius: 10px; background: var(--avanza-line-color,#176f94); color: #fff; box-shadow: 0 4px 12px rgba(15,23,42,.35); white-space: nowrap; }
     .avanza-map-bus i { font-size: 13px; }
-    .avanza-map-bus strong { max-width: 30px; overflow: hidden; text-overflow: ellipsis; font-size: 10px; font-weight: 900; }
+    .avanza-map-bus strong { flex: 0 0 auto; max-width: none; overflow: visible; text-overflow: clip; white-space: nowrap; font-size: 10px; font-weight: 900; }
     .avanza-bus-popup { min-width: 210px; color: #162b3b; }
     .avanza-bus-popup-head { display: flex; align-items: center; gap: 10px; }
     .avanza-bus-popup-line { display: grid; place-items: center; min-width: 42px; height: 36px; padding: 0 7px; border-radius: 8px; background: var(--avanza-line-color,#176f94); color: #fff; font-size: 13px; font-weight: 900; }
@@ -9860,14 +9860,15 @@
           idsActuales.add(id);
           posiciones.push([lat, lon]);
           const color = colorLineaAvanza(linea);
+          const anchoEtiqueta = Math.max(68, 39 + String(coche).length * 8);
           const icono = L.divIcon({
             className: 'avanza-bus-marker',
-            html: `<span class="avanza-map-bus" style="--avanza-line-color:${color}">
+            html: `<span class="avanza-map-bus" style="--avanza-line-color:${color};--avanza-marker-width:${anchoEtiqueta}px">
               <i class="fa-solid fa-bus-simple" aria-hidden="true"></i>
               <strong>${escaparHTML(coche)}</strong>
             </span>`,
-            iconSize: [58, 42],
-            iconAnchor: [29, 21]
+            iconSize: [anchoEtiqueta, 42],
+            iconAnchor: [anchoEtiqueta / 2, 21]
           });
 
           const eta = bus.eta_minutos == null ? 'Sin estimación' :
