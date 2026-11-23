@@ -9878,6 +9878,11 @@
         const fase = String(datos.fase || '');
         const progreso = Number(datos.progreso || 0);
         const totalProgreso = Number(datos.total_progreso || 0);
+        const progresoGeneral = Number(datos.progreso_general || 0);
+        const totalProgresoGeneral = Number(datos.total_progreso_general || 0);
+        const resumenGlobal = totalProgresoGeneral
+          ? ' · Barrido acumulado: ' + progresoGeneral + '/' + totalProgresoGeneral + ' operaciones.'
+          : '';
         const textoCobertura = totalParadas
           ? (paradas.length + ' de ' + totalParadas + ' paradas consultadas' +
              (lineas ? ' · ' + lineas + ' líneas' : '') +
@@ -9885,10 +9890,13 @@
           : 'Descubriendo el catálogo operativo de líneas y paradas de Avanza…';
         document.getElementById('avanza-coverage-note').textContent = enEscaneo
           ? (fase === 'descubriendo_paradas'
-              ? 'Localizando paradas: ' + progreso + '/' + totalProgreso +
-                ' sentidos consultados · ' + Number(datos.paradas_descubiertas || 0) + ' postes únicos encontrados.'
-              : 'Consultando el GPS de toda la red: ' + progreso + '/' + totalProgreso +
-                ' paradas · ' + buses.length + ' coches únicos detectados hasta ahora.')
+              ? 'FASE 1/2 · Descubriendo recorridos: ' + progreso + '/' + totalProgreso +
+                ' sentidos · ' + Number(datos.paradas_descubiertas || 0) + ' postes únicos localizados' +
+                resumenGlobal
+              : (fase === 'consultando_gps'
+                  ? 'FASE 2/2 · Consultando posiciones GPS: ' + progreso + '/' + totalProgreso +
+                    ' paradas · ' + buses.length + ' coches únicos detectados' + resumenGlobal
+                  : 'Preparando el barrido completo de Avanza…'))
           : textoCobertura +
             (datos.duracion_segundos ? ' Barrido: ' + datos.duracion_segundos + ' s.' : '') +
             (datos.aviso_cobertura ? ' ' + datos.aviso_cobertura : '');
