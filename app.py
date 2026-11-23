@@ -1,6 +1,10 @@
 import os
 import fcntl
 import html
+try:
+    import redis
+except ImportError:
+    redis = None
 from html.parser import HTMLParser
 from concurrent.futures import ThreadPoolExecutor, as_completed
 # Desactivar extensión C de Protobuf para compatibilidad con Python 3.11+
@@ -1955,10 +1959,58 @@ AVANZA_SHARED_LOCK_PATH = os.environ.get(
     "/tmp/mapa-tpa-avanza-scan.lock",
 )
 AVANZA_SHARED_WRITE_LOCK = threading.Lock()
+AVANZA_REDIS_URL = (
+    os.environ.get("AVANZA_REDIS_URL", "").strip()
+    or os.environ.get("REDIS_URL", "").strip()
+)
+AVANZA_REDIS_STATE_KEY = os.environ.get(
+    "AVANZA_REDIS_STATE_KEY", "mapa-tpa:avanza:shared-state"
+)
+AVANZA_REDIS_LOCK_KEY = os.environ.get(
+    "AVANZA_REDIS_LOCK_KEY", "mapa-tpa:avanza:scan-lock"
+)
+AVANZA_REDIS_CLIENT = None
+AVANZA_REDIS_ACTIVE_LOCK_TOKEN = None
+AVANZA_REDIS_LOCK_TTL = 180
+
+if redis is not None and AVANZA_REDIS_URL:
+    AVANZA_REDIS_CLIENT = redis.Redis.from_url(
+        AVANZA_REDIS_URL,
+        decode_responses=True,
+        socket_connect_timeout=2,
+        socket_timeout=2,
+        health_check_interval=30,
+    )
+
+
+def _renovar_bloqueo_avanza_redis():
+    """Renueva el alquiler del bloqueo solo si esta exploración sigue siendo dueña."""
+    token = AVANZA_REDIS_ACTIVE_LOCK_TOKEN
+    if AVANZA_REDIS_CLIENT is None or not token:
+        return
+    script = (
+        "if redis.call('get', KEYS[1]) == ARGV[1] "
+        "then return redis.call('expire', KEYS[1], ARGV[2]) "
+        "else return 0 end"
+    )
+    try:
+        AVANZA_REDIS_CLIENT.eval(
+            script, 1, AVANZA_REDIS_LOCK_KEY, token, AVANZA_REDIS_LOCK_TTL
+        )
+    except Exception as exc:
+        print(f"[AVANZA URBANOS] No se pudo renovar el bloqueo Redis: {exc}")
 
 
 def _leer_avanza_estado_compartido():
-    """Lee el estado común a todos los workers de la misma instancia."""
+    """Lee el estado global desde Redis o, sin Redis, desde el fichero compartido."""
+    if AVANZA_REDIS_CLIENT is not None:
+        try:
+            raw = AVANZA_REDIS_CLIENT.get(AVANZA_REDIS_STATE_KEY)
+            contenido = json.loads(raw) if raw else {}
+            return contenido if isinstance(contenido, dict) else {}
+        except Exception as exc:
+            print(f"[AVANZA URBANOS] No se pudo leer el estado Redis: {exc}")
+            return {}
     try:
         with open(AVANZA_SHARED_STATE_PATH, "r", encoding="utf-8") as fichero:
             contenido = json.load(fichero)
@@ -1982,6 +2034,18 @@ def _guardar_avanza_estado_compartido(estado=None, cache=None, actualizar_cache=
             contenido["cache"] = cache
         if catalogo is not None:
             contenido["catalogo"] = catalogo
+        if AVANZA_REDIS_CLIENT is not None:
+            try:
+                AVANZA_REDIS_CLIENT.set(
+                    AVANZA_REDIS_STATE_KEY,
+                    json.dumps(contenido, ensure_ascii=False, separators=(",", ":")),
+                    ex=172800,
+                )
+                _renovar_bloqueo_avanza_redis()
+                return
+            except Exception as exc:
+                print(f"[AVANZA URBANOS] No se pudo guardar el estado Redis: {exc}")
+                return
         directorio = os.path.dirname(AVANZA_SHARED_STATE_PATH) or "."
         os.makedirs(directorio, exist_ok=True)
         temporal = (
@@ -2025,9 +2089,23 @@ def _sincronizar_avanza_estado_compartido():
 
 def _adquirir_bloqueo_avanza_compartido():
     """
-    Bloqueo entre procesos, no solo entre hilos. El descriptor queda abierto
-    durante todo el barrido y el SO lo libera automáticamente si el worker muere.
+    Bloqueo distribuido en Redis si está configurado; en caso contrario, usa
+    flock para coordinar los procesos de una misma instancia Render.
     """
+    if AVANZA_REDIS_CLIENT is not None:
+        token = str(uuid.uuid4())
+        try:
+            adquirido = AVANZA_REDIS_CLIENT.set(
+                AVANZA_REDIS_LOCK_KEY,
+                token,
+                nx=True,
+                ex=AVANZA_REDIS_LOCK_TTL,
+            )
+            return {"tipo": "redis", "token": token} if adquirido else None
+        except Exception as exc:
+            print(f"[AVANZA URBANOS] No se pudo adquirir el bloqueo Redis: {exc}")
+            return None
+
     directorio = os.path.dirname(AVANZA_SHARED_LOCK_PATH) or "."
     os.makedirs(directorio, exist_ok=True)
     descriptor = os.open(AVANZA_SHARED_LOCK_PATH, os.O_CREAT | os.O_RDWR, 0o600)
@@ -2043,7 +2121,23 @@ def _adquirir_bloqueo_avanza_compartido():
 
 
 def _liberar_bloqueo_avanza_compartido(descriptor):
+    global AVANZA_REDIS_ACTIVE_LOCK_TOKEN
     if descriptor is None:
+        return
+    if isinstance(descriptor, dict) and descriptor.get("tipo") == "redis":
+        token = descriptor.get("token")
+        script = (
+            "if redis.call('get', KEYS[1]) == ARGV[1] "
+            "then return redis.call('del', KEYS[1]) "
+            "else return 0 end"
+        )
+        try:
+            if AVANZA_REDIS_CLIENT is not None and token:
+                AVANZA_REDIS_CLIENT.eval(script, 1, AVANZA_REDIS_LOCK_KEY, token)
+        except Exception as exc:
+            print(f"[AVANZA URBANOS] No se pudo liberar el bloqueo Redis: {exc}")
+        if AVANZA_REDIS_ACTIVE_LOCK_TOKEN == token:
+            AVANZA_REDIS_ACTIVE_LOCK_TOKEN = None
         return
     try:
         fcntl.flock(descriptor, fcntl.LOCK_UN)
@@ -2656,6 +2750,11 @@ def consultar_flota_avanza_urbana():
 
     progreso_catalogo = sentidos_consultados
     total_operaciones = progreso_catalogo + total_postes
+    with AVANZA_URBANOS_LOCK:
+        buses_previos = [
+            dict(bus) for bus in (AVANZA_URBANOS_STATE.get("buses_parciales") or [])
+            if isinstance(bus, dict) and bus.get("coche")
+        ]
     _actualizar_estado_avanza(
         fase="consultando_gps",
         progreso=0,
@@ -2665,7 +2764,8 @@ def consultar_flota_avanza_urbana():
         sentidos_consultados=sentidos_consultados,
         total_sentidos=sentidos_consultados,
         paradas_gps_completadas=0,
-        coches_unicos_detectados=0,
+        coches_unicos_detectados=len(buses_previos),
+        buses_parciales=buses_previos,
         lineas_descubiertas=lineas_descubiertas,
         paradas_descubiertas=total_postes,
     )
@@ -2716,6 +2816,17 @@ def consultar_flota_avanza_urbana():
                 ):
                     buses_por_coche[clave] = bus
 
+            buses_mostrados = {str(bus["coche"]): dict(bus) for bus in buses_previos}
+            buses_mostrados.update({
+                str(bus["coche"]): dict(bus) for bus in buses_por_coche.values()
+            })
+            buses_mostrados_ordenados = sorted(
+                buses_mostrados.values(),
+                key=lambda bus: (
+                    str(bus.get("linea") or ""),
+                    int(bus["coche"]) if str(bus.get("coche", "")).isdigit() else 0,
+                ),
+            )
             _actualizar_estado_avanza(
                 fase="consultando_gps",
                 progreso=indice,
@@ -2725,14 +2836,8 @@ def consultar_flota_avanza_urbana():
                 sentidos_consultados=sentidos_consultados,
                 total_sentidos=sentidos_consultados,
                 paradas_gps_completadas=indice,
-                coches_unicos_detectados=len(buses_por_coche),
-                buses_parciales=sorted(
-                    (dict(bus) for bus in buses_por_coche.values()),
-                    key=lambda bus: (
-                        str(bus["linea"]),
-                        int(bus["coche"]) if str(bus["coche"]).isdigit() else 0,
-                    ),
-                ),
+                coches_unicos_detectados=len(buses_mostrados_ordenados),
+                buses_parciales=buses_mostrados_ordenados,
                 lineas_descubiertas=lineas_descubiertas,
                 paradas_descubiertas=total_postes,
             )
@@ -2832,9 +2937,10 @@ def _trabajador_barrido_avanza(descriptor_bloqueo=None):
 
 def iniciar_barrido_avanza_si_necesario(forzar=False):
     """
-    Inicia un único barrido en toda la instancia Render. El bloqueo de fichero
-    evita que otro worker Gunicorn comience desde cero al recibir el siguiente poll.
+    Inicia un único barrido global. Redis coordina todas las instancias cuando
+    AVANZA_REDIS_URL/REDIS_URL está configurada; sin ella se usa flock local.
     """
+    global AVANZA_REDIS_ACTIVE_LOCK_TOKEN
     # Primero evita dos inicios simultáneos dentro del mismo worker.
     if not AVANZA_URBAN_SCAN_LOCK.acquire(blocking=False):
         return
@@ -2842,11 +2948,19 @@ def iniciar_barrido_avanza_si_necesario(forzar=False):
     if descriptor is None:
         AVANZA_URBAN_SCAN_LOCK.release()
         return
+    if isinstance(descriptor, dict) and descriptor.get("tipo") == "redis":
+        AVANZA_REDIS_ACTIVE_LOCK_TOKEN = descriptor.get("token")
 
     try:
         datos_compartidos = _leer_avanza_estado_compartido()
         cache_compartida = datos_compartidos.get("cache") or {}
         cacheada = cache_compartida.get("data")
+        estado_previo = datos_compartidos.get("state") or {}
+        buses_previos = list(
+            estado_previo.get("buses_parciales")
+            or (cacheada.get("buses", []) if isinstance(cacheada, dict) else [])
+            or []
+        )
         timestamp_cache = cache_compartida.get("timestamp") or 0.0
         edad = (
             time.monotonic() - float(timestamp_cache)
@@ -2877,8 +2991,8 @@ def iniciar_barrido_avanza_si_necesario(forzar=False):
                 "sentidos_consultados": 0,
                 "total_sentidos": 0,
                 "paradas_gps_completadas": 0,
-                "coches_unicos_detectados": 0,
-                "buses_parciales": [],
+                "coches_unicos_detectados": len(buses_previos),
+                "buses_parciales": buses_previos,
                 "lineas_descubiertas": 0,
                 "paradas_descubiertas": 0,
                 "ultimo_error": None,
