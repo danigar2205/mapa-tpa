@@ -1901,7 +1901,7 @@ AVANZA_AJAX_URL = "https://zaragoza.avanzagrupo.com/wp-admin/admin-ajax.php"
 
 AVANZA_URBANOS_TTL = 360
 AVANZA_CATALOGO_POSTES_TTL = 21600
-AVANZA_PAUSA_RECORRIDOS = 0.15
+AVANZA_PAUSA_RECORRIDOS = 0.0
 AVANZA_PAUSA_POSTES = 0.0
 AVANZA_CONCURRENCIA_GPS = 4
 
@@ -1937,6 +1937,7 @@ AVANZA_URBANOS_STATE = {
     "total_sentidos": 0,
     "paradas_consultadas": 0,
     "coches_unicos_detectados": 0,
+    "buses_parciales": [],
     "lineas_descubiertas": 0,
     "paradas_descubiertas": 0,
     "ultimo_error": None,
@@ -2056,6 +2057,77 @@ def _extraer_postes_de_recorrido(fragmento_html):
     return postes
 
 
+AVANZA_DESCUBRIMIENTO_LOCAL = threading.local()
+
+
+def _sesion_descubrimiento_avanza():
+    """Sesión HTTP persistente e independiente para cada trabajador de recorridos."""
+    sesion = getattr(AVANZA_DESCUBRIMIENTO_LOCAL, "sesion", None)
+    if sesion is None:
+        sesion = requests.Session()
+        sesion.headers.update({
+            "User-Agent": "Mozilla/5.0 (compatible; MapaTPA/1.0)",
+            "Accept": "*/*",
+        })
+        AVANZA_DESCUBRIMIENTO_LOCAL.sesion = sesion
+    return sesion
+
+
+def _consultar_sentido_recorrido_avanza(linea, sentido, nonce):
+    """Consulta en paralelo un recorrido Avanza y devuelve sus postes o el error."""
+    sesion = _sesion_descubrimiento_avanza()
+    datos_peticion = {
+        "action": "get_stops_list",
+        "selectLinea": linea["valor"],
+        "selectSentido": str(sentido),
+        "nonce": nonce,
+    }
+    headers = {
+        "User-Agent": "Mozilla/5.0 (compatible; MapaTPA/1.0)",
+        "Accept": "*/*",
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        "X-Requested-With": "XMLHttpRequest",
+        "Referer": AVANZA_LINEAS_URL,
+        "Origin": "https://zaragoza.avanzagrupo.com",
+    }
+    try:
+        respuesta = sesion.post(
+            AVANZA_AJAX_URL,
+            data=datos_peticion,
+            headers=headers,
+            timeout=(5, 12),
+        )
+        if respuesta.status_code == 403:
+            nuevo_nonce, _ = obtener_nonce_y_lineas_avanza(sesion)
+            datos_peticion["nonce"] = nuevo_nonce
+            respuesta = sesion.post(
+                AVANZA_AJAX_URL,
+                data=datos_peticion,
+                headers=headers,
+                timeout=(5, 12),
+            )
+        if respuesta.status_code != 200:
+            return {
+                "linea": linea["valor"],
+                "sentido": sentido,
+                "postes": {},
+                "error": f"línea {linea['valor']} sentido {sentido}: HTTP {respuesta.status_code}",
+            }
+        return {
+            "linea": linea["valor"],
+            "sentido": sentido,
+            "postes": _extraer_postes_de_recorrido(respuesta.text),
+            "error": None,
+        }
+    except (requests.RequestException, ValueError, TypeError) as exc:
+        return {
+            "linea": linea["valor"],
+            "sentido": sentido,
+            "postes": {},
+            "error": f"línea {linea['valor']} sentido {sentido}: {str(exc)[:120]}",
+        }
+
+
 def obtener_nonce_y_lineas_avanza(http):
     """Carga el nonce WordPress y el selector de líneas actual de Avanza."""
     respuesta = http.get(
@@ -2111,78 +2183,63 @@ def descubrir_postes_avanza(http):
         paradas_descubiertas=0,
     )
 
-    for indice, linea in enumerate(lineas):
-        for sentido in (-1, -2):
-            sentidos_consultados += 1
+    tareas = [
+        (linea, sentido)
+        for linea in lineas
+        for sentido in (-1, -2)
+    ]
+    sentidos_terminados = 0
+    lineas_terminadas = set()
+
+    # Cuatro consultas simultáneas reducen la espera inicial sin abrir una
+    # concurrencia excesiva contra el servidor de Avanza.
+    with ThreadPoolExecutor(
+        max_workers=AVANZA_CONCURRENCIA_GPS,
+        thread_name_prefix="avanza-recorridos",
+    ) as executor:
+        futuros = {
+            executor.submit(
+                _consultar_sentido_recorrido_avanza,
+                linea,
+                sentido,
+                nonce,
+            ): (linea, sentido)
+            for linea, sentido in tareas
+        }
+
+        for futuro in as_completed(futuros):
             try:
-                respuesta = http.post(
-                    AVANZA_AJAX_URL,
-                    data={
-                        "action": "get_stops_list",
-                        "selectLinea": linea["valor"],
-                        "selectSentido": str(sentido),
-                        "nonce": nonce,
-                    },
-                    headers={
-                        "User-Agent": "Mozilla/5.0 (compatible; MapaTPA/1.0)",
-                        "Accept": "*/*",
-                        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-                        "X-Requested-With": "XMLHttpRequest",
-                        "Referer": AVANZA_LINEAS_URL,
-                        "Origin": "https://zaragoza.avanzagrupo.com",
-                    },
-                    timeout=(5, 12),
-                )
-                if respuesta.status_code == 403:
-                    # El nonce puede caducar antes de terminar un barrido.
-                    nonce, _ = obtener_nonce_y_lineas_avanza(http)
-                    respuesta = http.post(
-                        AVANZA_AJAX_URL,
-                        data={
-                            "action": "get_stops_list",
-                            "selectLinea": linea["valor"],
-                            "selectSentido": str(sentido),
-                            "nonce": nonce,
-                        },
-                        headers={
-                            "User-Agent": "Mozilla/5.0 (compatible; MapaTPA/1.0)",
-                            "Accept": "*/*",
-                            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-                            "X-Requested-With": "XMLHttpRequest",
-                            "Referer": AVANZA_LINEAS_URL,
-                            "Origin": "https://zaragoza.avanzagrupo.com",
-                        },
-                        timeout=(5, 12),
-                    )
-                if respuesta.status_code != 200:
-                    errores.append(
-                        f"línea {linea['valor']} sentido {sentido}: HTTP {respuesta.status_code}"
-                    )
-                else:
-                    postes_sentido = _extraer_postes_de_recorrido(respuesta.text)
-                    for poste, nombre in postes_sentido.items():
-                        if poste not in postes_por_id or (nombre and not postes_por_id[poste]):
-                            postes_por_id[poste] = nombre
-            except (requests.RequestException, ValueError, TypeError) as exc:
-                errores.append(
-                    f"línea {linea['valor']} sentido {sentido}: {str(exc)[:120]}"
-                )
+                resultado = futuro.result()
+            except Exception as exc:
+                linea, sentido = futuros[futuro]
+                resultado = {
+                    "linea": linea["valor"],
+                    "sentido": sentido,
+                    "postes": {},
+                    "error": f"línea {linea['valor']} sentido {sentido}: {str(exc)[:120]}",
+                }
 
-            if AVANZA_PAUSA_RECORRIDOS and sentidos_consultados < total_sentidos:
-                time.sleep(AVANZA_PAUSA_RECORRIDOS)
+            sentidos_terminados += 1
+            lineas_terminadas.add(resultado["linea"])
+            if resultado.get("error"):
+                errores.append(resultado["error"])
+            else:
+                for poste, nombre in resultado.get("postes", {}).items():
+                    if poste not in postes_por_id or (nombre and not postes_por_id[poste]):
+                        postes_por_id[poste] = nombre
 
-        _actualizar_estado_avanza(
-            fase="descubriendo_paradas",
-            progreso=sentidos_consultados,
-            total_progreso=total_sentidos,
-            progreso_general=sentidos_consultados,
-            total_progreso_general=total_sentidos,
-            sentidos_consultados=sentidos_consultados,
-            total_sentidos=total_sentidos,
-            paradas_consultadas=0,
-            lineas_descubiertas=indice + 1,
-            paradas_descubiertas=len(postes_por_id),
-        )
+            _actualizar_estado_avanza(
+                fase="descubriendo_paradas",
+                progreso=sentidos_terminados,
+                total_progreso=total_sentidos,
+                progreso_general=sentidos_terminados,
+                total_progreso_general=total_sentidos,
+                sentidos_consultados=sentidos_terminados,
+                total_sentidos=total_sentidos,
+                paradas_consultadas=0,
+                lineas_descubiertas=len(lineas_terminadas),
+                paradas_descubiertas=len(postes_por_id),
+            )
 
     if not postes_por_id:
         raise ValueError(
@@ -2512,6 +2569,13 @@ def consultar_flota_avanza_urbana():
                 total_sentidos=sentidos_consultados,
                 paradas_consultadas=indice,
                 coches_unicos_detectados=len(buses_por_coche),
+                buses_parciales=sorted(
+                    (dict(bus) for bus in buses_por_coche.values()),
+                    key=lambda bus: (
+                        str(bus["linea"]),
+                        int(bus["coche"]) if str(bus["coche"]).isdigit() else 0,
+                    ),
+                ),
                 lineas_descubiertas=lineas_descubiertas,
                 paradas_descubiertas=total_postes,
             )
@@ -2581,6 +2645,8 @@ def _trabajador_barrido_avanza():
                 "sentidos_consultados": resultado["sentidos_consultados"],
                 "total_sentidos": resultado["sentidos_consultados"],
                 "paradas_consultadas": resultado["total_paradas"],
+                "coches_unicos_detectados": len(resultado["buses"]),
+                "buses_parciales": resultado["buses"],
                 "ultimo_error": None,
                 "fin_escaneo": datetime.now(ZONA_HORARIA).isoformat(),
             })
@@ -2622,6 +2688,7 @@ def iniciar_barrido_avanza_si_necesario(forzar=False):
             "total_sentidos": 0,
             "paradas_consultadas": 0,
             "coches_unicos_detectados": 0,
+            "buses_parciales": [],
             "lineas_descubiertas": 0,
             "paradas_descubiertas": 0,
             "ultimo_error": None,
@@ -2657,6 +2724,8 @@ def get_avanza_urbanos():
             "errores": [],
         }
     datos.update(estado)
+    if estado.get("escaneo_en_curso") or estado.get("fase") == "error":
+        datos["buses"] = list(estado.get("buses_parciales") or datos.get("buses") or [])
     if estado.get("ultimo_error") and not datos.get("buses"):
         datos["error"] = estado["ultimo_error"]
     respuesta = jsonify(datos)
