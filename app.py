@@ -1907,7 +1907,7 @@ AVANZA_AJAX_URL = "https://zaragoza.avanzagrupo.com/wp-admin/admin-ajax.php"
 AVANZA_URBANOS_TTL = 360
 # Incrementar cuando cambie el significado de los datos de un barrido.
 # La caché anterior se considera histórica y no se mezcla con el siguiente ciclo.
-AVANZA_SCAN_VERSION = 4
+AVANZA_SCAN_VERSION = 5
 AVANZA_CATALOGO_POSTES_TTL = 21600
 AVANZA_PAUSA_RECORRIDOS = 0.0
 AVANZA_PAUSA_POSTES = 0.0
@@ -1918,7 +1918,8 @@ AVANZA_CONCURRENCIA_GPS = 16
 AVANZA_GPS_TIMEOUT_CONNECT = 4.0
 AVANZA_GPS_TIMEOUT_READ = 8.0
 # Limita el ritmo para no disparar cientos de peticiones en ráfaga al GPS.
-AVANZA_GPS_PETICIONES_POR_SEGUNDO = 4.0
+AVANZA_GPS_PETICIONES_POR_SEGUNDO = 3.0
+AVANZA_GPS_REINTENTOS_FINALES = 2
 AVANZA_GPS_REFRESCOS_POR_LOTE = 1
 AVANZA_GPS_SEGUIMIENTO_LOTE = 14
 AVANZA_GPS_SEGUIMIENTO_NOVEDADES = 4
@@ -1934,7 +1935,8 @@ try:
     AVANZA_PAUSA_POSTES = max(0.0, float(os.environ.get("AVANZA_PAUSA_POSTES", AVANZA_PAUSA_POSTES)))
     AVANZA_CONCURRENCIA_RECORRIDOS = min(16, max(1, int(os.environ.get("AVANZA_CONCURRENCIA_RECORRIDOS", AVANZA_CONCURRENCIA_RECORRIDOS))))
     AVANZA_CONCURRENCIA_GPS = min(16, max(8, int(os.environ.get("AVANZA_CONCURRENCIA_GPS", AVANZA_CONCURRENCIA_GPS))))
-    AVANZA_GPS_PETICIONES_POR_SEGUNDO = min(5.0, max(1.0, float(os.environ.get("AVANZA_GPS_PETICIONES_POR_SEGUNDO", AVANZA_GPS_PETICIONES_POR_SEGUNDO))))
+    AVANZA_GPS_PETICIONES_POR_SEGUNDO = min(3.0, max(1.0, float(os.environ.get("AVANZA_GPS_PETICIONES_POR_SEGUNDO", AVANZA_GPS_PETICIONES_POR_SEGUNDO))))
+    AVANZA_GPS_REINTENTOS_FINALES = min(3, max(1, int(os.environ.get("AVANZA_GPS_REINTENTOS_FINALES", AVANZA_GPS_REINTENTOS_FINALES))))
 except (TypeError, ValueError):
     pass
 try:
@@ -3125,7 +3127,7 @@ def consultar_flota_avanza_urbana():
         paradas_consultadas = list(
             estado_compartido.get("paradas_gps_consultadas") or []
         )
-        errores_gps = list(estado_compartido.get("errores_gps_parciales") or [])
+        errores_gps = []
     else:
         postes_gps_completados = set()
         buses_gps_parciales = []
@@ -3167,15 +3169,15 @@ def consultar_flota_avanza_urbana():
         paradas_descubiertas=total_postes,
     )
 
-    errores = list(errores_catalogo) + errores_gps
+    # Las paradas fallidas quedan pendientes y se vuelven a intentar al terminar
+    # la primera pasada completa de la red.
+    errores_por_poste = {}
+    fallos_por_poste = {}
+    errores = list(errores_catalogo)
     pendientes_iter = iter([
         item for item in postes
         if str(item["poste"]) not in postes_gps_completados
     ])
-    cola_refrescos = []
-    refrescos_pendientes_o_activos = set()
-    cursor_refresco = 0
-    nuevas_desde_refresco = 0
     ultimo_checkpoint_gps = time.monotonic()
     resultados_desde_checkpoint = 0
 
@@ -3183,14 +3185,14 @@ def consultar_flota_avanza_urbana():
         poste_key = str(resultado_parada.get("poste"))
         if resultado_parada.get("error"):
             if not refresco:
-                errores.append(resultado_parada["error"])
-                errores_gps.append(resultado_parada["error"])
-                # Una parada fallida se considera procesada para evitar que un
-                # fallo permanente bloquee el final o haga un bucle infinito.
-                postes_gps_completados.add(poste_key)
+                fallos_por_poste[poste_key] = dict(resultado_parada)
+                errores_por_poste[poste_key] = str(resultado_parada["error"])
             return
 
         if not refresco:
+            # Una parada solo se considera completada si recibió una respuesta válida.
+            fallos_por_poste.pop(poste_key, None)
+            errores_por_poste.pop(poste_key, None)
             postes_gps_completados.add(poste_key)
             paradas_por_id[poste_key] = {
                 "poste": resultado_parada["poste"],
@@ -3212,29 +3214,6 @@ def consultar_flota_avanza_urbana():
         _fusionar_buses_avanza(
             buses_por_coche, resultado_parada.get("buses", [])
         )
-
-    def programar_refrescos_activos():
-        nonlocal cursor_refresco, nuevas_desde_refresco
-        fuentes = sorted({
-            str(bus.get("poste"))
-            for bus in buses_por_coche.values()
-            if bus.get("poste") is not None and str(bus.get("poste")).isdigit()
-        }, key=int)
-        nuevas_desde_refresco = 0
-        if not fuentes:
-            return
-
-        cantidad = min(AVANZA_GPS_REFRESCOS_POR_LOTE, len(fuentes))
-        for indice in range(cantidad):
-            poste = fuentes[(cursor_refresco + indice) % len(fuentes)]
-            if poste in refrescos_pendientes_o_activos:
-                continue
-            parada_info = postes_por_numero.get(
-                poste, {"poste": int(poste), "nombre": f"Parada {poste}"}
-            )
-            cola_refrescos.append(parada_info)
-            refrescos_pendientes_o_activos.add(poste)
-        cursor_refresco = (cursor_refresco + cantidad) % len(fuentes)
 
     def publicar_progreso_gps(forzar=False):
         nonlocal ultimo_checkpoint_gps, resultados_desde_checkpoint
@@ -3287,7 +3266,7 @@ def consultar_flota_avanza_urbana():
             buses_gps_parciales=buses_gps_ordenados,
             postes_gps_completados=sorted(postes_gps_completados),
             paradas_gps_consultadas=paradas_ordenadas,
-            errores_gps_parciales=errores_gps[-100:],
+            errores_gps_parciales=list(errores_por_poste.values())[-100:],
             lineas_descubiertas=lineas_descubiertas,
             paradas_descubiertas=total_postes,
         )
@@ -3295,13 +3274,10 @@ def consultar_flota_avanza_urbana():
         resultados_desde_checkpoint = 0
 
     def siguiente_tarea():
-        if cola_refrescos:
-            parada_info = cola_refrescos.pop(0)
-            return "refresco", parada_info
         try:
-            return "nueva", next(pendientes_iter)
+            return next(pendientes_iter)
         except StopIteration:
-            return None, None
+            return None
 
     futuros = {}
     with ThreadPoolExecutor(
@@ -3310,17 +3286,17 @@ def consultar_flota_avanza_urbana():
     ) as executor:
         def rellenar_hilos():
             while len(futuros) < AVANZA_CONCURRENCIA_GPS:
-                tipo, parada_info = siguiente_tarea()
-                if tipo is None:
+                parada_info = siguiente_tarea()
+                if parada_info is None:
                     return
                 futuro = executor.submit(_consultar_poste_gps_avanza, parada_info)
-                futuros[futuro] = (tipo, parada_info)
+                futuros[futuro] = parada_info
 
         rellenar_hilos()
         while futuros:
             terminados, _ = wait(tuple(futuros), return_when=FIRST_COMPLETED)
             for futuro in terminados:
-                tipo, parada_info = futuros.pop(futuro)
+                parada_info = futuros.pop(futuro)
                 poste_key = str(parada_info["poste"])
                 try:
                     resultado_parada = futuro.result()
@@ -3332,21 +3308,68 @@ def consultar_flota_avanza_urbana():
                         "error": f"poste {parada_info['poste']}: {str(exc)[:160]}",
                     }
 
-                incorporar_respuesta_gps(
-                    resultado_parada, refresco=(tipo == "refresco")
-                )
-                if tipo == "refresco":
-                    refrescos_pendientes_o_activos.discard(poste_key)
-                else:
-                    nuevas_desde_refresco += 1
-                    if nuevas_desde_refresco >= 50:
-                        programar_refrescos_activos()
+                incorporar_respuesta_gps(resultado_parada, refresco=False)
 
                 resultados_desde_checkpoint += 1
                 publicar_progreso_gps()
             rellenar_hilos()
 
-    publicar_progreso_gps(forzar=True)
+    # Reintenta las paradas que fallaron, después de completar la primera pasada.
+    # Así una parada lenta o una respuesta transitoria no se pierde definitivamente.
+    for ronda_reintento in range(1, AVANZA_GPS_REINTENTOS_FINALES + 1):
+        if not fallos_por_poste:
+            break
+        time.sleep(min(6.0, 1.5 * ronda_reintento))
+        paradas_reintento = [
+            postes_por_numero[poste]
+            for poste in sorted(
+                fallos_por_poste,
+                key=lambda valor: int(valor) if str(valor).isdigit() else str(valor),
+            )
+            if poste in postes_por_numero
+        ]
+        if not paradas_reintento:
+            break
+
+        futuros_reintento = {}
+        with ThreadPoolExecutor(
+            max_workers=AVANZA_CONCURRENCIA_GPS,
+            thread_name_prefix=f"avanza-gps-reintento-{ronda_reintento}",
+        ) as executor:
+            for parada_info in paradas_reintento:
+                futuro = executor.submit(_consultar_poste_gps_avanza, parada_info)
+                futuros_reintento[futuro] = parada_info
+
+            while futuros_reintento:
+                terminados, _ = wait(
+                    tuple(futuros_reintento),
+                    return_when=FIRST_COMPLETED,
+                )
+                for futuro in terminados:
+                    parada_info = futuros_reintento.pop(futuro)
+                    try:
+                        resultado_parada = futuro.result()
+                    except Exception as exc:
+                        resultado_parada = {
+                            "poste": parada_info["poste"],
+                            "nombre": parada_info.get("nombre") or f"Parada {parada_info['poste']}",
+                            "buses": [],
+                            "error": f"poste {parada_info['poste']}: {str(exc)[:160]}",
+                        }
+                    incorporar_respuesta_gps(resultado_parada, refresco=False)
+                    resultados_desde_checkpoint += 1
+                    publicar_progreso_gps()
+
+        publicar_progreso_gps(forzar=True)
+
+    errores_gps_finales = [
+        errores_por_poste[poste]
+        for poste in sorted(
+            errores_por_poste,
+            key=lambda valor: int(valor) if str(valor).isdigit() else str(valor),
+        )
+    ]
+    errores = list(errores_catalogo) + errores_gps_finales
 
     if not paradas_por_id and errores:
         raise ValueError(
@@ -3398,6 +3421,7 @@ def consultar_flota_avanza_urbana():
         "duracion_segundos": duracion,
         "concurrencia_gps": AVANZA_CONCURRENCIA_GPS,
         "peticiones_gps_por_segundo": AVANZA_GPS_PETICIONES_POR_SEGUNDO,
+        "reintentos_finales_gps": AVANZA_GPS_REINTENTOS_FINALES,
         "scan_version": AVANZA_SCAN_VERSION,
         "fuente": "GPS de Avanza Zaragoza · barrido de red",
         "aviso_cobertura": aviso_cobertura,
