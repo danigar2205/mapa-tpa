@@ -9889,7 +9889,9 @@
                 ' sentidos consultados · ' + Number(datos.paradas_descubiertas || 0) + ' postes únicos encontrados.'
               : 'Consultando el GPS de toda la red: ' + progreso + '/' + totalProgreso +
                 ' paradas · ' + buses.length + ' coches únicos detectados hasta ahora.')
-          : textoCobertura + (datos.duracion_segundos ? ' Barrido: ' + datos.duracion_segundos + ' s.' : '');
+          : textoCobertura +
+            (datos.duracion_segundos ? ' Barrido: ' + datos.duracion_segundos + ' s.' : '') +
+            (datos.aviso_cobertura ? ' ' + datos.aviso_cobertura : '');
         const mensaje = document.getElementById('avanza-panel-message');
         mensaje.textContent = enEscaneo
           ? (buses.length
