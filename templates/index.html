@@ -1288,6 +1288,49 @@
       line-height: 1.5;
     }
 
+    .concession-search {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 42px;
+      margin: 0 0 8px;
+      padding: 0 11px;
+      border: 1px solid #d7d9d2;
+      border-radius: 2px;
+      background: #fff;
+      color: #8b9490;
+    }
+    .concession-search:focus-within {
+      border-color: var(--tpa-red);
+      box-shadow: 0 0 0 2px rgba(167,53,54,.08);
+    }
+    .concession-search > i { color: var(--tpa-red); font-size: 12px; }
+    .concession-search input {
+      flex: 1;
+      min-width: 0;
+      height: 39px;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--tpa-ink);
+      font-size: 11px;
+    }
+    .concession-search input::placeholder { color: #9ba39f; }
+    .concession-search input:focus { outline: 0; }
+    .concession-search > span {
+      flex: 0 0 auto;
+      color: #8b9490;
+      font-size: 9px;
+      white-space: nowrap;
+    }
+    .concession-search-empty {
+      padding: 18px 10px;
+      border-bottom: 1px solid var(--tpa-rule);
+      color: var(--tpa-muted);
+      font-size: 11px;
+    }
+    .btn-menu[hidden] { display: none !important; }
+
     .lista-botones {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4251,7 +4294,7 @@
     .panel-show-button {
       position: fixed;
       top: 16px;
-      left: 16px;
+      left: calc(var(--tpa-sidebar) + 16px);
       z-index: 1100;
       min-height: 39px;
       border: 1px solid #d7dad4;
@@ -4424,6 +4467,13 @@
             <span class="network-count"><strong>15</strong><small>en catálogo</small></span>
           </div>
 
+          <div class="concession-search">
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+            <input type="search" id="buscador-concesiones" autocomplete="off"
+              placeholder="Buscar concesión o zona…" aria-label="Buscar concesión por código o zona">
+            <span id="contador-concesiones">15 concesiones</span>
+          </div>
+          <p class="concession-search-empty" id="estado-buscador-concesiones" hidden>No hay concesiones que coincidan con la búsqueda.</p>
           <div class="lista-botones" aria-label="Listado de concesiones">
             <button class="btn-menu" data-concesion="T05">
               <span class="btn-title">T05</span>
@@ -6341,6 +6391,30 @@
         botonEnviarBuzon.disabled = !buzonDisponible;
       }
     });
+
+    // Búsqueda rápida del catálogo: código de concesión o zona de servicio.
+    const buscadorConcesiones = document.getElementById('buscador-concesiones');
+    if (buscadorConcesiones) {
+      buscadorConcesiones.addEventListener('input', () => {
+        const consulta = normalizarTexto(buscadorConcesiones.value);
+        const botones = Array.from(document.querySelectorAll('.lista-botones [data-concesion]'));
+        let coincidencias = 0;
+        botones.forEach(boton => {
+          const texto = normalizarTexto(
+            boton.dataset.concesion + ' ' + (boton.querySelector('.btn-subtitle')?.textContent || '')
+          );
+          const visible = !consulta || texto.includes(consulta);
+          boton.hidden = !visible;
+          if (visible) coincidencias += 1;
+        });
+        const contador = document.getElementById('contador-concesiones');
+        const vacio = document.getElementById('estado-buscador-concesiones');
+        if (contador) contador.textContent = consulta
+          ? coincidencias + (coincidencias === 1 ? ' resultado' : ' resultados')
+          : botones.length + ' concesiones';
+        if (vacio) vacio.hidden = coincidencias !== 0;
+      });
+    }
 
     cargarCatalogoConcesiones();
   </script>
