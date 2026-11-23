@@ -3293,9 +3293,6 @@ def _trabajador_seguimiento_avanza(resultado, timestamp_cache, descriptor_bloque
 
 
 def _trabajador_barrido_avanza(descriptor_bloqueo=None):
-
-
-def _trabajador_barrido_avanza(descriptor_bloqueo=None):
     try:
         resultado = consultar_flota_avanza_urbana()
         timestamp_cache = time.time()
