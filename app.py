@@ -1904,7 +1904,7 @@ AVANZA_URBANOS_TTL = 360
 AVANZA_CATALOGO_POSTES_TTL = 21600
 AVANZA_PAUSA_RECORRIDOS = 0.0
 AVANZA_PAUSA_POSTES = 0.0
-AVANZA_CONCURRENCIA_GPS = 6
+AVANZA_CONCURRENCIA_GPS = 10
 
 try:
     AVANZA_URBANOS_TTL = max(120, int(os.environ.get("AVANZA_URBANOS_TTL", AVANZA_URBANOS_TTL)))
@@ -1913,7 +1913,7 @@ except (TypeError, ValueError):
 try:
     AVANZA_PAUSA_RECORRIDOS = max(0.0, float(os.environ.get("AVANZA_PAUSA_RECORRIDOS", AVANZA_PAUSA_RECORRIDOS)))
     AVANZA_PAUSA_POSTES = max(0.0, float(os.environ.get("AVANZA_PAUSA_POSTES", AVANZA_PAUSA_POSTES)))
-    AVANZA_CONCURRENCIA_GPS = min(6, max(1, int(os.environ.get("AVANZA_CONCURRENCIA_GPS", AVANZA_CONCURRENCIA_GPS))))
+    AVANZA_CONCURRENCIA_GPS = min(10, max(1, int(os.environ.get("AVANZA_CONCURRENCIA_GPS", AVANZA_CONCURRENCIA_GPS))))
 except (TypeError, ValueError):
     pass
 
@@ -1969,7 +1969,7 @@ def _leer_avanza_estado_compartido():
         return {}
 
 
-def _guardar_avanza_estado_compartido(estado=None, cache=None, actualizar_cache=False):
+def _guardar_avanza_estado_compartido(estado=None, cache=None, actualizar_cache=False, catalogo=None):
     """
     Escribe de forma atómica el progreso y la última flota en un fichero común.
     Cada worker web lee el mismo fichero, aunque las peticiones roten de proceso.
@@ -1980,6 +1980,8 @@ def _guardar_avanza_estado_compartido(estado=None, cache=None, actualizar_cache=
             contenido["state"] = estado
         if actualizar_cache:
             contenido["cache"] = cache
+        if catalogo is not None:
+            contenido["catalogo"] = catalogo
         directorio = os.path.dirname(AVANZA_SHARED_STATE_PATH) or "."
         os.makedirs(directorio, exist_ok=True)
         temporal = (
@@ -2275,6 +2277,38 @@ def descubrir_postes_avanza(http):
                 list(cacheada["errores"]),
             )
 
+    # El catálogo de paradas también se comparte entre workers. Así, un
+    # proceso distinto no tiene que volver a consultar todos los recorridos.
+    catalogo_compartido = _leer_avanza_estado_compartido().get("catalogo") or {}
+    actualizado_catalogo = catalogo_compartido.get("actualizado_epoch")
+    try:
+        edad_catalogo = max(0.0, time.time() - float(actualizado_catalogo))
+    except (TypeError, ValueError):
+        edad_catalogo = float("inf")
+    postes_compartidos = catalogo_compartido.get("postes")
+    if (
+        isinstance(postes_compartidos, list)
+        and postes_compartidos
+        and edad_catalogo < AVANZA_CATALOGO_POSTES_TTL
+    ):
+        lineas_cacheadas = int(catalogo_compartido.get("lineas") or 0)
+        sentidos_cacheados = int(catalogo_compartido.get("sentidos") or 0)
+        errores_cacheados = list(catalogo_compartido.get("errores") or [])
+        with AVANZA_URBANOS_LOCK:
+            AVANZA_CATALOGO_POSTES_CACHE.update({
+                "timestamp": time.monotonic() - edad_catalogo,
+                "postes": list(postes_compartidos),
+                "lineas": lineas_cacheadas,
+                "sentidos": sentidos_cacheados,
+                "errores": errores_cacheados,
+            })
+        return (
+            list(postes_compartidos),
+            lineas_cacheadas,
+            sentidos_cacheados,
+            errores_cacheados,
+        )
+
     nonce, lineas = obtener_nonce_y_lineas_avanza(http)
     postes_por_id = {}
     sentidos_consultados = 0
@@ -2369,6 +2403,13 @@ def descubrir_postes_avanza(http):
             "sentidos": sentidos_consultados,
             "errores": errores[:20],
         })
+    _guardar_avanza_estado_compartido(catalogo={
+        "actualizado_epoch": time.time(),
+        "postes": lista_postes,
+        "lineas": len(lineas),
+        "sentidos": sentidos_consultados,
+        "errores": errores[:20],
+    })
     return lista_postes, len(lineas), sentidos_consultados, errores
 
 
@@ -2477,6 +2518,7 @@ def extraer_bus_avanza(maquina, poste, nombre_parada=None):
         "coche": coche,
         "linea": linea,
         "destino": destino or "Destino no indicado",
+        "sentido": destino or "Sentido no indicado",
         "lat": float(lat),
         "lon": float(lon),
         "eta_minutos": eta_minutos,
