@@ -1,5 +1,6 @@
 import os
 import html
+from html.parser import HTMLParser
 # Desactivar extensión C de Protobuf para compatibilidad con Python 3.11+
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
@@ -1878,34 +1879,324 @@ def get_buses(linea):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# AVANZA ZARAGOZA · POSICIONES GPS POR PARADA
+# AVANZA ZARAGOZA · BARRIDO DE TODA LA RED DE POSTES
 #
-# Avanza no ofrece en este endpoint un volcado global documentado de la flota:
-# cada POST devuelve los vehículos que llegan a UN poste concreto. La lista se
-# puede ampliar mediante AVANZA_URBAN_POSTES, separada por comas. Por defecto
-# solo se usa el poste 14, cuya respuesta GPS se ha comprobado manualmente.
+# La API GPS no publica un volcado global documentado. La estrategia es:
+#   1) Leer de la web de Avanza las líneas y los postes de cada sentido.
+#   2) Consultar fRefrescaEmpresaExternos una vez por cada poste (coche=0).
+#   3) Agrupar las observaciones por número de coche para pintar cada bus una vez.
+#
+# Un coche puede no aparecer en los dos próximos de un poste, pero sí en otro
+# poste de la misma línea. El barrido de toda la red amplía mucho la cobertura.
+# La fuente sigue limitando lo que anuncia por poste: no se puede prometer que
+# publique todos los coches en cualquier instante.
 # ─────────────────────────────────────────────────────────────────────────────
 
 AVANZA_URBANOS_ENDPOINT = (
     "https://gps.avanzabus.com/index.php/zaragoza/fRefrescaEmpresaExternos"
 )
-AVANZA_URBANOS_TTL = 15
+AVANZA_LINEAS_URL = "https://zaragoza.avanzagrupo.com/lineas-y-horarios/"
+AVANZA_AJAX_URL = "https://zaragoza.avanzagrupo.com/wp-admin/admin-ajax.php"
+
+AVANZA_URBANOS_TTL = 300
+AVANZA_CATALOGO_POSTES_TTL = 21600
+AVANZA_PAUSA_RECORRIDOS = 0.35
+AVANZA_PAUSA_POSTES = 0.25
+
+try:
+    AVANZA_URBANOS_TTL = max(120, int(os.environ.get("AVANZA_URBANOS_TTL", AVANZA_URBANOS_TTL)))
+except (TypeError, ValueError):
+    pass
+try:
+    AVANZA_PAUSA_RECORRIDOS = max(0.0, float(os.environ.get("AVANZA_PAUSA_RECORRIDOS", AVANZA_PAUSA_RECORRIDOS)))
+    AVANZA_PAUSA_POSTES = max(0.0, float(os.environ.get("AVANZA_PAUSA_POSTES", AVANZA_PAUSA_POSTES)))
+except (TypeError, ValueError):
+    pass
+
 AVANZA_URBANOS_CACHE = {"timestamp": 0.0, "data": None}
 AVANZA_URBANOS_LOCK = threading.Lock()
+AVANZA_URBAN_SCAN_LOCK = threading.Lock()
+AVANZA_CATALOGO_POSTES_CACHE = {
+    "timestamp": 0.0,
+    "postes": [],
+    "lineas": 0,
+    "sentidos": 0,
+    "errores": [],
+}
+AVANZA_URBANOS_STATE = {
+    "escaneo_en_curso": False,
+    "fase": "pendiente",
+    "progreso": 0,
+    "total_progreso": 0,
+    "lineas_descubiertas": 0,
+    "paradas_descubiertas": 0,
+    "ultimo_error": None,
+    "inicio_escaneo": None,
+    "fin_escaneo": None,
+}
 
 
-def obtener_postes_avanza_urbanos():
-    """Códigos de poste configurados; 14 es el único validado hasta ahora."""
-    raw = os.environ.get("AVANZA_URBAN_POSTES", "14")
-    postes = []
-    for fragmento in raw.split(","):
-        try:
-            poste = int(fragmento.strip())
-        except (TypeError, ValueError):
-            continue
-        if poste > 0 and poste not in postes:
-            postes.append(poste)
-    return postes or [14]
+class AvanzaHTMLParser(HTMLParser):
+    """Extrae selects y el nonce sin depender de expresiones HTML frágiles."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.selects = []
+        self.select_actual = None
+        self.option_actual = None
+        self.nonce = None
+
+    def handle_starttag(self, tag, attrs):
+        atributos = {clave.lower(): (valor or "") for clave, valor in attrs}
+        if tag.lower() == "input" and atributos.get("id") == "avz_bus_ajax_nonce":
+            self.nonce = atributos.get("value") or self.nonce
+        elif tag.lower() == "select":
+            self.select_actual = {
+                "id": atributos.get("id", ""),
+                "name": atributos.get("name", ""),
+                "aria-label": atributos.get("aria-label", ""),
+                "options": [],
+            }
+            self.selects.append(self.select_actual)
+        elif tag.lower() == "option" and self.select_actual is not None:
+            self.option_actual = {
+                "value": atributos.get("value", "").strip(),
+                "texto": [],
+            }
+
+    def handle_data(self, data):
+        if self.option_actual is not None:
+            self.option_actual["texto"].append(data)
+
+    def handle_endtag(self, tag):
+        if tag.lower() == "option" and self.option_actual is not None:
+            self.option_actual["texto"] = re.sub(
+                r"\s+", " ", "".join(self.option_actual["texto"])
+            ).strip()
+            if self.select_actual is not None:
+                self.select_actual["options"].append(self.option_actual)
+            self.option_actual = None
+        elif tag.lower() == "select":
+            self.select_actual = None
+
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)
+        self.handle_endtag(tag)
+
+
+def parsear_html_avanza(texto):
+    parser = AvanzaHTMLParser()
+    parser.feed(str(texto or ""))
+    parser.close()
+    return parser
+
+
+def _opciones_de_lineas_avanza(html_pagina):
+    parser = parsear_html_avanza(html_pagina)
+    candidatos = [
+        select for select in parser.selects
+        if "linea" in (
+            str(select.get("id", "")) + " " +
+            str(select.get("name", "")) + " " +
+            str(select.get("aria-label", ""))
+        ).lower()
+    ]
+    if not candidatos:
+        candidatos = [
+            select for select in parser.selects
+            if len(select.get("options", [])) >= 10
+        ]
+    if not candidatos:
+        return []
+
+    opciones = []
+    vistos = set()
+    for select in candidatos:
+        for opcion in select.get("options", []):
+            valor = str(opcion.get("value") or "").strip()
+            clave = valor.lower()
+            if (
+                not valor
+                or clave in vistos
+                or valor in {"0", "-1"}
+                or not re.fullmatch(r"[A-Za-z0-9_-]{1,12}", valor)
+            ):
+                continue
+            vistos.add(clave)
+            opciones.append({
+                "valor": valor,
+                "nombre": opcion.get("texto") or valor,
+            })
+    return opciones
+
+
+def _extraer_postes_de_recorrido(fragmento_html):
+    parser = parsear_html_avanza("<select>" + str(fragmento_html or "") + "</select>")
+    postes = {}
+    for select in parser.selects:
+        for opcion in select.get("options", []):
+            valor = str(opcion.get("value") or "").strip()
+            if not valor.isdigit():
+                continue
+            poste = int(valor)
+            if poste <= 0:
+                continue
+            nombre = re.sub(r"^\d+\s*[-–]\s*", "", opcion.get("texto") or "").strip()
+            if poste not in postes or (nombre and not postes[poste]):
+                postes[poste] = nombre
+    return postes
+
+
+def obtener_nonce_y_lineas_avanza(http):
+    """Carga el nonce WordPress y el selector de líneas actual de Avanza."""
+    respuesta = http.get(
+        AVANZA_LINEAS_URL,
+        headers={
+            "User-Agent": "Mozilla/5.0 (compatible; MapaTPA/1.0)",
+            "Accept": "text/html,application/xhtml+xml",
+        },
+        timeout=(5, 15),
+    )
+    respuesta.raise_for_status()
+    parser = parsear_html_avanza(respuesta.text)
+    nonce = parser.nonce
+    if not nonce:
+        raise ValueError("Avanza no ha publicado el nonce de su página de líneas.")
+    lineas = _opciones_de_lineas_avanza(respuesta.text)
+    if not lineas:
+        raise ValueError("No se ha podido leer el selector de líneas de Avanza.")
+    return nonce, lineas
+
+
+def descubrir_postes_avanza(http):
+    """
+    Lee todos los sentidos de las líneas publicadas en la web de Avanza y reúne
+    los códigos de poste únicos. El catálogo se guarda seis horas.
+    """
+    ahora = time.monotonic()
+    with AVANZA_URBANOS_LOCK:
+        cacheada = AVANZA_CATALOGO_POSTES_CACHE
+        if cacheada["postes"] and ahora - cacheada["timestamp"] < AVANZA_CATALOGO_POSTES_TTL:
+            return (
+                list(cacheada["postes"]),
+                cacheada["lineas"],
+                cacheada["sentidos"],
+                list(cacheada["errores"]),
+            )
+
+    nonce, lineas = obtener_nonce_y_lineas_avanza(http)
+    postes_por_id = {}
+    sentidos_consultados = 0
+    errores = []
+    total_sentidos = len(lineas) * 2
+
+    for indice, linea in enumerate(lineas):
+        for sentido in (-1, -2):
+            sentidos_consultados += 1
+            try:
+                respuesta = http.post(
+                    AVANZA_AJAX_URL,
+                    data={
+                        "action": "get_stops_list",
+                        "selectLinea": linea["valor"],
+                        "selectSentido": str(sentido),
+                        "nonce": nonce,
+                    },
+                    headers={
+                        "User-Agent": "Mozilla/5.0 (compatible; MapaTPA/1.0)",
+                        "Accept": "*/*",
+                        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                        "X-Requested-With": "XMLHttpRequest",
+                        "Referer": AVANZA_LINEAS_URL,
+                        "Origin": "https://zaragoza.avanzagrupo.com",
+                    },
+                    timeout=(5, 12),
+                )
+                if respuesta.status_code == 403:
+                    # El nonce puede caducar antes de terminar un barrido.
+                    nonce, _ = obtener_nonce_y_lineas_avanza(http)
+                    respuesta = http.post(
+                        AVANZA_AJAX_URL,
+                        data={
+                            "action": "get_stops_list",
+                            "selectLinea": linea["valor"],
+                            "selectSentido": str(sentido),
+                            "nonce": nonce,
+                        },
+                        headers={
+                            "User-Agent": "Mozilla/5.0 (compatible; MapaTPA/1.0)",
+                            "Accept": "*/*",
+                            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                            "X-Requested-With": "XMLHttpRequest",
+                            "Referer": AVANZA_LINEAS_URL,
+                            "Origin": "https://zaragoza.avanzagrupo.com",
+                        },
+                        timeout=(5, 12),
+                    )
+                if respuesta.status_code != 200:
+                    errores.append(
+                        f"línea {linea['valor']} sentido {sentido}: HTTP {respuesta.status_code}"
+                    )
+                else:
+                    postes_sentido = _extraer_postes_de_recorrido(respuesta.text)
+                    for poste, nombre in postes_sentido.items():
+                        if poste not in postes_por_id or (nombre and not postes_por_id[poste]):
+                            postes_por_id[poste] = nombre
+            except (requests.RequestException, ValueError, TypeError) as exc:
+                errores.append(
+                    f"línea {linea['valor']} sentido {sentido}: {str(exc)[:120]}"
+                )
+
+            if AVANZA_PAUSA_RECORRIDOS and sentidos_consultados < total_sentidos:
+                time.sleep(AVANZA_PAUSA_RECORRIDOS)
+
+        _actualizar_estado_avanza(
+            fase="descubriendo_paradas",
+            progreso=sentidos_consultados,
+            total_progreso=total_sentidos,
+            lineas_descubiertas=indice + 1,
+            paradas_descubiertas=len(postes_por_id),
+        )
+
+    if not postes_por_id:
+        raise ValueError(
+            "Avanza no ha devuelto ningún poste en los recorridos. " +
+            (" ".join(errores[:3]) if errores else "La estructura de respuesta ha cambiado.")
+        )
+
+    lista_postes = [
+        {"poste": poste, "nombre": nombre or f"Parada {poste}"}
+        for poste, nombre in sorted(postes_por_id.items())
+    ]
+    with AVANZA_URBANOS_LOCK:
+        AVANZA_CATALOGO_POSTES_CACHE.update({
+            "timestamp": time.monotonic(),
+            "postes": lista_postes,
+            "lineas": len(lineas),
+            "sentidos": sentidos_consultados,
+            "errores": errores[:20],
+        })
+    return lista_postes, len(lineas), sentidos_consultados, errores
+
+
+def obtener_postes_avanza_urbanos(http):
+    """
+    Permite una lista manual opcional en AVANZA_URBAN_POSTES; por defecto,
+    descubre automáticamente todos los postes desde los recorridos operativos.
+    """
+    raw = os.environ.get("AVANZA_URBAN_POSTES", "").strip()
+    if raw:
+        postes = []
+        for fragmento in raw.split(","):
+            try:
+                poste = int(fragmento.strip())
+            except (TypeError, ValueError):
+                continue
+            if poste > 0 and poste not in {item["poste"] for item in postes}:
+                postes.append({"poste": poste, "nombre": f"Parada {poste}"})
+        if postes:
+            return postes, 0, 0, []
+    return descubrir_postes_avanza(http)
 
 
 def limpiar_texto_html_avanza(valor):
@@ -1946,14 +2237,16 @@ def extraer_bus_avanza(maquina, poste, nombre_parada=None):
 
     celdas = [
         limpiar_texto_html_avanza(celda)
-        for celda in re.findall(r"<td\b[^>]*>(.*?)</td>", str(maquina.get("info") or ""), flags=re.I | re.S)
+        for celda in re.findall(
+            r"<td\b[^>]*>(.*?)</td>",
+            str(maquina.get("info") or ""),
+            flags=re.I | re.S,
+        )
     ]
     destino = ""
     eta_minutos = None
     distancia_km = None
 
-    # La respuesta de Avanza coloca los valores debajo de los cuatro títulos
-    # (Bus, Línea, Tiempo, Distancia). El título del marcador sirve de respaldo.
     if len(celdas) >= 8:
         coche = re.sub(r"^\D+", "", celdas[4]) or coche
         linea_destino = celdas[5]
@@ -1989,151 +2282,243 @@ def extraer_bus_avanza(maquina, poste, nombre_parada=None):
     }
 
 
+def _actualizar_estado_avanza(**cambios):
+    with AVANZA_URBANOS_LOCK:
+        AVANZA_URBANOS_STATE.update(cambios)
+
+
 def consultar_flota_avanza_urbana():
     """
-    Consulta los postes configurados y deduplica los vehículos por coche.
-    La caché global evita repetir el POST por cada navegador conectado.
+    Barre los postes de todos los recorridos operativos y deduplica por coche.
+    El barrido se ejecuta en segundo plano para que el endpoint web responda rápido.
     """
-    with AVANZA_URBANOS_LOCK:
-        ahora = time.monotonic()
-        cacheada = AVANZA_URBANOS_CACHE.get("data")
-        if cacheada is not None and ahora - AVANZA_URBANOS_CACHE["timestamp"] < AVANZA_URBANOS_TTL:
-            return cacheada
+    inicio = time.monotonic()
+    http = requests.Session()
+    http.headers.update({
+        "User-Agent": "Mozilla/5.0 (compatible; MapaTPA/1.0)",
+        "Accept": "application/json, text/javascript, */*; q=0.01",
+    })
 
-        postes = obtener_postes_avanza_urbanos()
-        headers = {
-            "User-Agent": "Mozilla/5.0 (compatible; MapaTPA/1.0)",
-            "Accept": "application/json, text/javascript, */*; q=0.01",
-            "X-Requested-With": "XMLHttpRequest",
-        }
-        buses_por_coche = {}
-        paradas_consultadas = []
-        errores = []
+    postes, lineas_descubiertas, sentidos_consultados, errores_catalogo = (
+        obtener_postes_avanza_urbanos(http)
+    )
+    total_postes = len(postes)
+    if total_postes == 0:
+        raise ValueError("No se han encontrado postes operativos de Avanza.")
 
-        for poste in postes:
-            try:
-                respuesta = requests.post(
-                    AVANZA_URBANOS_ENDPOINT,
-                    data={"poste": str(poste), "coche": "0"},
-                    headers={
-                        **headers,
-                        "Referer": f"https://gps.avanzabus.com/zaragoza/fParadas/{poste}",
-                    },
-                    timeout=(4, 8),
-                )
-                if respuesta.status_code != 200:
-                    errores.append(f"poste {poste}: HTTP {respuesta.status_code}")
-                    continue
+    _actualizar_estado_avanza(
+        fase="consultando_gps",
+        progreso=0,
+        total_progreso=total_postes,
+        lineas_descubiertas=lineas_descubiertas,
+        paradas_descubiertas=total_postes,
+    )
 
-                datos = respuesta.json()
+    buses_por_coche = {}
+    paradas_consultadas = []
+    errores = list(errores_catalogo)
+    headers = {
+        "User-Agent": "Mozilla/5.0 (compatible; MapaTPA/1.0)",
+        "Accept": "application/json, text/javascript, */*; q=0.01",
+        "X-Requested-With": "XMLHttpRequest",
+    }
+
+    for indice, parada_info in enumerate(postes, start=1):
+        poste = parada_info["poste"]
+        nombre_parada = parada_info.get("nombre") or f"Parada {poste}"
+        try:
+            respuesta = http.post(
+                AVANZA_URBANOS_ENDPOINT,
+                data={"poste": str(poste), "coche": "0"},
+                headers={
+                    **headers,
+                    "Referer": f"https://gps.avanzabus.com/zaragoza/fParadas/{poste}",
+                    "Origin": "https://gps.avanzabus.com",
+                },
+                timeout=(5, 10),
+            )
+            if respuesta.status_code != 200:
+                errores.append(f"poste {poste}: HTTP {respuesta.status_code}")
+            else:
+                try:
+                    datos = respuesta.json()
+                except ValueError:
+                    datos = None
+                    errores.append(f"poste {poste}: respuesta GPS no válida")
                 if not isinstance(datos, dict) or "maquinas" not in datos:
-                    errores.append(f"poste {poste}: respuesta sin máquinas GPS")
-                    continue
-
-                maquinas = datos.get("maquinas") or {}
-                if isinstance(maquinas, dict):
-                    entradas = maquinas.values()
-                elif isinstance(maquinas, list):
-                    entradas = maquinas
+                    if datos is not None:
+                        errores.append(f"poste {poste}: respuesta sin máquinas GPS")
                 else:
-                    entradas = []
+                    maquinas = datos.get("maquinas") or {}
+                    entradas = (
+                        list(maquinas.values()) if isinstance(maquinas, dict)
+                        else (maquinas if isinstance(maquinas, list) else [])
+                    )
+                    nombre_feed = None
+                    for maquina in entradas:
+                        if not isinstance(maquina, dict):
+                            continue
+                        icono = str(maquina.get("icon") or "").split("?")[0].rsplit("/", 1)[-1].lower()
+                        if icono == "bus_rojo.png":
+                            nombre_feed = limpiar_texto_html_avanza(
+                                maquina.get("info") or maquina.get("title")
+                            ) or None
+                            break
+                    if nombre_feed:
+                        nombre_parada = nombre_feed
 
-                nombre_parada = None
-                # Primero se recupera el nombre del marcador rojo de la parada.
-                for maquina in entradas:
-                    if not isinstance(maquina, dict):
-                        continue
-                    icono = str(maquina.get("icon") or "").split("?")[0].rsplit("/", 1)[-1].lower()
-                    if icono == "bus_rojo.png":
-                        nombre_parada = limpiar_texto_html_avanza(
-                            maquina.get("info") or maquina.get("title")
-                        ) or None
-                        break
+                    for maquina in entradas:
+                        bus = extraer_bus_avanza(maquina, poste, nombre_parada)
+                        if not bus:
+                            continue
+                        clave = bus["coche"]
+                        anterior = buses_por_coche.get(clave)
+                        eta_nueva = bus["eta_minutos"]
+                        eta_anterior = anterior.get("eta_minutos") if anterior else None
+                        # Un mismo coche puede salir en varias paradas. Se conserva
+                        # la observación con la llegada más próxima y un único marcador.
+                        if anterior is None or (
+                            eta_nueva is not None
+                            and (eta_anterior is None or eta_nueva < eta_anterior)
+                        ):
+                            buses_por_coche[clave] = bus
 
-                # Un segundo recorrido evita perder los autobuses al consumir valores.
-                if isinstance(maquinas, dict):
-                    entradas_buses = maquinas.values()
-                elif isinstance(maquinas, list):
-                    entradas_buses = maquinas
-                else:
-                    entradas_buses = []
+                    paradas_consultadas.append({
+                        "poste": poste,
+                        "nombre": nombre_parada,
+                    })
+        except (requests.RequestException, ValueError, TypeError) as exc:
+            errores.append(f"poste {poste}: {str(exc)[:160]}")
 
-                for maquina in entradas_buses:
-                    bus = extraer_bus_avanza(maquina, poste, nombre_parada)
-                    if not bus:
-                        continue
-                    clave = bus["coche"]
-                    anterior = buses_por_coche.get(clave)
-                    # El mismo autobús puede aparecer en varias paradas; se conserva
-                    # la estimación más próxima y se guarda el poste que la aportó.
-                    eta_nueva = bus["eta_minutos"]
-                    eta_anterior = anterior.get("eta_minutos") if anterior else None
-                    if anterior is None or (
-                        eta_nueva is not None
-                        and (eta_anterior is None or eta_nueva < eta_anterior)
-                    ):
-                        buses_por_coche[clave] = bus
+        _actualizar_estado_avanza(
+            fase="consultando_gps",
+            progreso=indice,
+            total_progreso=total_postes,
+            lineas_descubiertas=lineas_descubiertas,
+            paradas_descubiertas=total_postes,
+        )
+        if AVANZA_PAUSA_POSTES and indice < total_postes:
+            time.sleep(AVANZA_PAUSA_POSTES)
 
-                paradas_consultadas.append({
-                    "poste": poste,
-                    "nombre": nombre_parada or f"Parada {poste}",
-                })
-            except (requests.RequestException, ValueError, TypeError) as exc:
-                errores.append(f"poste {poste}: {str(exc)[:160]}")
+    if not paradas_consultadas and errores:
+        raise ValueError(
+            "No se ha podido consultar ninguna parada de Avanza. " +
+            " | ".join(errores[:5])
+        )
 
-        if not paradas_consultadas and errores:
-            resultado = {
-                "buses": [],
-                "paradas_consultadas": [],
-                "total_paradas": len(postes),
-                "actualizado": datetime.now(ZONA_HORARIA).isoformat(),
-                "error": "No se ha podido consultar el GPS de Avanza.",
-                "detalle": errores[:5],
-            }
-            # Un error se mantiene en caché brevemente para evitar una cascada
-            # de peticiones idénticas si hay varios clientes abiertos.
+    duracion = round(time.monotonic() - inicio, 1)
+    resultado = {
+        "buses": sorted(
+            buses_por_coche.values(),
+            key=lambda bus: (
+                str(bus["linea"]),
+                int(bus["coche"]) if str(bus["coche"]).isdigit() else 0,
+            ),
+        ),
+        "paradas_consultadas": paradas_consultadas,
+        "total_paradas": total_postes,
+        "paradas_descubiertas": total_postes,
+        "lineas_descubiertas": lineas_descubiertas,
+        "sentidos_consultados": sentidos_consultados,
+        "actualizado": datetime.now(ZONA_HORARIA).isoformat(),
+        "duracion_segundos": duracion,
+        "fuente": "GPS de Avanza Zaragoza · barrido de red",
+        "aviso_cobertura": (
+            "Se han consultado los postes encontrados en todos los recorridos " +
+            "publicados por Avanza y se han agrupado los coches repetidos. " +
+            "La fuente puede omitir vehículos que no anuncie en ninguno de esos postes."
+        ),
+        "errores": errores[:20],
+    }
+    return resultado
+
+
+def _trabajador_barrido_avanza():
+    try:
+        resultado = consultar_flota_avanza_urbana()
+        with AVANZA_URBANOS_LOCK:
             AVANZA_URBANOS_CACHE.update({
                 "timestamp": time.monotonic(),
                 "data": resultado,
             })
-            return resultado
+            AVANZA_URBANOS_STATE.update({
+                "escaneo_en_curso": False,
+                "fase": "completado",
+                "progreso": resultado["total_paradas"],
+                "total_progreso": resultado["total_paradas"],
+                "ultimo_error": None,
+                "fin_escaneo": datetime.now(ZONA_HORARIA).isoformat(),
+            })
+    except Exception as exc:
+        print(f"[AVANZA URBANOS] Error en el barrido de flota: {exc}")
+        _actualizar_estado_avanza(
+            escaneo_en_curso=False,
+            fase="error",
+            ultimo_error=str(exc)[:300],
+            fin_escaneo=datetime.now(ZONA_HORARIA).isoformat(),
+        )
+    finally:
+        AVANZA_URBAN_SCAN_LOCK.release()
 
-        resultado = {
-            "buses": sorted(
-                buses_por_coche.values(),
-                key=lambda bus: (
-                    str(bus["linea"]),
-                    int(bus["coche"]) if str(bus["coche"]).isdigit() else 0,
-                ),
-            ),
-            "paradas_consultadas": paradas_consultadas,
-            "total_paradas": len(postes),
-            "actualizado": datetime.now(ZONA_HORARIA).isoformat(),
-            "fuente": "GPS de Avanza Zaragoza",
-            "aviso_cobertura": (
-                "La fuente devuelve los próximos vehículos por parada. "
-                "Añade los códigos de todas las paradas en AVANZA_URBAN_POSTES "
-                "para ampliar la cobertura; no es todavía un volcado global de flota."
-            ),
-            "errores": errores[:5],
-        }
-        AVANZA_URBANOS_CACHE.update({
-            "timestamp": time.monotonic(),
-            "data": resultado,
+
+def iniciar_barrido_avanza_si_necesario(forzar=False):
+    """Inicia como máximo un barrido; las consultas del navegador no esperan a que termine."""
+    if not AVANZA_URBAN_SCAN_LOCK.acquire(blocking=False):
+        return
+
+    ahora = time.monotonic()
+    with AVANZA_URBANOS_LOCK:
+        cacheada = AVANZA_URBANOS_CACHE.get("data")
+        edad = (
+            ahora - AVANZA_URBANOS_CACHE.get("timestamp", 0.0)
+            if cacheada is not None else float("inf")
+        )
+        if not forzar and cacheada is not None and edad < AVANZA_URBANOS_TTL:
+            AVANZA_URBAN_SCAN_LOCK.release()
+            return
+        AVANZA_URBANOS_STATE.update({
+            "escaneo_en_curso": True,
+            "fase": "iniciando",
+            "progreso": 0,
+            "total_progreso": 0,
+            "ultimo_error": None,
+            "inicio_escaneo": datetime.now(ZONA_HORARIA).isoformat(),
         })
-        return resultado
+
+    hilo = threading.Thread(
+        target=_trabajador_barrido_avanza,
+        name="avanza-urbanos-barrido",
+        daemon=True,
+    )
+    hilo.start()
 
 
 @app.route('/api/avanza/urbanos')
 def get_avanza_urbanos():
-    """Posiciones GPS de los autobuses anunciados en los postes configurados."""
-    datos = consultar_flota_avanza_urbana()
-    if datos.get("error"):
-        return jsonify(datos), 503
+    """Devuelve el último barrido único y su progreso, sin bloquear la petición."""
+    iniciar_barrido_avanza_si_necesario(
+        forzar=request.args.get("forzar") == "1"
+    )
+    with AVANZA_URBANOS_LOCK:
+        datos = dict(AVANZA_URBANOS_CACHE.get("data") or {})
+        estado = dict(AVANZA_URBANOS_STATE)
+
+    if not datos:
+        datos = {
+            "buses": [],
+            "paradas_consultadas": [],
+            "total_paradas": 0,
+            "paradas_descubiertas": estado.get("paradas_descubiertas", 0),
+            "lineas_descubiertas": estado.get("lineas_descubiertas", 0),
+            "actualizado": None,
+            "errores": [],
+        }
+    datos.update(estado)
+    if estado.get("ultimo_error") and not datos.get("buses"):
+        datos["error"] = estado["ultimo_error"]
     respuesta = jsonify(datos)
     respuesta.headers["Cache-Control"] = "no-store"
     return respuesta
-
 
 if __name__ == '__main__':
     # El modo debug solo se activa explícitamente en desarrollo local.
