@@ -8670,6 +8670,7 @@
     let avanzaUrbanosPrimeraCarga = true;
     let ultimaFlotaAvanza = [];
     const marcadoresAvanzaUrbanos = {};
+    const metadatosMarcadoresAvanza = {};
     let capasParadas = null;
     let paradasVisibles = true;
     let primeraCarga = true;
@@ -9864,6 +9865,7 @@
       if (avanzaUrbanosIntervalo) clearInterval(avanzaUrbanosIntervalo);
       Object.values(marcadoresAvanzaUrbanos).forEach(marcador => map?.removeLayer(marcador));
       Object.keys(marcadoresAvanzaUrbanos).forEach(id => delete marcadoresAvanzaUrbanos[id]);
+      Object.keys(metadatosMarcadoresAvanza).forEach(id => delete metadatosMarcadoresAvanza[id]);
       avanzaUrbanosActiva = true;
       avanzaUrbanosPrimeraCarga = true;
 
@@ -9897,6 +9899,7 @@
       avanzaUrbanosIntervalo = null;
       Object.values(marcadoresAvanzaUrbanos).forEach(marcador => map?.removeLayer(marcador));
       Object.keys(marcadoresAvanzaUrbanos).forEach(id => delete marcadoresAvanzaUrbanos[id]);
+      Object.keys(metadatosMarcadoresAvanza).forEach(id => delete metadatosMarcadoresAvanza[id]);
       document.getElementById('avanza-urbanos-panel').hidden = true;
       document.getElementById('header-card').style.display = 'none';
       document.getElementById('btn-mostrar-panel').hidden = true;
@@ -10010,13 +10013,28 @@
             </div>
           </div>`;
 
+          const claveIcono = linea + '|' + coche;
+          const clavePopup = claveIcono + '|' + (sentido || 'Dirección no indicada');
           if (marcadoresAvanzaUrbanos[id]) {
-            marcadoresAvanzaUrbanos[id].setLatLng([lat, lon]);
-            marcadoresAvanzaUrbanos[id].setIcon(icono);
-            marcadoresAvanzaUrbanos[id].setPopupContent(popup);
+            const marcador = marcadoresAvanzaUrbanos[id];
+            const posicionActual = marcador.getLatLng();
+            // Evita trabajo de Leaflet cuando la coordenada sigue siendo la misma.
+            if (Math.abs(posicionActual.lat - lat) > 0.000001 ||
+                Math.abs(posicionActual.lng - lon) > 0.000001) {
+              marcador.setLatLng([lat, lon]);
+            }
+            const metadatos = metadatosMarcadoresAvanza[id] || {};
+            if (metadatos.claveIcono !== claveIcono) {
+              marcador.setIcon(icono);
+            }
+            if (metadatos.clavePopup !== clavePopup) {
+              marcador.setPopupContent(popup);
+            }
+            metadatosMarcadoresAvanza[id] = { claveIcono, clavePopup };
           } else {
             marcadoresAvanzaUrbanos[id] = L.marker([lat, lon], { icon: icono }).addTo(map);
             marcadoresAvanzaUrbanos[id].bindPopup(popup);
+            metadatosMarcadoresAvanza[id] = { claveIcono, clavePopup };
           }
           if (!map.hasLayer(marcadoresAvanzaUrbanos[id])) {
             marcadoresAvanzaUrbanos[id].addTo(map);
@@ -10030,6 +10048,7 @@
             if (!idsActuales.has(id)) {
               map.removeLayer(marcadoresAvanzaUrbanos[id]);
               delete marcadoresAvanzaUrbanos[id];
+              delete metadatosMarcadoresAvanza[id];
             }
           });
         }
