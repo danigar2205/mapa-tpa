@@ -1907,7 +1907,7 @@ AVANZA_AJAX_URL = "https://zaragoza.avanzagrupo.com/wp-admin/admin-ajax.php"
 AVANZA_URBANOS_TTL = 360
 # Incrementar cuando cambie el significado de los datos de un barrido.
 # La caché anterior se considera histórica y no se mezcla con el siguiente ciclo.
-AVANZA_SCAN_VERSION = 3
+AVANZA_SCAN_VERSION = 4
 AVANZA_CATALOGO_POSTES_TTL = 21600
 AVANZA_PAUSA_RECORRIDOS = 0.0
 AVANZA_PAUSA_POSTES = 0.0
@@ -1917,6 +1917,8 @@ AVANZA_CONCURRENCIA_RECORRIDOS = 12
 AVANZA_CONCURRENCIA_GPS = 16
 AVANZA_GPS_TIMEOUT_CONNECT = 4.0
 AVANZA_GPS_TIMEOUT_READ = 8.0
+# Limita el ritmo para no disparar cientos de peticiones en ráfaga al GPS.
+AVANZA_GPS_PETICIONES_POR_SEGUNDO = 4.0
 AVANZA_GPS_REFRESCOS_POR_LOTE = 1
 AVANZA_GPS_SEGUIMIENTO_LOTE = 14
 AVANZA_GPS_SEGUIMIENTO_NOVEDADES = 4
@@ -1932,6 +1934,7 @@ try:
     AVANZA_PAUSA_POSTES = max(0.0, float(os.environ.get("AVANZA_PAUSA_POSTES", AVANZA_PAUSA_POSTES)))
     AVANZA_CONCURRENCIA_RECORRIDOS = min(16, max(1, int(os.environ.get("AVANZA_CONCURRENCIA_RECORRIDOS", AVANZA_CONCURRENCIA_RECORRIDOS))))
     AVANZA_CONCURRENCIA_GPS = min(16, max(8, int(os.environ.get("AVANZA_CONCURRENCIA_GPS", AVANZA_CONCURRENCIA_GPS))))
+    AVANZA_GPS_PETICIONES_POR_SEGUNDO = min(5.0, max(1.0, float(os.environ.get("AVANZA_GPS_PETICIONES_POR_SEGUNDO", AVANZA_GPS_PETICIONES_POR_SEGUNDO))))
 except (TypeError, ValueError):
     pass
 try:
@@ -2893,6 +2896,21 @@ def _actualizar_estado_avanza(**cambios):
 
 
 AVANZA_GPS_THREAD_LOCAL = threading.local()
+AVANZA_GPS_RATE_LOCK = threading.Lock()
+AVANZA_GPS_NEXT_REQUEST_AT = 0.0
+
+
+def _esperar_turno_peticion_gps_avanza():
+    """Espacia globalmente las peticiones GPS para evitar ráfagas al operador."""
+    global AVANZA_GPS_NEXT_REQUEST_AT
+    intervalo = 1.0 / max(1.0, AVANZA_GPS_PETICIONES_POR_SEGUNDO)
+    with AVANZA_GPS_RATE_LOCK:
+        ahora = time.monotonic()
+        turno = max(ahora, AVANZA_GPS_NEXT_REQUEST_AT)
+        AVANZA_GPS_NEXT_REQUEST_AT = turno + intervalo
+    espera = turno - time.monotonic()
+    if espera > 0:
+        time.sleep(espera)
 
 
 def _sesion_gps_avanza():
@@ -2923,6 +2941,7 @@ def _consultar_poste_gps_avanza(parada_info):
     # se reintenta una sola vez con un límite menor para no eternizar el barrido.
     for intento in range(2):
         try:
+            _esperar_turno_peticion_gps_avanza()
             respuesta = sesion.post(
                 AVANZA_URBANOS_ENDPOINT,
                 data={"poste": str(poste), "coche": "0"},
@@ -3378,6 +3397,7 @@ def consultar_flota_avanza_urbana():
         "actualizado_epoch": time.time(),
         "duracion_segundos": duracion,
         "concurrencia_gps": AVANZA_CONCURRENCIA_GPS,
+        "peticiones_gps_por_segundo": AVANZA_GPS_PETICIONES_POR_SEGUNDO,
         "scan_version": AVANZA_SCAN_VERSION,
         "fuente": "GPS de Avanza Zaragoza · barrido de red",
         "aviso_cobertura": aviso_cobertura,
