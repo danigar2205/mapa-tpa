@@ -1773,3 +1773,98 @@ class OptimizacionesAvanzaTests(unittest.TestCase):
             ["4809", "4810"],
         )
 
+
+    def test_cache_compacta_la_lista_de_paradas_a_un_contador(self):
+        cache = {
+            "timestamp": 100.0,
+            "data": {
+                "buses": [{"coche": "4809"}],
+                "paradas_consultadas": [{"poste": 10}, {"poste": 20}, {"poste": 30}],
+                "_postes_red": [{"poste": 1}],
+            },
+        }
+        limpia = app_module._cache_avanza_sin_catalogo(cache)
+        datos = limpia["data"]
+        self.assertNotIn("paradas_consultadas", datos)
+        self.assertNotIn("_postes_red", datos)
+        self.assertEqual(datos["paradas_consultadas_count"], 3)
+        self.assertEqual(len(datos["buses"]), 1)
+
+    def test_redis_guarda_estado_cache_y_catalogo_en_claves_separadas(self):
+        class FakePipeline:
+            def __init__(self, cliente):
+                self.cliente = cliente
+                self.operaciones = []
+
+            def get(self, clave):
+                self.operaciones.append(("get", clave))
+                return self
+
+            def set(self, clave, valor, ex=None):
+                self.operaciones.append(("set", clave, valor))
+                return self
+
+            def delete(self, clave):
+                self.operaciones.append(("delete", clave))
+                return self
+
+            def execute(self):
+                resultados = []
+                for operacion in self.operaciones:
+                    if operacion[0] == "get":
+                        resultados.append(self.cliente.datos.get(operacion[1]))
+                    elif operacion[0] == "set":
+                        self.cliente.datos[operacion[1]] = operacion[2]
+                        resultados.append(True)
+                    else:
+                        self.cliente.datos.pop(operacion[1], None)
+                        resultados.append(1)
+                return resultados
+
+        class FakeRedis:
+            def __init__(self):
+                self.datos = {}
+
+            def pipeline(self, transaction=False):
+                return FakePipeline(self)
+
+        cliente = FakeRedis()
+        estado = {"fase": "completado", "escaneo_en_curso": False}
+        cache = {
+            "timestamp": 123.0,
+            "data": {
+                "buses": [{"coche": "4809"}],
+                "paradas_consultadas": [{"poste": 10}, {"poste": 20}],
+                "_postes_red": [{"poste": 1}, {"poste": 2}],
+            },
+        }
+        catalogo = {"postes": [{"poste": 10}, {"poste": 20}]}
+
+        with (
+            patch.object(app_module, "AVANZA_REDIS_CLIENT", cliente),
+            patch.object(app_module, "AVANZA_REDIS_MIGRATED", False),
+            patch.object(app_module, "AVANZA_REDIS_ACTIVE_LOCK_TOKEN", None),
+        ):
+            app_module._guardar_avanza_estado_compartido(
+                estado=estado,
+                cache=cache,
+                actualizar_cache=True,
+                catalogo=catalogo,
+            )
+            contenido = app_module._leer_avanza_estado_compartido()
+
+        self.assertEqual(contenido["state"], estado)
+        self.assertEqual(contenido["catalogo"], catalogo)
+        self.assertEqual(
+            contenido["cache"]["data"]["paradas_consultadas_count"], 2
+        )
+        self.assertNotIn(
+            "paradas_consultadas", contenido["cache"]["data"]
+        )
+        self.assertNotIn(
+            "paradas_gps_completadas", contenido["cache"]["data"]
+        )
+        self.assertNotIn(app_module.AVANZA_REDIS_STATE_KEY, cliente.datos)
+        self.assertIn(app_module.AVANZA_REDIS_STATE_DATA_KEY, cliente.datos)
+        self.assertIn(app_module.AVANZA_REDIS_CACHE_DATA_KEY, cliente.datos)
+        self.assertIn(app_module.AVANZA_REDIS_CATALOG_DATA_KEY, cliente.datos)
