@@ -3210,7 +3210,7 @@ def _trabajador_barrido_avanza(descriptor_bloqueo=None):
         with AVANZA_URBANOS_LOCK:
             AVANZA_URBANOS_STATE.update({
                 "seguimiento_en_curso": False,
-                "actualizado": resultado.get("actualizado"),
+                "actualizado": AVANZA_URBANOS_CACHE.get("data", {}).get("actualizado", resultado.get("actualizado")),
             })
             estado_seguimiento_final = dict(AVANZA_URBANOS_STATE)
         _guardar_avanza_estado_compartido(estado=estado_seguimiento_final)
