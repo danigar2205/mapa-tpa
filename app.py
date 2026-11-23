@@ -3084,6 +3084,34 @@ def _fusionar_buses_avanza(buses_por_coche, buses_nuevos):
             buses_por_coche[coche] = actual
 
 
+def _registrar_resultado_parada_avanza(
+    resultado_parada,
+    postes_gps_completados,
+    paradas_por_id,
+    fallos_por_poste,
+    errores_por_poste,
+):
+    """
+    Solo marca como completado un poste cuando recibe JSON GPS válido.
+    Las respuestas fallidas permanecen pendientes para las rondas de reintento.
+    """
+    poste_key = str(resultado_parada.get("poste"))
+    error = resultado_parada.get("error")
+    if error:
+        fallos_por_poste[poste_key] = dict(resultado_parada)
+        errores_por_poste[poste_key] = str(error)
+        return False
+
+    fallos_por_poste.pop(poste_key, None)
+    errores_por_poste.pop(poste_key, None)
+    postes_gps_completados.add(poste_key)
+    paradas_por_id[poste_key] = {
+        "poste": resultado_parada["poste"],
+        "nombre": resultado_parada["nombre"],
+    }
+    return True
+
+
 def consultar_flota_avanza_urbana():
     """
     Escanea las paradas con un pool continuo. Cada resultado libera un hilo que
@@ -3127,12 +3155,10 @@ def consultar_flota_avanza_urbana():
         paradas_consultadas = list(
             estado_compartido.get("paradas_gps_consultadas") or []
         )
-        errores_gps = []
     else:
         postes_gps_completados = set()
         buses_gps_parciales = []
         paradas_consultadas = []
-        errores_gps = []
 
     buses_por_coche = {
         str(bus["coche"]): dict(bus) for bus in buses_gps_parciales
@@ -3164,7 +3190,7 @@ def consultar_flota_avanza_urbana():
         buses_gps_parciales=list(buses_por_coche.values()),
         postes_gps_completados=sorted(postes_gps_completados),
         paradas_gps_consultadas=list(paradas_por_id.values()),
-        errores_gps_parciales=errores_gps[-100:],
+        errores_gps_parciales=[],
         lineas_descubiertas=lineas_descubiertas,
         paradas_descubiertas=total_postes,
     )
@@ -3183,21 +3209,18 @@ def consultar_flota_avanza_urbana():
 
     def incorporar_respuesta_gps(resultado_parada, refresco=False):
         poste_key = str(resultado_parada.get("poste"))
-        if resultado_parada.get("error"):
-            if not refresco:
-                fallos_por_poste[poste_key] = dict(resultado_parada)
-                errores_por_poste[poste_key] = str(resultado_parada["error"])
-            return
-
         if not refresco:
-            # Una parada solo se considera completada si recibió una respuesta válida.
-            fallos_por_poste.pop(poste_key, None)
-            errores_por_poste.pop(poste_key, None)
-            postes_gps_completados.add(poste_key)
-            paradas_por_id[poste_key] = {
-                "poste": resultado_parada["poste"],
-                "nombre": resultado_parada["nombre"],
-            }
+            respuesta_valida = _registrar_resultado_parada_avanza(
+                resultado_parada,
+                postes_gps_completados,
+                paradas_por_id,
+                fallos_por_poste,
+                errores_por_poste,
+            )
+            if not respuesta_valida:
+                return
+        elif resultado_parada.get("error"):
+            return
 
         coches_en_respuesta = {
             str(bus.get("coche") or bus.get("id") or "")
