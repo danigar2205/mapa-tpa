@@ -8548,7 +8548,7 @@
       <p>Seguimiento GPS de la red urbana de Avanza</p>
     </div>
     <div class="avanza-panel-stats">
-      <div><strong id="avanza-bus-count">—</strong><span>vehículos localizados</span></div>
+      <div><strong id="avanza-bus-count">—</strong><span id="avanza-bus-count-label">coches detectados</span></div>
       <div><strong id="avanza-last-update">—</strong><span>última actualización</span></div>
     </div>
     <div class="avanza-progress-card" id="avanza-progress-card" data-state="loading">
@@ -8577,7 +8577,7 @@
         <div class="avanza-bus-list-empty">Esperando posiciones GPS…</div>
       </div>
     </section>
-    <p class="avanza-panel-note" id="avanza-coverage-note">Consultando las posiciones publicadas por Avanza…</p>
+    <p class="avanza-panel-note" id="avanza-coverage-note">El recuento incluye los coches que el GPS publica en los postes consultados; no representa el tamaño total de la flota.</p>
     <p class="avanza-panel-message" id="avanza-panel-message" role="status" aria-live="polite"></p>
     <button type="button" class="avanza-refresh-button" id="avanza-refresh-button" onclick="actualizarAvanzaUrbanos(true)">
       <i class="fa-solid fa-rotate" aria-hidden="true"></i><span>Actualizar ahora</span>
@@ -8668,7 +8668,7 @@
     let avanzaUrbanosIntervalo = null;
     let avanzaUrbanosSolicitud = false;
     let avanzaUrbanosPrimeraCarga = true;
-    let ultimaFlotaAvanza = [];
+    let avanzaUrbanosScanId = null;
     const marcadoresAvanzaUrbanos = {};
     const metadatosMarcadoresAvanza = {};
     let capasParadas = null;
@@ -9868,6 +9868,7 @@
       Object.keys(metadatosMarcadoresAvanza).forEach(id => delete metadatosMarcadoresAvanza[id]);
       avanzaUrbanosActiva = true;
       avanzaUrbanosPrimeraCarga = true;
+      avanzaUrbanosScanId = null;
 
       const panel = document.getElementById('avanza-urbanos-panel');
       panel.hidden = false;
@@ -9933,23 +9934,26 @@
         const enEscaneo = Boolean(datos.escaneo_en_curso);
         const fase = String(datos.fase || '');
         const busesRecibidos = Array.isArray(datos.buses) ? datos.buses : [];
-        let buses = busesRecibidos;
-        if (enEscaneo) {
-          // Durante un barrido nuevo, los datos parciales se fusionan con la
-          // última flota conocida; no se vacía el panel mientras el mapa
-          // conserva los marcadores del barrido anterior.
-          const acumulados = new Map(
-            ultimaFlotaAvanza.map(bus => [String(bus.coche || bus.id || ''), bus])
-          );
-          busesRecibidos.forEach(bus => {
-            const coche = String(bus.coche || bus.id || '').trim();
-            if (coche) acumulados.set(coche, bus);
-          });
-          buses = Array.from(acumulados.values());
-          ultimaFlotaAvanza = buses;
-        } else {
-          ultimaFlotaAvanza = busesRecibidos;
+        const scanId = String(datos.scan_id || '');
+
+        // Cada scan_id identifica un barrido distinto. Al cambiar, se descarta
+        // la flota anterior y solo se cuentan los coches detectados en este ciclo.
+        if (scanId && scanId !== avanzaUrbanosScanId) {
+          avanzaUrbanosScanId = scanId;
+          avanzaUrbanosPrimeraCarga = true;
+          Object.values(marcadoresAvanzaUrbanos).forEach(marcador => map?.removeLayer(marcador));
+          Object.keys(marcadoresAvanzaUrbanos).forEach(id => delete marcadoresAvanzaUrbanos[id]);
+          Object.keys(metadatosMarcadoresAvanza).forEach(id => delete metadatosMarcadoresAvanza[id]);
+          const listaAnterior = document.getElementById('avanza-bus-list');
+          if (listaAnterior) {
+            listaAnterior.innerHTML = '<div class="avanza-bus-list-empty">Localizando coches del nuevo barrido…</div>';
+            listaAnterior.dataset.rendered = '';
+          }
         }
+
+        // El backend ya envía la lista única y acumulada del scan_id actual.
+        // No se mezcla con una flota anterior: cada coche aparece al localizarse.
+        const buses = busesRecibidos;
         const idsActuales = new Set();
         const posiciones = [];
         const listaVehiculos = buses
@@ -10075,12 +10079,13 @@
         const totalProgreso = Number(datos.total_progreso || 0);
         const progresoGeneral = Number(datos.progreso_general || 0);
         const totalProgresoGeneral = Number(datos.total_progreso_general || 0);
-        const cochesDetectados = Math.max(
-          Number(datos.coches_unicos_detectados || 0),
-          buses.length
-        );
-        document.getElementById('avanza-bus-count').textContent =
-          String(enEscaneo ? cochesDetectados : buses.length);
+        const cochesDetectados = new Set(
+          buses.map(bus => String(bus.coche || bus.id || '').trim()).filter(Boolean)
+        ).size;
+        document.getElementById('avanza-bus-count').textContent = String(cochesDetectados);
+        document.getElementById('avanza-bus-count-label').textContent = enEscaneo
+          ? 'coches localizados en este barrido'
+          : 'coches del último barrido';
         const porcentajeFase = totalProgreso > 0
           ? Math.max(0, Math.min(100, (progreso / totalProgreso) * 100)) : 0;
         // El catálogo ocupa el primer 15% y la descarga GPS el 85% restante.
@@ -10128,27 +10133,28 @@
         const resumenGlobal = totalProgresoGeneral
           ? ' · ' + progresoGeneral + '/' + totalProgresoGeneral + ' operaciones realizadas.'
           : '';
+        const aclaracionFlota = ' La cifra refleja solo los coches publicados por el GPS en este barrido; no es el tamaño total de la flota.';
         const textoCobertura = totalParadas
           ? (paradasConRespuesta + ' de ' + totalParadas + ' paradas consultadas' +
              (lineas ? ' · ' + lineas + ' líneas' : '') +
-             ' · ' + buses.length + ' coches únicos, sin duplicados.')
-          : 'Descubriendo el catálogo operativo de líneas y paradas de Avanza…';
-        document.getElementById('avanza-coverage-note').textContent = enEscaneo
+             ' · ' + cochesDetectados + ' coches únicos, sin duplicados.' + aclaracionFlota)
+          : 'Descubriendo el catálogo operativo de líneas y paradas de Avanza…' + aclaracionFlota;
+        document.getElementById('avanza-coverage-note').textContent = (enEscaneo
           ? (fase === 'descubriendo_paradas'
               ? 'FASE 1/2 · Descubriendo recorridos: ' + progreso + '/' + totalProgreso +
                 ' sentidos · ' + Number(datos.paradas_descubiertas || 0) + ' postes únicos localizados' +
                 resumenGlobal
               : (fase === 'consultando_gps'
                   ? 'FASE 2/2 · Consultando posiciones GPS: ' + progreso + '/' + totalProgreso +
-                    ' paradas · ' + buses.length + ' coches únicos detectados' + resumenGlobal
-                  : 'Preparando el barrido completo de Avanza…'))
-          : textoCobertura +
+                    ' paradas · ' + cochesDetectados + ' coches únicos detectados' + resumenGlobal
+                  : 'Preparando el barrido completo de Avanza…') + aclaracionFlota)
+          : textoCobertura) +
             (datos.duracion_segundos ? ' Barrido: ' + datos.duracion_segundos + ' s.' : '') +
             (datos.aviso_cobertura ? ' ' + datos.aviso_cobertura : '');
         const mensaje = document.getElementById('avanza-panel-message');
         mensaje.textContent = enEscaneo
           ? (buses.length
-              ? 'Se mantiene el último mapa mientras se actualizan las posiciones.'
+              ? 'El recuento corresponde solo a este barrido. Los coches aparecen a medida que Avanza publica nuevas posiciones GPS.'
               : 'Se están consultando las paradas; los coches aparecerán aquí conforme lleguen las posiciones GPS.')
           : (datos.fase === 'error'
               ? 'No se ha podido completar el barrido: ' + String(datos.ultimo_error || 'error de conexión')

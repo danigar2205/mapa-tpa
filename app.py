@@ -1905,6 +1905,9 @@ AVANZA_LINEAS_URL = "https://zaragoza.avanzagrupo.com/lineas-y-horarios/"
 AVANZA_AJAX_URL = "https://zaragoza.avanzagrupo.com/wp-admin/admin-ajax.php"
 
 AVANZA_URBANOS_TTL = 360
+# Incrementar cuando cambie el significado de los datos de un barrido.
+# La caché anterior se considera histórica y no se mezcla con el siguiente ciclo.
+AVANZA_SCAN_VERSION = 2
 AVANZA_CATALOGO_POSTES_TTL = 21600
 AVANZA_PAUSA_RECORRIDOS = 0.0
 AVANZA_PAUSA_POSTES = 0.0
@@ -3321,6 +3324,7 @@ def consultar_flota_avanza_urbana():
         "actualizado_epoch": time.time(),
         "duracion_segundos": duracion,
         "concurrencia_gps": AVANZA_CONCURRENCIA_GPS,
+        "scan_version": AVANZA_SCAN_VERSION,
         "fuente": "GPS de Avanza Zaragoza · barrido de red",
         "aviso_cobertura": aviso_cobertura,
         "errores": errores[:20],
@@ -3583,6 +3587,28 @@ def _trabajador_barrido_avanza(descriptor_bloqueo=None):
             pass
 
 
+def _cache_avanza_es_compatible(cache):
+    """Solo reutiliza flotas guardadas por la versión actual del barrido."""
+    return (
+        isinstance(cache, dict)
+        and str(cache.get("scan_version") or "") == str(AVANZA_SCAN_VERSION)
+    )
+
+
+def _buses_parciales_del_mismo_escaneo(estado_previo, reanudar_escaneo):
+    """
+    Recupera autobuses parciales únicamente al reanudar el mismo scan_id.
+    Un barrido nuevo empieza siempre con un recuento vacío.
+    """
+    if not reanudar_escaneo or not isinstance(estado_previo, dict):
+        return []
+    buses = estado_previo.get("buses_parciales") or []
+    return [
+        dict(bus) for bus in buses
+        if isinstance(bus, dict) and (bus.get("coche") or bus.get("id"))
+    ]
+
+
 def iniciar_barrido_avanza_si_necesario(forzar=False):
     """
     Inicia un único barrido global. Redis coordina todas las instancias cuando
@@ -3614,11 +3640,12 @@ def iniciar_barrido_avanza_si_necesario(forzar=False):
             not forzar
             and estado_previo.get("escaneo_en_curso")
             and estado_previo.get("scan_id")
+            and str(estado_previo.get("scan_version") or "") == str(AVANZA_SCAN_VERSION)
         )
-        buses_previos = list(
-            estado_previo.get("buses_parciales")
-            or (cacheada.get("buses", []) if isinstance(cacheada, dict) else [])
-            or []
+        # Nunca se usa la flota completada anterior como base de un barrido nuevo.
+        # Solo se conservan parciales si se reanuda exactamente el mismo scan_id.
+        buses_previos = _buses_parciales_del_mismo_escaneo(
+            estado_previo, reanudar_escaneo
         )
         timestamp_cache = cache_compartida.get("timestamp") or 0.0
         edad = (
@@ -3630,7 +3657,7 @@ def iniciar_barrido_avanza_si_necesario(forzar=False):
         if (
             not forzar
             and not reanudar_escaneo
-            and isinstance(cacheada, dict)
+            and _cache_avanza_es_compatible(cacheada)
             and edad < AVANZA_URBANOS_TTL
         ):
             heartbeat_previo = estado_previo.get("heartbeat_epoch")
@@ -3694,6 +3721,7 @@ def iniciar_barrido_avanza_si_necesario(forzar=False):
                 "paradas_gps_completadas": int(estado_previo.get("paradas_gps_completadas") or 0) if reanudar_escaneo else 0,
                 "coches_unicos_detectados": len(buses_previos),
                 "buses_parciales": buses_previos,
+                "scan_version": AVANZA_SCAN_VERSION,
                 "lineas_descubiertas": int(estado_previo.get("lineas_descubiertas") or 0) if reanudar_escaneo else 0,
                 "paradas_descubiertas": int(estado_previo.get("paradas_descubiertas") or 0) if reanudar_escaneo else 0,
                 "recorridos_completados": list(estado_previo.get("recorridos_completados") or []) if reanudar_escaneo else [],
@@ -3752,7 +3780,10 @@ def get_avanza_urbanos():
     if not datos.get("actualizado_epoch"):
         datos["actualizado_epoch"] = epoch_cache
     if estado.get("escaneo_en_curso") or estado.get("fase") == "error":
-        datos["buses"] = list(estado.get("buses_parciales") or datos.get("buses") or [])
+        # Durante un barrido nuevo o fallido solo se exponen los coches de ese
+        # mismo scan_id. No se recupera como fallback la última flota completada.
+        datos["buses"] = list(estado.get("buses_parciales") or [])
+        datos["coches_unicos_detectados"] = len(datos["buses"])
     if estado.get("ultimo_error") and not datos.get("buses"):
         datos["error"] = estado["ultimo_error"]
 
