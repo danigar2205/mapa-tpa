@@ -2357,8 +2357,8 @@ def obtener_nonce_y_lineas_avanza(http):
 
 def descubrir_postes_avanza(http):
     """
-    Lee todos los sentidos de las líneas publicadas en la web de Avanza y reúne
-    los códigos de poste únicos. El catálogo se guarda seis horas.
+    Descubre los postes de los recorridos Avanza y reanuda desde el último
+    sentido completado cuando un proceso anterior se haya interrumpido.
     """
     ahora = time.monotonic()
     with AVANZA_URBANOS_LOCK:
@@ -2371,14 +2371,15 @@ def descubrir_postes_avanza(http):
                 list(cacheada["errores"]),
             )
 
-    # El catálogo de paradas también se comparte entre workers. Así, un
-    # proceso distinto no tiene que volver a consultar todos los recorridos.
-    catalogo_compartido = _leer_avanza_estado_compartido().get("catalogo") or {}
+    contenido_compartido = _leer_avanza_estado_compartido()
+    estado_previo = contenido_compartido.get("state") or {}
+    catalogo_compartido = contenido_compartido.get("catalogo") or {}
     actualizado_catalogo = catalogo_compartido.get("actualizado_epoch")
     try:
         edad_catalogo = max(0.0, time.time() - float(actualizado_catalogo))
     except (TypeError, ValueError):
         edad_catalogo = float("inf")
+
     postes_compartidos = catalogo_compartido.get("postes")
     if (
         isinstance(postes_compartidos, list)
@@ -2404,33 +2405,58 @@ def descubrir_postes_avanza(http):
         )
 
     nonce, lineas = obtener_nonce_y_lineas_avanza(http)
-    postes_por_id = {}
-    sentidos_consultados = 0
-    errores = []
-    total_sentidos = len(lineas) * 2
-    _actualizar_estado_avanza(
-        fase="descubriendo_paradas",
-        progreso=0,
-        total_progreso=total_sentidos,
-        progreso_general=0,
-        total_progreso_general=total_sentidos,
-        sentidos_consultados=0,
-        total_sentidos=total_sentidos,
-        paradas_gps_completadas=0,
-        lineas_descubiertas=0,
-        paradas_descubiertas=0,
-    )
-
     tareas = [
         (linea, sentido)
         for linea in lineas
         for sentido in (-1, -2)
     ]
-    sentidos_terminados = 0
-    lineas_terminadas = set()
+    total_sentidos = len(tareas)
 
-    # Cuatro consultas simultáneas reducen la espera inicial sin abrir una
-    # concurrencia excesiva contra el servidor de Avanza.
+    reanudar_descubrimiento = (
+        bool(estado_previo.get("escaneo_en_curso"))
+        and estado_previo.get("fase") == "descubriendo_paradas"
+        and bool(estado_previo.get("scan_id"))
+    )
+    recorridos_completados = set(
+        estado_previo.get("recorridos_completados") or []
+    ) if reanudar_descubrimiento else set()
+    postes_por_id = {
+        str(poste): str(nombre or "")
+        for poste, nombre in (
+            (estado_previo.get("postes_catalogo_parcial") or {}).items()
+            if reanudar_descubrimiento else []
+        )
+    }
+    errores = list(
+        estado_previo.get("errores_recorridos_parcial") or []
+    ) if reanudar_descubrimiento else []
+
+    lineas_terminadas = {
+        clave.rsplit("|", 1)[0] for clave in recorridos_completados
+    }
+    sentidos_terminados = min(len(recorridos_completados), total_sentidos)
+    tareas_pendientes = [
+        (linea, sentido)
+        for linea, sentido in tareas
+        if f"{linea['valor']}|{sentido}" not in recorridos_completados
+    ]
+
+    _actualizar_estado_avanza(
+        fase="descubriendo_paradas",
+        progreso=sentidos_terminados,
+        total_progreso=total_sentidos,
+        progreso_general=sentidos_terminados,
+        total_progreso_general=total_sentidos,
+        sentidos_consultados=sentidos_terminados,
+        total_sentidos=total_sentidos,
+        paradas_gps_completadas=0,
+        lineas_descubiertas=len(lineas_terminadas),
+        paradas_descubiertas=len(postes_por_id),
+        recorridos_completados=sorted(recorridos_completados),
+        postes_catalogo_parcial=postes_por_id,
+        errores_recorridos_parcial=errores,
+    )
+
     with ThreadPoolExecutor(
         max_workers=AVANZA_CONCURRENCIA_GPS,
         thread_name_prefix="avanza-recorridos",
@@ -2442,7 +2468,7 @@ def descubrir_postes_avanza(http):
                 sentido,
                 nonce,
             ): (linea, sentido)
-            for linea, sentido in tareas
+            for linea, sentido in tareas_pendientes
         }
 
         for futuro in as_completed(futuros):
@@ -2457,12 +2483,16 @@ def descubrir_postes_avanza(http):
                     "error": f"línea {linea['valor']} sentido {sentido}: {str(exc)[:120]}",
                 }
 
-            sentidos_terminados += 1
-            lineas_terminadas.add(resultado["linea"])
+            clave_recorrido = f"{resultado.get('linea')}|{resultado.get('sentido')}"
+            recorridos_completados.add(clave_recorrido)
+            sentidos_terminados = min(len(recorridos_completados), total_sentidos)
+            lineas_terminadas.add(str(resultado.get("linea")))
+
             if resultado.get("error"):
                 errores.append(resultado["error"])
             else:
                 for poste, nombre in resultado.get("postes", {}).items():
+                    poste = str(poste)
                     if poste not in postes_por_id or (nombre and not postes_por_id[poste]):
                         postes_por_id[poste] = nombre
 
@@ -2477,6 +2507,9 @@ def descubrir_postes_avanza(http):
                 paradas_gps_completadas=0,
                 lineas_descubiertas=len(lineas_terminadas),
                 paradas_descubiertas=len(postes_por_id),
+                recorridos_completados=sorted(recorridos_completados),
+                postes_catalogo_parcial=postes_por_id,
+                errores_recorridos_parcial=errores[-100:],
             )
 
     if not postes_por_id:
@@ -2486,25 +2519,28 @@ def descubrir_postes_avanza(http):
         )
 
     lista_postes = [
-        {"poste": poste, "nombre": nombre or f"Parada {poste}"}
-        for poste, nombre in sorted(postes_por_id.items())
+        {"poste": int(poste), "nombre": nombre or f"Parada {poste}"}
+        for poste, nombre in sorted(
+            postes_por_id.items(),
+            key=lambda par: int(par[0]) if str(par[0]).isdigit() else str(par[0]),
+        )
     ]
     with AVANZA_URBANOS_LOCK:
         AVANZA_CATALOGO_POSTES_CACHE.update({
             "timestamp": time.monotonic(),
             "postes": lista_postes,
             "lineas": len(lineas),
-            "sentidos": sentidos_consultados,
+            "sentidos": sentidos_terminados,
             "errores": errores[:20],
         })
     _guardar_avanza_estado_compartido(catalogo={
         "actualizado_epoch": time.time(),
         "postes": lista_postes,
         "lineas": len(lineas),
-        "sentidos": sentidos_consultados,
+        "sentidos": sentidos_terminados,
         "errores": errores[:20],
     })
-    return lista_postes, len(lineas), sentidos_consultados, errores
+    return lista_postes, len(lineas), sentidos_terminados, errores
 
 
 def obtener_postes_avanza_urbanos(http):
@@ -2730,9 +2766,8 @@ def _consultar_poste_gps_avanza(parada_info):
 
 def consultar_flota_avanza_urbana():
     """
-    Barre todas las paradas descubiertas. Las consultas GPS se limitan a un
-    pequeño grupo de trabajadores concurrentes para reducir el tiempo total
-    sin saturar el servidor de Avanza.
+    Barre las paradas descubiertas. Si el proceso se interrumpe, retoma las
+    paradas ya consultadas y los coches obtenidos desde el último estado Redis.
     """
     inicio = time.monotonic()
     http = requests.Session()
@@ -2748,31 +2783,64 @@ def consultar_flota_avanza_urbana():
     if total_postes == 0:
         raise ValueError("No se han encontrado postes operativos de Avanza.")
 
-    progreso_catalogo = sentidos_consultados
-    total_operaciones = progreso_catalogo + total_postes
+    estado_compartido = _leer_avanza_estado_compartido().get("state") or {}
+    escaneo_mismo = bool(
+        estado_compartido.get("escaneo_en_curso")
+        and estado_compartido.get("scan_id")
+    )
+    if escaneo_mismo and estado_compartido.get("fase") == "consultando_gps":
+        postes_gps_completados = set(
+            str(poste) for poste in (estado_compartido.get("postes_gps_completados") or [])
+        )
+        buses_gps_parciales = [
+            dict(bus) for bus in (estado_compartido.get("buses_gps_parciales") or [])
+            if isinstance(bus, dict) and bus.get("coche")
+        ]
+        paradas_consultadas = list(
+            estado_compartido.get("paradas_gps_consultadas") or []
+        )
+        errores_gps = list(estado_compartido.get("errores_gps_parciales") or [])
+    else:
+        postes_gps_completados = set()
+        buses_gps_parciales = []
+        paradas_consultadas = []
+        errores_gps = []
+
+    buses_por_coche = {
+        str(bus["coche"]): bus for bus in buses_gps_parciales
+    }
     with AVANZA_URBANOS_LOCK:
         buses_previos = [
             dict(bus) for bus in (AVANZA_URBANOS_STATE.get("buses_parciales") or [])
             if isinstance(bus, dict) and bus.get("coche")
         ]
+
+    progreso_inicial = min(len(postes_gps_completados), total_postes)
+    total_operaciones = sentidos_consultados + total_postes
     _actualizar_estado_avanza(
         fase="consultando_gps",
-        progreso=0,
+        progreso=progreso_inicial,
         total_progreso=total_postes,
-        progreso_general=progreso_catalogo,
+        progreso_general=sentidos_consultados + progreso_inicial,
         total_progreso_general=total_operaciones,
         sentidos_consultados=sentidos_consultados,
         total_sentidos=sentidos_consultados,
-        paradas_gps_completadas=0,
+        paradas_gps_completadas=progreso_inicial,
         coches_unicos_detectados=len(buses_previos),
         buses_parciales=buses_previos,
+        buses_gps_parciales=list(buses_por_coche.values()),
+        postes_gps_completados=sorted(postes_gps_completados),
+        paradas_gps_consultadas=paradas_consultadas,
+        errores_gps_parciales=errores_gps[-100:],
         lineas_descubiertas=lineas_descubiertas,
         paradas_descubiertas=total_postes,
     )
 
-    buses_por_coche = {}
-    paradas_consultadas = []
-    errores = list(errores_catalogo)
+    errores = list(errores_catalogo) + errores_gps
+    postes_pendientes = [
+        parada_info for parada_info in postes
+        if str(parada_info["poste"]) not in postes_gps_completados
+    ]
 
     with ThreadPoolExecutor(
         max_workers=AVANZA_CONCURRENCIA_GPS,
@@ -2780,10 +2848,10 @@ def consultar_flota_avanza_urbana():
     ) as executor:
         futuros = {
             executor.submit(_consultar_poste_gps_avanza, parada_info): parada_info
-            for parada_info in postes
+            for parada_info in postes_pendientes
         }
 
-        for indice, futuro in enumerate(as_completed(futuros), start=1):
+        for futuro in as_completed(futuros):
             try:
                 resultado_parada = futuro.result()
             except Exception as exc:
@@ -2795,8 +2863,11 @@ def consultar_flota_avanza_urbana():
                     "error": f"poste {parada_info['poste']}: {str(exc)[:160]}",
                 }
 
+            poste_key = str(resultado_parada["poste"])
+            postes_gps_completados.add(poste_key)
             if resultado_parada.get("error"):
                 errores.append(resultado_parada["error"])
+                errores_gps.append(resultado_parada["error"])
             else:
                 paradas_consultadas.append({
                     "poste": resultado_parada["poste"],
@@ -2804,21 +2875,26 @@ def consultar_flota_avanza_urbana():
                 })
 
             for bus in resultado_parada.get("buses", []):
-                clave = bus["coche"]
+                clave = str(bus["coche"])
                 anterior = buses_por_coche.get(clave)
                 eta_nueva = bus["eta_minutos"]
                 eta_anterior = anterior.get("eta_minutos") if anterior else None
-                # Un mismo coche puede salir en varias paradas: se queda una sola
-                # observación, priorizando la llegada más próxima.
                 if anterior is None or (
                     eta_nueva is not None
                     and (eta_anterior is None or eta_nueva < eta_anterior)
                 ):
                     buses_por_coche[clave] = bus
 
+            buses_gps_ordenados = sorted(
+                (dict(bus) for bus in buses_por_coche.values()),
+                key=lambda bus: (
+                    str(bus.get("linea") or ""),
+                    int(bus["coche"]) if str(bus.get("coche", "")).isdigit() else 0,
+                ),
+            )
             buses_mostrados = {str(bus["coche"]): dict(bus) for bus in buses_previos}
             buses_mostrados.update({
-                str(bus["coche"]): dict(bus) for bus in buses_por_coche.values()
+                str(bus["coche"]): dict(bus) for bus in buses_gps_ordenados
             })
             buses_mostrados_ordenados = sorted(
                 buses_mostrados.values(),
@@ -2827,17 +2903,26 @@ def consultar_flota_avanza_urbana():
                     int(bus["coche"]) if str(bus.get("coche", "")).isdigit() else 0,
                 ),
             )
+            paradas_ordenadas = sorted(
+                {str(item["poste"]): item for item in paradas_consultadas}.values(),
+                key=lambda item: int(item["poste"]) if str(item["poste"]).isdigit() else str(item["poste"]),
+            )
+            indice = min(len(postes_gps_completados), total_postes)
             _actualizar_estado_avanza(
                 fase="consultando_gps",
                 progreso=indice,
                 total_progreso=total_postes,
-                progreso_general=progreso_catalogo + indice,
+                progreso_general=sentidos_consultados + indice,
                 total_progreso_general=total_operaciones,
                 sentidos_consultados=sentidos_consultados,
                 total_sentidos=sentidos_consultados,
                 paradas_gps_completadas=indice,
                 coches_unicos_detectados=len(buses_mostrados_ordenados),
                 buses_parciales=buses_mostrados_ordenados,
+                buses_gps_parciales=buses_gps_ordenados,
+                postes_gps_completados=sorted(postes_gps_completados),
+                paradas_gps_consultadas=paradas_ordenadas,
+                errores_gps_parciales=errores_gps[-100:],
                 lineas_descubiertas=lineas_descubiertas,
                 paradas_descubiertas=total_postes,
             )
@@ -2875,7 +2960,10 @@ def consultar_flota_avanza_urbana():
                 int(bus["coche"]) if str(bus["coche"]).isdigit() else 0,
             ),
         ),
-        "paradas_consultadas": paradas_consultadas,
+        "paradas_consultadas": sorted(
+            {str(item["poste"]): item for item in paradas_consultadas}.values(),
+            key=lambda item: int(item["poste"]) if str(item["poste"]).isdigit() else str(item["poste"]),
+        ),
         "total_paradas": total_postes,
         "paradas_descubiertas": total_postes,
         "lineas_descubiertas": lineas_descubiertas,
@@ -2888,6 +2976,7 @@ def consultar_flota_avanza_urbana():
         "errores": errores[:20],
     }
     return resultado
+
 
 def _trabajador_barrido_avanza(descriptor_bloqueo=None):
     try:
@@ -2956,6 +3045,11 @@ def iniciar_barrido_avanza_si_necesario(forzar=False):
         cache_compartida = datos_compartidos.get("cache") or {}
         cacheada = cache_compartida.get("data")
         estado_previo = datos_compartidos.get("state") or {}
+        reanudar_escaneo = bool(
+            not forzar
+            and estado_previo.get("escaneo_en_curso")
+            and estado_previo.get("scan_id")
+        )
         buses_previos = list(
             estado_previo.get("buses_parciales")
             or (cacheada.get("buses", []) if isinstance(cacheada, dict) else [])
@@ -2983,21 +3077,28 @@ def iniciar_barrido_avanza_si_necesario(forzar=False):
         with AVANZA_URBANOS_LOCK:
             AVANZA_URBANOS_STATE.update({
                 "escaneo_en_curso": True,
-                "fase": "iniciando",
-                "progreso": 0,
-                "total_progreso": 0,
-                "progreso_general": 0,
-                "total_progreso_general": 0,
-                "sentidos_consultados": 0,
-                "total_sentidos": 0,
-                "paradas_gps_completadas": 0,
+                "fase": estado_previo.get("fase", "iniciando") if reanudar_escaneo else "iniciando",
+                "progreso": int(estado_previo.get("progreso") or 0) if reanudar_escaneo else 0,
+                "total_progreso": int(estado_previo.get("total_progreso") or 0) if reanudar_escaneo else 0,
+                "progreso_general": int(estado_previo.get("progreso_general") or 0) if reanudar_escaneo else 0,
+                "total_progreso_general": int(estado_previo.get("total_progreso_general") or 0) if reanudar_escaneo else 0,
+                "sentidos_consultados": int(estado_previo.get("sentidos_consultados") or 0) if reanudar_escaneo else 0,
+                "total_sentidos": int(estado_previo.get("total_sentidos") or 0) if reanudar_escaneo else 0,
+                "paradas_gps_completadas": int(estado_previo.get("paradas_gps_completadas") or 0) if reanudar_escaneo else 0,
                 "coches_unicos_detectados": len(buses_previos),
                 "buses_parciales": buses_previos,
-                "lineas_descubiertas": 0,
-                "paradas_descubiertas": 0,
+                "lineas_descubiertas": int(estado_previo.get("lineas_descubiertas") or 0) if reanudar_escaneo else 0,
+                "paradas_descubiertas": int(estado_previo.get("paradas_descubiertas") or 0) if reanudar_escaneo else 0,
+                "recorridos_completados": list(estado_previo.get("recorridos_completados") or []) if reanudar_escaneo else [],
+                "postes_catalogo_parcial": dict(estado_previo.get("postes_catalogo_parcial") or {}) if reanudar_escaneo else {},
+                "errores_recorridos_parcial": list(estado_previo.get("errores_recorridos_parcial") or []) if reanudar_escaneo else [],
+                "postes_gps_completados": list(estado_previo.get("postes_gps_completados") or []) if reanudar_escaneo else [],
+                "buses_gps_parciales": list(estado_previo.get("buses_gps_parciales") or []) if reanudar_escaneo else [],
+                "paradas_gps_consultadas": list(estado_previo.get("paradas_gps_consultadas") or []) if reanudar_escaneo else [],
+                "errores_gps_parciales": list(estado_previo.get("errores_gps_parciales") or []) if reanudar_escaneo else [],
                 "ultimo_error": None,
-                "scan_id": str(uuid.uuid4()),
-                "inicio_escaneo": datetime.now(ZONA_HORARIA).isoformat(),
+                "scan_id": estado_previo.get("scan_id") if reanudar_escaneo else str(uuid.uuid4()),
+                "inicio_escaneo": estado_previo.get("inicio_escaneo") if reanudar_escaneo else datetime.now(ZONA_HORARIA).isoformat(),
             })
             estado_inicial = dict(AVANZA_URBANOS_STATE)
         _guardar_avanza_estado_compartido(estado=estado_inicial)
