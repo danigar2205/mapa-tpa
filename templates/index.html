@@ -5137,6 +5137,706 @@
       .home-topbar .theme-toggle { min-height: 36px !important; padding: 0 9px !important; font-size: 10px !important; }
     }
 
+
+    /* =========================================================
+       MAPA TPA · TEMA OSCURO COMPLETO
+       Paleta coherente y contraste uniforme en portada, panel,
+       formularios, ventanas emergentes y controles cartográficos.
+       ========================================================= */
+    html.theme-dark {
+      color-scheme: dark !important;
+      background: #0b1823 !important;
+    }
+    body.theme-dark {
+      --tpa-ink: #edf4f8 !important;
+      --tpa-ink-2: #c5d2da !important;
+      --tpa-muted: #a2b4c0 !important;
+      --tpa-paper: #0b1823 !important;
+      --tpa-white: #142735 !important;
+      --tpa-line: #344b59 !important;
+      --tpa-accent: #e16a70 !important;
+      --tpa-accent-dark: #bd424b !important;
+      --tpa-blue: #4388ad !important;
+      --tpa-green: #54b287 !important;
+      background: #0b1823 !important;
+      color: #edf4f8 !important;
+      color-scheme: dark !important;
+    }
+    body.theme-dark,
+    body.theme-dark #pantalla-inicio,
+    body.theme-dark .home-shell {
+      background-color: #0b1823 !important;
+      color: #edf4f8 !important;
+    }
+    body.theme-dark #pantalla-inicio {
+      background:
+        radial-gradient(ellipse at 8% 8%, rgba(54, 112, 145, .16), transparent 36%),
+        radial-gradient(ellipse at 92% 90%, rgba(177, 55, 65, .08), transparent 32%),
+        linear-gradient(145deg, #0b1823 0%, #102230 58%, #0a151e 100%) !important;
+    }
+
+    /* Portada y cabecera */
+    body.theme-dark .home-topbar,
+    body.theme-dark .home-stat-row,
+    body.theme-dark .home-footer,
+    body.theme-dark .home-network {
+      border-color: #344b59 !important;
+    }
+    body.theme-dark .home-brand,
+    body.theme-dark .home-brand-copy strong,
+    body.theme-dark .home-intro h1,
+    body.theme-dark .home-stat strong,
+    body.theme-dark .home-network-heading h2,
+    body.theme-dark .network-count strong,
+    body.theme-dark .home-footer strong {
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .home-brand-copy small,
+    body.theme-dark .home-top-status,
+    body.theme-dark .home-stat span,
+    body.theme-dark .home-intro-foot,
+    body.theme-dark .home-network-heading p,
+    body.theme-dark .network-count,
+    body.theme-dark .network-count small,
+    body.theme-dark .home-footer,
+    body.theme-dark .catalog-legend {
+      color: #aebfc9 !important;
+    }
+    body.theme-dark .home-eyebrow,
+    body.theme-dark .home-section-index,
+    body.theme-dark .footer-separator {
+      color: #ed858a !important;
+    }
+    body.theme-dark .home-intro h1 em { color: #ed858a !important; }
+    body.theme-dark .home-live-note {
+      border-color: #3f5d5b !important;
+      background: #142b31 !important;
+    }
+    body.theme-dark .home-live-mark {
+      background: #1d3e39 !important;
+      color: #8bd4b1 !important;
+    }
+    body.theme-dark .home-live-copy strong { color: #edf4f8 !important; }
+    body.theme-dark .home-live-copy small { color: #c4d2d9 !important; }
+    body.theme-dark .top-status-dot { background: #55bd8d !important; }
+    body.theme-dark .legend-ready { background: #55bd8d !important; }
+    body.theme-dark .legend-pending { background: #8195a1 !important; }
+
+    /* Botones, tarjetas de concesión, búsqueda y tema */
+    body.theme-dark .theme-toggle,
+    body.theme-dark .feedback-open-button,
+    body.theme-dark .concession-search,
+    body.theme-dark .concession-search-empty {
+      border-color: #455d6c !important;
+      background: #172d3b !important;
+      color: #edf4f8 !important;
+      box-shadow: none !important;
+    }
+    body.theme-dark .theme-toggle,
+    body.theme-dark .feedback-open-button,
+    body.theme-dark .concession-search input,
+    body.theme-dark .concession-search > span,
+    body.theme-dark .concession-search-empty {
+      color: #edf4f8 !important;
+      -webkit-text-fill-color: #edf4f8 !important;
+    }
+    body.theme-dark .theme-toggle i { color: #ffd477 !important; }
+    body.theme-dark .feedback-open-button > i:first-child,
+    body.theme-dark .feedback-open-arrow { color: #e58a8f !important; }
+    body.theme-dark .theme-toggle:hover,
+    body.theme-dark .feedback-open-button:hover,
+    body.theme-dark .concession-search:focus-within {
+      border-color: #6d9ab1 !important;
+      background: #1d394a !important;
+    }
+    body.theme-dark .concession-search input::placeholder {
+      color: #9fb4c0 !important;
+      -webkit-text-fill-color: #9fb4c0 !important;
+      opacity: 1 !important;
+    }
+    body.theme-dark .concession-search > i { color: #8fc4df !important; }
+    body.theme-dark .btn-menu,
+    body.theme-dark .btn-menu.btn-deshabilitado,
+    body.theme-dark .btn-menu.btn-deshabilitado:disabled {
+      border-color: #405866 !important;
+      background: #172d3b !important;
+      color: #e8f0f4 !important;
+      box-shadow: none !important;
+    }
+    body.theme-dark .btn-menu:hover:not(:disabled) {
+      border-color: #6d9ab1 !important;
+      background: #203b4d !important;
+    }
+    body.theme-dark .btn-title,
+    body.theme-dark .btn-menu.btn-deshabilitado .btn-title {
+      border-color: #506a79 !important;
+      background: #263f4f !important;
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .btn-subtitle,
+    body.theme-dark .btn-menu.is-available .btn-subtitle,
+    body.theme-dark .btn-menu.btn-deshabilitado .btn-subtitle {
+      color: #e5eef3 !important;
+    }
+    body.theme-dark .btn-subtitle small,
+    body.theme-dark .btn-menu.is-available .btn-subtitle small,
+    body.theme-dark .btn-menu.btn-deshabilitado .btn-subtitle small {
+      color: #a9c1ce !important;
+    }
+    body.theme-dark .btn-menu.is-available,
+    body.theme-dark .btn-menu.is-available:not(.btn-deshabilitado) {
+      border-color: #4a7c98 !important;
+      border-left-color: #d85b64 !important;
+      background: #1b3546 !important;
+    }
+    body.theme-dark .btn-menu.is-available .btn-title {
+      border-color: #4c89a8 !important;
+      background: #286181 !important;
+      color: #ffffff !important;
+    }
+    body.theme-dark .concession-arrow { color: #9dcbe2 !important; }
+    body.theme-dark .btn-menu.btn-deshabilitado .concession-status { color: #a8bac5 !important; }
+
+    /* Panel lateral: ningún texto claro sobre superficies blancas */
+    body.theme-dark .header-card {
+      border-color: #3c5361 !important;
+      background: #112330 !important;
+      color: #edf4f8 !important;
+      box-shadow: 0 18px 44px rgba(0,0,0,.42) !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
+    body.theme-dark .sidebar-brand,
+    body.theme-dark .fleet-section,
+    body.theme-dark .header-card .info-grid,
+    body.theme-dark .header-card .footer-actions {
+      border-color: #344b59 !important;
+    }
+    body.theme-dark .sidebar-brand-lockup strong,
+    body.theme-dark .badge-text h1,
+    body.theme-dark .fleet-section-heading h2,
+    body.theme-dark .tools-section-heading,
+    body.theme-dark .favorites-panel-heading {
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .sidebar-brand-lockup small,
+    body.theme-dark .badge-text p,
+    body.theme-dark .fleet-state,
+    body.theme-dark .fleet-filter-summary,
+    body.theme-dark .favorites-note {
+      color: #aebfc9 !important;
+    }
+    body.theme-dark .badge-tag {
+      border-color: #477893 !important;
+      background: #245c79 !important;
+      color: #ffffff !important;
+      box-shadow: none !important;
+    }
+    body.theme-dark .live-status {
+      border-color: #326a55 !important;
+      background: #17392f !important;
+      color: #a7e1c4 !important;
+    }
+    body.theme-dark .pulse-dot { background: #55bd8d !important; }
+    body.theme-dark .panel-toggle-button,
+    body.theme-dark .sidebar-back-button,
+    body.theme-dark .panel-show-button,
+    body.theme-dark .tool-button,
+    body.theme-dark .header-card .footer-actions .btn-action,
+    body.theme-dark .header-card .line-filter-toggle,
+    body.theme-dark .header-card .line-filter-action,
+    body.theme-dark .header-card #buscador-paradas,
+    body.theme-dark .header-card #buscador-filtros-lineas,
+    body.theme-dark .header-card .stop-date-input {
+      border-color: #4a6070 !important;
+      background: #1a3040 !important;
+      color: #edf4f8 !important;
+      -webkit-text-fill-color: #edf4f8 !important;
+      box-shadow: none !important;
+    }
+    body.theme-dark .panel-toggle-button:hover,
+    body.theme-dark .sidebar-back-button:hover,
+    body.theme-dark .panel-show-button:hover,
+    body.theme-dark .tool-button:hover,
+    body.theme-dark .header-card .footer-actions .btn-action:hover,
+    body.theme-dark .header-card .line-filter-action:hover {
+      border-color: #6d9ab1 !important;
+      background: #25475d !important;
+      color: #ffffff !important;
+      -webkit-text-fill-color: #ffffff !important;
+    }
+    body.theme-dark .panel-toggle-button i,
+    body.theme-dark .tool-button i { color: #9ccbe0 !important; }
+    body.theme-dark .header-card #buscador-paradas::placeholder,
+    body.theme-dark .header-card #buscador-filtros-lineas::placeholder {
+      color: #a7bac5 !important;
+      -webkit-text-fill-color: #a7bac5 !important;
+      opacity: 1 !important;
+    }
+    body.theme-dark .header-card .line-filter-title,
+    body.theme-dark .header-card .line-filter-summary,
+    body.theme-dark .header-card .line-filter-toggle > i {
+      color: #e1ebf1 !important;
+    }
+    body.theme-dark .header-card #panel-filtros-lineas {
+      border-color: #435a69 !important;
+      background: #142a39 !important;
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .header-card #lista-filtros-lineas .line-filter,
+    body.theme-dark .header-card #lista-filtros-lineas .line-filter:visited {
+      border-color: #496171 !important;
+      background: #1b3343 !important;
+      color: #edf4f8 !important;
+      -webkit-text-fill-color: #edf4f8 !important;
+    }
+    body.theme-dark .header-card #lista-filtros-lineas .line-filter.active,
+    body.theme-dark .header-card #lista-filtros-lineas .line-filter[aria-pressed="true"] {
+      border-color: #6392ad !important;
+      background: #274b62 !important;
+      color: #ffffff !important;
+      -webkit-text-fill-color: #ffffff !important;
+    }
+    body.theme-dark .header-card .info-grid { background: #122331 !important; }
+    body.theme-dark .header-card .info-label { color: #b9c9d2 !important; }
+    body.theme-dark .header-card .info-value,
+    body.theme-dark .header-card #bus-info,
+    body.theme-dark .header-card #last-updated { color: #a7d7f0 !important; }
+
+    /* Flota, tarjetas, contadores y ocupación */
+    body.theme-dark .fleet-count {
+      border-color: #4a6271 !important;
+      background: #203a4a !important;
+      color: #e6f1f6 !important;
+    }
+    body.theme-dark .fleet-overline { color: #e58b91 !important; }
+    body.theme-dark .fleet-empty {
+      border-color: #506775 !important;
+      background: #192f3e !important;
+      color: #e5eef3 !important;
+    }
+    body.theme-dark .fleet-empty i { background: #21475b !important; color: #a3d8ef !important; }
+    body.theme-dark .fleet-vehicle-card {
+      border-color: #435968 !important;
+      border-left-color: #4e93b6 !important;
+      background: #192f3e !important;
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .fleet-vehicle-card:hover,
+    body.theme-dark .fleet-vehicle-card:focus-visible {
+      border-color: #6a91a7 !important;
+      border-left-color: #dc6c73 !important;
+      background: #203b4c !important;
+    }
+    body.theme-dark .fleet-vehicle-number,
+    body.theme-dark .fleet-destination,
+    body.theme-dark .fleet-next-stop,
+    body.theme-dark .fleet-next-stop > span,
+    body.theme-dark .fleet-next-stop strong {
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .fleet-destination-label { color: #b7c8d2 !important; }
+    body.theme-dark .fleet-card-open { color: #a9c0ce !important; }
+    body.theme-dark .fleet-vehicle-number strong {
+      border-color: #4e6878 !important;
+      background: #29485a !important;
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .fleet-vehicle-plate,
+    body.theme-dark .fleet-metric {
+      border-color: #4b6271 !important;
+      background: #203949 !important;
+      color: #e7f0f5 !important;
+    }
+    body.theme-dark .fleet-metric i { color: #9ed5ed !important; }
+    body.theme-dark .fleet-next-stop { border-top-color: #455d6c !important; }
+    body.theme-dark .fleet-route-group {
+      border-color: #405968 !important;
+      background: #172d3c !important;
+    }
+    body.theme-dark .fleet-route-group-toggle {
+      border-color: #4a6271 !important;
+      background: #203b4d !important;
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .fleet-route-group-toggle:hover,
+    body.theme-dark .fleet-route-group-toggle:focus-visible {
+      border-color: #6c9ab1 !important;
+      background: #29495d !important;
+    }
+    body.theme-dark .fleet-route-group-copy strong { color: #edf4f8 !important; }
+    body.theme-dark .fleet-route-group-copy small { color: #b4c5cf !important; }
+    body.theme-dark .fleet-group-chevron { color: #a9c2cf !important; }
+    body.theme-dark .fleet-route-tag {
+      border-color: #526b7b !important;
+      background: #294456 !important;
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .fleet-occupancy.occ-green,
+    body.theme-dark .occ-badge.occ-green {
+      border-color: #326a55 !important;
+      background: #17392f !important;
+      color: #b1e7cb !important;
+    }
+    body.theme-dark .fleet-occupancy.occ-yellow,
+    body.theme-dark .occ-badge.occ-yellow {
+      border-color: #806a36 !important;
+      background: #3c321a !important;
+      color: #f5dc91 !important;
+    }
+    body.theme-dark .fleet-occupancy.occ-orange,
+    body.theme-dark .occ-badge.occ-orange {
+      border-color: #875638 !important;
+      background: #422a1c !important;
+      color: #ffd0a7 !important;
+    }
+    body.theme-dark .fleet-occupancy.occ-red,
+    body.theme-dark .occ-badge.occ-red {
+      border-color: #85474b !important;
+      background: #3d2227 !important;
+      color: #ffc1c5 !important;
+    }
+    body.theme-dark .fleet-occupancy.occ-gray,
+    body.theme-dark .occ-badge.occ-gray {
+      border-color: #536571 !important;
+      background: #293944 !important;
+      color: #d0dce3 !important;
+    }
+
+    /* Herramientas, búsquedas y favoritos */
+    body.theme-dark .tools-section-heading { border-top-color: #344b59 !important; }
+    body.theme-dark .tools-section-heading i { color: #9cc5dc !important; }
+    body.theme-dark .search-results,
+    body.theme-dark .favorites-panel,
+    body.theme-dark .line-filter-panel {
+      border-color: #455c6a !important;
+      background: #162c3b !important;
+      color: #edf4f8 !important;
+      box-shadow: 0 8px 20px rgba(0,0,0,.24) !important;
+    }
+    body.theme-dark .search-result,
+    body.theme-dark .favorite-row {
+      border-color: #405766 !important;
+      background: #162c3b !important;
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .search-result:hover,
+    body.theme-dark .favorite-row:hover { background: #203b4c !important; }
+    body.theme-dark .search-result-name,
+    body.theme-dark .favorite-go,
+    body.theme-dark .favorite-action { color: #edf4f8 !important; }
+    body.theme-dark .search-result-meta,
+    body.theme-dark .favorites-note { color: #b8c9d2 !important; }
+    body.theme-dark .search-empty { color: #d9e5eb !important; }
+    body.theme-dark .favorite-count {
+      border-color: #806a36 !important;
+      background: #3c321a !important;
+      color: #f5dc91 !important;
+    }
+    body.theme-dark .favorite-action {
+      border-color: #526775 !important;
+      background: #203949 !important;
+    }
+    body.theme-dark .favorite-action.enabled {
+      border-color: #806a36 !important;
+      background: #3c321a !important;
+      color: #f5dc91 !important;
+    }
+    body.theme-dark .tool-close { color: #d9e5eb !important; }
+    body.theme-dark .favorite-go:hover,
+    body.theme-dark .tool-close:hover { color: #ffffff !important; }
+
+    /* Buzón de sugerencias: panel, texto, campos, estados y botones */
+    body.theme-dark .feedback-modal { background: rgba(1, 8, 14, .78) !important; }
+    body.theme-dark .feedback-card {
+      border-color: #405866 !important;
+      background: #142735 !important;
+      color: #edf4f8 !important;
+      box-shadow: 0 24px 70px rgba(0,0,0,.48) !important;
+    }
+    body.theme-dark .feedback-hero {
+      border-bottom-color: #344b59 !important;
+      background: #172e3d !important;
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .feedback-hero-icon {
+      border-color: #496576 !important;
+      background: #203d4d !important;
+      color: #acd6e9 !important;
+    }
+    body.theme-dark .feedback-card.is-complaint .feedback-hero-icon {
+      border-color: #805b46 !important;
+      background: #3b2b22 !important;
+      color: #f0bd93 !important;
+    }
+    body.theme-dark .feedback-hero h2,
+    body.theme-dark .feedback-sending h3,
+    body.theme-dark .feedback-success h3 {
+      color: #f0f6f9 !important;
+    }
+    body.theme-dark .feedback-hero p,
+    body.theme-dark .feedback-sending p,
+    body.theme-dark .feedback-success p,
+    body.theme-dark .feedback-help,
+    body.theme-dark .feedback-guidelines,
+    body.theme-dark .feedback-counter,
+    body.theme-dark .feedback-form-intro {
+      color: #b6c7d0 !important;
+    }
+    body.theme-dark .feedback-close {
+      border-color: #536b79 !important;
+      background: #203847 !important;
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .feedback-close:hover {
+      background: #2a4b5f !important;
+      color: #ffffff !important;
+    }
+    body.theme-dark .feedback-privacy {
+      border-color: #3e5b5a !important;
+      background: #17332f !important;
+      color: #c0e4d1 !important;
+    }
+    body.theme-dark .feedback-field label { color: #d7e2e8 !important; }
+    body.theme-dark .feedback-field input,
+    body.theme-dark .feedback-field select,
+    body.theme-dark .feedback-field textarea,
+    body.theme-dark .feedback-field input:focus,
+    body.theme-dark .feedback-field select:focus,
+    body.theme-dark .feedback-field textarea:focus {
+      border-color: #526b79 !important;
+      background: #0f202c !important;
+      color: #edf4f8 !important;
+      -webkit-text-fill-color: #edf4f8 !important;
+      caret-color: #ffffff !important;
+      box-shadow: none !important;
+    }
+    body.theme-dark .feedback-field input::placeholder,
+    body.theme-dark .feedback-field textarea::placeholder {
+      color: #91a8b6 !important;
+      -webkit-text-fill-color: #91a8b6 !important;
+      opacity: 1 !important;
+    }
+    body.theme-dark .feedback-field select option {
+      background: #142735 !important;
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .feedback-actions {
+      border-top-color: #344b59 !important;
+      background: linear-gradient(transparent, #142735 28%) !important;
+    }
+    body.theme-dark .feedback-action {
+      border-color: #536b79 !important;
+      background: #203847 !important;
+      color: #eaf2f6 !important;
+    }
+    body.theme-dark .feedback-action:hover:not(:disabled) {
+      border-color: #7ba5bb !important;
+      background: #2a4b5f !important;
+      color: #ffffff !important;
+    }
+    body.theme-dark .feedback-action.primary {
+      border-color: #397da2 !important;
+      background: #286181 !important;
+      color: #ffffff !important;
+    }
+    body.theme-dark .feedback-action:disabled {
+      border-color: #455b68 !important;
+      background: #263945 !important;
+      color: #9dafba !important;
+      opacity: 1 !important;
+    }
+    body.theme-dark .feedback-status {
+      border-color: #455d6b !important;
+      background: #1a3040 !important;
+      color: #c6d5dd !important;
+    }
+    body.theme-dark .feedback-status.checking {
+      border-color: #49677a !important;
+      background: #1a3445 !important;
+      color: #b9d8e8 !important;
+    }
+    body.theme-dark .feedback-status.error {
+      border-color: #85474b !important;
+      background: #3d2227 !important;
+      color: #ffc1c5 !important;
+    }
+    body.theme-dark .feedback-status.success {
+      border-color: #326a55 !important;
+      background: #17392f !important;
+      color: #b1e7cb !important;
+    }
+    body.theme-dark .feedback-spinner {
+      border-color: #405866 !important;
+      border-top-color: #73b9d8 !important;
+    }
+    body.theme-dark .feedback-success-mark {
+      border-color: #326a55 !important;
+      background: #17392f !important;
+      color: #8bd4b1 !important;
+    }
+
+    /* Fichas emergentes de paradas y autobuses en el mapa */
+    body.theme-dark .leaflet-popup-content-wrapper,
+    body.theme-dark .leaflet-popup-tip {
+      border-color: #405866 !important;
+      background: #142735 !important;
+      color: #edf4f8 !important;
+      box-shadow: 0 12px 32px rgba(0,0,0,.42) !important;
+    }
+    body.theme-dark .leaflet-popup-content { color: #edf4f8 !important; }
+    body.theme-dark .leaflet-popup-close-button {
+      color: #c5d4dc !important;
+    }
+    body.theme-dark .leaflet-popup-close-button:hover { color: #ffffff !important; }
+    body.theme-dark .leaflet-tooltip.stop-label {
+      border: 1px solid #526b79 !important;
+      background: #172e3d !important;
+      color: #edf4f8 !important;
+      box-shadow: 0 3px 10px rgba(0,0,0,.38) !important;
+    }
+    body.theme-dark .stop-popup,
+    body.theme-dark .bus-popup { color: #edf4f8 !important; }
+    body.theme-dark .stop-popup-title,
+    body.theme-dark .bus-popup-title { color: #f1f6f9 !important; }
+    body.theme-dark .stop-popup-label,
+    body.theme-dark .bus-popup-overline { color: #a9bfcb !important; }
+    body.theme-dark .stop-arrivals,
+    body.theme-dark .stop-schedule,
+    body.theme-dark .stop-schedule-group {
+      border-color: #3c5361 !important;
+    }
+    body.theme-dark .stop-arrival-row { border-bottom-color: #344b59 !important; }
+    body.theme-dark .stop-arrival-destination,
+    body.theme-dark .stop-schedule-destination { color: #d8e4ea !important; }
+    body.theme-dark .stop-arrival-time strong,
+    body.theme-dark .stop-schedule-time strong { color: #f1f6f9 !important; }
+    body.theme-dark .stop-arrival-time small { color: #9bcfea !important; }
+    body.theme-dark .stop-arrival-state,
+    body.theme-dark .stop-arrival-updated,
+    body.theme-dark .stop-schedule-count,
+    body.theme-dark .arrival-status.scheduled { color: #afc1cc !important; }
+    body.theme-dark .stop-arrival-source,
+    body.theme-dark .arrival-status.live { color: #8bd4b1 !important; }
+    body.theme-dark .stop-favorite-button,
+    body.theme-dark .stop-date-input {
+      border-color: #506877 !important;
+      background: #1a3040 !important;
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .stop-favorite-button.saved {
+      border-color: #806a36 !important;
+      background: #3c321a !important;
+      color: #f5dc91 !important;
+    }
+    body.theme-dark .stop-schedule-summary {
+      border-bottom-color: #405866 !important;
+      background: #142735 !important;
+      color: #b9c9d2 !important;
+    }
+    body.theme-dark .stop-schedule-line {
+      background: #263f4f !important;
+      color: #e8f0f5 !important;
+    }
+    body.theme-dark .stop-schedule-time {
+      border-color: #435968 !important;
+      background: #1b3241 !important;
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .stop-schedule-time.live {
+      border-color: #326a55 !important;
+      background: #17392f !important;
+    }
+    body.theme-dark .stop-schedule-time.live small { color: #a8e1c3 !important; }
+    body.theme-dark .stop-next-service-button {
+      border-color: #4a7892 !important;
+      background: #1b3a4d !important;
+      color: #c5e5f4 !important;
+    }
+    body.theme-dark .stop-next-service-button:hover,
+    body.theme-dark .stop-next-service-button:focus-visible {
+      border-color: #79aec8 !important;
+      background: #254b61 !important;
+      color: #ffffff !important;
+    }
+    body.theme-dark .bus-popup-line {
+      border: 1px solid color-mix(in srgb, var(--fleet-route-color, #4388ad) 48%, #405866) !important;
+      background: color-mix(in srgb, var(--fleet-route-color, #4388ad) 20%, #142735) !important;
+      color: #eaf4f8 !important;
+    }
+    body.theme-dark .bus-popup-plate { color: #b5c7d1 !important; }
+    body.theme-dark .bus-popup-destination {
+      border-color: #405866 !important;
+      background: linear-gradient(135deg, #1b3545, #172d3b) !important;
+    }
+    body.theme-dark .bus-popup-destination span { color: #a9bfcb !important; }
+    body.theme-dark .bus-popup-destination strong { color: #f0f6f9 !important; }
+    body.theme-dark .bus-popup-details > div {
+      border-color: #405866 !important;
+      background: #192f3e !important;
+    }
+    body.theme-dark .bus-popup-details > div span { color: #a9bfcb !important; }
+    body.theme-dark .bus-popup-details > div strong { color: #eaf2f6 !important; }
+
+    /* Controles nativos de Leaflet y controles auxiliares */
+    body.theme-dark .leaflet-control-zoom a,
+    body.theme-dark .leaflet-control-layers,
+    body.theme-dark .leaflet-control-layers-expanded {
+      border-color: #405866 !important;
+      background: #172e3d !important;
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .leaflet-control-zoom a:hover,
+    body.theme-dark .leaflet-control-layers-toggle:hover {
+      background: #25475d !important;
+      color: #ffffff !important;
+    }
+    body.theme-dark .leaflet-control-zoom a + a { border-top-color: #405866 !important; }
+    body.theme-dark .leaflet-control-layers-separator { border-top-color: #405866 !important; }
+    body.theme-dark .leaflet-control-layers-list,
+    body.theme-dark .leaflet-control-layers label { color: #dce7ed !important; }
+    body.theme-dark .leaflet-control-attribution {
+      border: 1px solid rgba(64, 88, 102, .7) !important;
+      background: rgba(15, 31, 43, .88) !important;
+      color: #c0cdd5 !important;
+    }
+    body.theme-dark .leaflet-control-attribution a { color: #9dcbe2 !important; }
+    body.theme-dark .leaflet-bar a { border-bottom-color: #405866 !important; }
+    body.theme-dark .leaflet-control-scale-line {
+      border-color: #b9c9d2 !important;
+      background: rgba(15, 31, 43, .82) !important;
+      color: #edf4f8 !important;
+      text-shadow: none !important;
+    }
+    body.theme-dark #map { background: #0e1c27 !important; }
+    /* Oscurece únicamente las teselas; los vehículos, paradas y controles
+       permanecen sin filtro para conservar sus colores de identificación. */
+    body.theme-dark .leaflet-tile-pane {
+      filter: brightness(.78) invert(.88) hue-rotate(180deg) saturate(.72) contrast(.92);
+    }
+
+    /* Despliegue y accesibilidad en móvil */
+    body.theme-dark .header-card::-webkit-scrollbar-thumb,
+    body.theme-dark .fleet-list::-webkit-scrollbar-thumb,
+    body.theme-dark #lista-filtros-lineas::-webkit-scrollbar-thumb {
+      background: #536b79 !important;
+    }
+    body.theme-dark .header-card,
+    body.theme-dark .feedback-card,
+    body.theme-dark .leaflet-popup-content-wrapper {
+      scrollbar-color: #536b79 #172d3b !important;
+    }
+    body.theme-dark button:focus-visible,
+    body.theme-dark input:focus-visible,
+    body.theme-dark select:focus-visible,
+    body.theme-dark textarea:focus-visible {
+      outline-color: #e8bd65 !important;
+    }
+    body.theme-dark ::selection {
+      background: #315b73 !important;
+      color: #ffffff !important;
+    }
+
 </style>
 </head>
 <body>
@@ -5527,6 +6227,7 @@
       const botonesTema = () => Array.from(document.querySelectorAll('[data-theme-toggle]'));
       const aplicarTema = (oscuro, guardar = false) => {
         document.body.classList.toggle('theme-dark', oscuro);
+        document.documentElement.classList.toggle('theme-dark', oscuro);
         botonesTema().forEach(boton => {
           const icono = boton.querySelector('i');
           const etiqueta = boton.querySelector('[data-theme-label]');
