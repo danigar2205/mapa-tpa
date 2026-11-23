@@ -1907,7 +1907,7 @@ AVANZA_AJAX_URL = "https://zaragoza.avanzagrupo.com/wp-admin/admin-ajax.php"
 AVANZA_URBANOS_TTL = 360
 # Incrementar cuando cambie el significado de los datos de un barrido.
 # La caché anterior se considera histórica y no se mezcla con el siguiente ciclo.
-AVANZA_SCAN_VERSION = 2
+AVANZA_SCAN_VERSION = 3
 AVANZA_CATALOGO_POSTES_TTL = 21600
 AVANZA_PAUSA_RECORRIDOS = 0.0
 AVANZA_PAUSA_POSTES = 0.0
