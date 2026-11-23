@@ -2563,6 +2563,36 @@ def descubrir_postes_avanza(http):
         errores_recorridos_parcial=errores,
     )
 
+    ultimo_checkpoint_recorridos = time.monotonic()
+    recorridos_desde_checkpoint = 0
+
+    def publicar_checkpoint_recorridos(forzar=False):
+        nonlocal ultimo_checkpoint_recorridos, recorridos_desde_checkpoint
+        ahora = time.monotonic()
+        if (
+            not forzar
+            and recorridos_desde_checkpoint < 5
+            and ahora - ultimo_checkpoint_recorridos < 2.0
+        ):
+            return
+        _actualizar_estado_avanza(
+            fase="descubriendo_paradas",
+            progreso=sentidos_terminados,
+            total_progreso=total_sentidos,
+            progreso_general=sentidos_terminados,
+            total_progreso_general=total_sentidos,
+            sentidos_consultados=sentidos_terminados,
+            total_sentidos=total_sentidos,
+            paradas_gps_completadas=0,
+            lineas_descubiertas=len(lineas_terminadas),
+            paradas_descubiertas=len(postes_por_id),
+            recorridos_completados=sorted(recorridos_completados),
+            postes_catalogo_parcial=postes_por_id,
+            errores_recorridos_parcial=errores[-100:],
+        )
+        ultimo_checkpoint_recorridos = ahora
+        recorridos_desde_checkpoint = 0
+
     with ThreadPoolExecutor(
         max_workers=AVANZA_CONCURRENCIA_GPS,
         thread_name_prefix="avanza-recorridos",
@@ -2602,21 +2632,10 @@ def descubrir_postes_avanza(http):
                     if poste not in postes_por_id or (nombre and not postes_por_id[poste]):
                         postes_por_id[poste] = nombre
 
-            _actualizar_estado_avanza(
-                fase="descubriendo_paradas",
-                progreso=sentidos_terminados,
-                total_progreso=total_sentidos,
-                progreso_general=sentidos_terminados,
-                total_progreso_general=total_sentidos,
-                sentidos_consultados=sentidos_terminados,
-                total_sentidos=total_sentidos,
-                paradas_gps_completadas=0,
-                lineas_descubiertas=len(lineas_terminadas),
-                paradas_descubiertas=len(postes_por_id),
-                recorridos_completados=sorted(recorridos_completados),
-                postes_catalogo_parcial=postes_por_id,
-                errores_recorridos_parcial=errores[-100:],
-            )
+            recorridos_desde_checkpoint += 1
+            publicar_checkpoint_recorridos()
+
+        publicar_checkpoint_recorridos(forzar=True)
 
     if not postes_por_id:
         raise ValueError(
