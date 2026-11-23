@@ -7830,7 +7830,31 @@
     .avanza-panel-stats > div { display: flex; flex-direction: column; gap: 4px; padding: 11px; border: 1px solid rgba(255,255,255,.08); border-radius: 10px; background: rgba(255,255,255,.045); }
     .avanza-panel-stats strong { color: #7dd3fc; font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; }
     .avanza-panel-stats span { color: #9fb0c2; font-size: 9px; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
-    .avanza-panel-note { margin-top: 12px; color: #aebdcb; font-size: 10px; line-height: 1.55; }
+    .avanza-progress-card {
+      margin-top: 12px; padding: 12px; border: 1px solid rgba(125,211,252,.18);
+      border-radius: 11px; background: rgba(14,116,144,.09);
+    }
+    .avanza-progress-top, .avanza-progress-bottom {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    }
+    .avanza-progress-top span { color: #c5d8e6; font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+    .avanza-progress-top strong { color: #7dd3fc; font-size: 19px; font-weight: 900; font-variant-numeric: tabular-nums; }
+    .avanza-progress-track {
+      width: 100%; height: 9px; margin-top: 8px; overflow: hidden;
+      border-radius: 99px; background: rgba(148,163,184,.2);
+    }
+    .avanza-progress-fill {
+      display: block; width: 0%; height: 100%; border-radius: inherit;
+      background: linear-gradient(90deg,#0ea5e9,#38bdf8,#7dd3fc);
+      box-shadow: 0 0 12px rgba(56,189,248,.28);
+      transition: width .35s ease;
+    }
+    .avanza-progress-bottom { margin-top: 7px; }
+    .avanza-progress-bottom span { color: #9fb0c2; font-size: 9px; line-height: 1.4; }
+    .avanza-progress-bottom span:last-child { text-align: right; white-space: nowrap; }
+    .avanza-progress-card[data-state="error"] .avanza-progress-fill { background: #ef4444; }
+    .avanza-progress-card[data-state="complete"] .avanza-progress-fill { background: linear-gradient(90deg,#16a34a,#4ade80); }
+    .avanza-panel-note { margin-top: 10px; color: #aebdcb; font-size: 10px; line-height: 1.55; }
     .avanza-panel-message { min-height: 18px; margin-top: 7px; color: #d5e4ef; font-size: 10px; line-height: 1.45; }
     .avanza-refresh-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; margin-top: 8px; padding: 0 12px; border: 1px solid rgba(125,211,252,.24); border-radius: 8px; background: rgba(14,116,144,.2); color: #bae6fd; font: inherit; font-size: 10px; font-weight: 700; cursor: pointer; }
     .avanza-refresh-button:hover:not(:disabled) { background: rgba(14,116,144,.32); }
@@ -8457,6 +8481,20 @@
     <div class="avanza-panel-stats">
       <div><strong id="avanza-bus-count">—</strong><span>vehículos localizados</span></div>
       <div><strong id="avanza-last-update">—</strong><span>última actualización</span></div>
+    </div>
+    <div class="avanza-progress-card" id="avanza-progress-card" data-state="loading">
+      <div class="avanza-progress-top">
+        <span id="avanza-progress-title">Preparando descarga</span>
+        <strong id="avanza-progress-percent">0%</strong>
+      </div>
+      <div class="avanza-progress-track" id="avanza-progressbar" role="progressbar"
+        aria-label="Progreso de descarga de posiciones" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <span class="avanza-progress-fill" id="avanza-progress-fill"></span>
+      </div>
+      <div class="avanza-progress-bottom">
+        <span id="avanza-progress-detail">Esperando respuesta de Avanza…</span>
+        <span id="avanza-progress-buses">0 coches</span>
+      </div>
     </div>
     <p class="avanza-panel-note" id="avanza-coverage-note">Consultando las posiciones publicadas por Avanza…</p>
     <p class="avanza-panel-message" id="avanza-panel-message" role="status" aria-live="polite"></p>
@@ -9753,12 +9791,19 @@
       document.getElementById('avanza-last-update').textContent = '—';
       document.getElementById('avanza-coverage-note').textContent = 'Preparando el barrido de todas las paradas y líneas de Avanza…';
       document.getElementById('avanza-panel-message').textContent = '';
+      document.getElementById('avanza-progress-card').dataset.state = 'loading';
+      document.getElementById('avanza-progress-title').textContent = 'Preparando descarga';
+      document.getElementById('avanza-progress-percent').textContent = '0%';
+      document.getElementById('avanza-progress-fill').style.width = '0%';
+      document.getElementById('avanza-progressbar').setAttribute('aria-valuenow', '0');
+      document.getElementById('avanza-progress-detail').textContent = 'Esperando respuesta de Avanza…';
+      document.getElementById('avanza-progress-buses').textContent = '0 coches';
 
       initMap();
       map.setView([41.6488, -0.8891], 13);
       requestAnimationFrame(() => map?.invalidateSize({ pan: false }));
       actualizarAvanzaUrbanos();
-      avanzaUrbanosIntervalo = setInterval(actualizarAvanzaUrbanos, 15000);
+      avanzaUrbanosIntervalo = setInterval(actualizarAvanzaUrbanos, 3000);
     }
 
     function volverASelectorPlataforma() {
@@ -9880,8 +9925,44 @@
         const totalProgreso = Number(datos.total_progreso || 0);
         const progresoGeneral = Number(datos.progreso_general || 0);
         const totalProgresoGeneral = Number(datos.total_progreso_general || 0);
+        const cochesDetectados = Number(datos.coches_unicos_detectados ?? buses.length);
+        const porcentajeFase = totalProgreso > 0
+          ? Math.max(0, Math.min(100, (progreso / totalProgreso) * 100)) : 0;
+        // El catálogo ocupa el primer 15% y la descarga GPS el 85% restante.
+        // Así el indicador general avanza sin retroceder al pasar de fase.
+        let porcentajeTotal = fase === 'descubriendo_paradas'
+          ? porcentajeFase * 0.15
+          : (fase === 'consultando_gps' ? 15 + porcentajeFase * 0.85 : 0);
+        if (datos.fase === 'completado') porcentajeTotal = 100;
+        porcentajeTotal = Math.round(Math.max(0, Math.min(100, porcentajeTotal)));
+        const barra = document.getElementById('avanza-progress-card');
+        barra.dataset.state = datos.fase === 'completado' ? 'complete' : (datos.fase === 'error' ? 'error' : 'loading');
+        document.getElementById('avanza-progress-fill').style.width = porcentajeTotal + '%';
+        document.getElementById('avanza-progress-percent').textContent = porcentajeTotal + '%';
+        document.getElementById('avanza-progressbar').setAttribute('aria-valuenow', String(porcentajeTotal));
+        document.getElementById('avanza-progress-buses').textContent =
+          cochesDetectados + (cochesDetectados === 1 ? ' coche' : ' coches');
+        let tituloBarra = 'Preparando descarga';
+        let detalleBarra = 'Esperando respuesta de Avanza…';
+        if (fase === 'descubriendo_paradas') {
+          tituloBarra = 'Descubriendo recorridos';
+          detalleBarra = progreso + ' de ' + totalProgreso + ' sentidos consultados · ' +
+            Number(datos.paradas_descubiertas || 0) + ' paradas localizadas';
+        } else if (fase === 'consultando_gps') {
+          tituloBarra = 'Descargando posiciones GPS';
+          detalleBarra = progreso + ' de ' + totalProgreso + ' paradas consultadas · ' +
+            cochesDetectados + ' coches únicos localizados';
+        } else if (datos.fase === 'completado') {
+          tituloBarra = 'Descarga completada';
+          detalleBarra = totalParadas + ' paradas consultadas · ' + cochesDetectados + ' coches únicos';
+        } else if (datos.fase === 'error') {
+          tituloBarra = 'Error durante la descarga';
+          detalleBarra = String(datos.ultimo_error || 'No se ha podido completar el barrido').slice(0, 130);
+        }
+        document.getElementById('avanza-progress-title').textContent = tituloBarra;
+        document.getElementById('avanza-progress-detail').textContent = detalleBarra;
         const resumenGlobal = totalProgresoGeneral
-          ? ' · Barrido acumulado: ' + progresoGeneral + '/' + totalProgresoGeneral + ' operaciones.'
+          ? ' · ' + progresoGeneral + '/' + totalProgresoGeneral + ' operaciones realizadas.'
           : '';
         const textoCobertura = totalParadas
           ? (paradas.length + ' de ' + totalParadas + ' paradas consultadas' +
