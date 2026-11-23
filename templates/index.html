@@ -5862,6 +5862,757 @@
     }
     body.theme-dark .fleet-list.is-stale { opacity: .78 !important; }
 
+
+    /* =========================================================
+       PANEL LATERAL · NUEVA JERARQUÍA DE SERVICIO
+       Sustituye la antigua tarjeta por un panel de control real.
+       ========================================================= */
+    #header-card.dashboard-sidebar {
+      top: 12px !important;
+      bottom: 12px !important;
+      left: 12px !important;
+      right: auto !important;
+      width: calc(var(--tpa-sidebar) - 24px) !important;
+      max-width: none !important;
+      max-height: none !important;
+      margin: 0 !important;
+      padding: 17px !important;
+      overflow-x: hidden !important;
+      overflow-y: auto !important;
+      border: 1px solid #d9e2e8 !important;
+      border-radius: 22px !important;
+      background: #f5f8fa !important;
+      color: #172b3a !important;
+      box-shadow: 0 18px 48px rgba(19, 39, 54, .17), 0 2px 8px rgba(19, 39, 54, .06) !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      scrollbar-width: thin !important;
+      scrollbar-color: #b5c2ca transparent !important;
+    }
+    #header-card.dashboard-sidebar .sidebar-brand {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      flex-wrap: nowrap !important;
+      gap: 8px !important;
+      margin: 0 0 14px !important;
+      padding: 0 0 13px !important;
+      border: 0 !important;
+      border-bottom: 1px solid #dce4e9 !important;
+    }
+    #header-card.dashboard-sidebar .sidebar-brand-lockup { gap: 8px !important; }
+    #header-card.dashboard-sidebar .sidebar-brand-lockup strong {
+      color: #183244 !important;
+      font-size: 12px !important;
+      letter-spacing: .015em !important;
+    }
+    #header-card.dashboard-sidebar .sidebar-brand-lockup small {
+      display: block !important;
+      margin-top: 2px !important;
+      color: #718391 !important;
+      font-size: 8px !important;
+      letter-spacing: .075em !important;
+      font-weight: 700 !important;
+    }
+    #header-card.dashboard-sidebar .sidebar-brand-actions {
+      display: flex !important;
+      align-items: center !important;
+      gap: 6px !important;
+      flex: 0 0 auto !important;
+    }
+    #header-card.dashboard-sidebar .theme-toggle-compact,
+    #header-card.dashboard-sidebar .sidebar-back-button {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 6px !important;
+      min-height: 34px !important;
+      padding: 0 9px !important;
+      border: 1px solid #d4dfe5 !important;
+      border-radius: 9px !important;
+      background: #fff !important;
+      color: #405767 !important;
+      font-size: 9px !important;
+      font-weight: 750 !important;
+      white-space: nowrap !important;
+      box-shadow: none !important;
+    }
+    #header-card.dashboard-sidebar .theme-toggle-compact:hover,
+    #header-card.dashboard-sidebar .sidebar-back-button:hover {
+      border-color: #9eb2bf !important;
+      background: #edf3f6 !important;
+    }
+
+    #header-card.dashboard-sidebar .route-overview {
+      padding: 14px 14px 15px !important;
+      border: 1px solid #28495c !important;
+      border-radius: 17px !important;
+      background: linear-gradient(145deg, #1d3b4e 0%, #142d3d 100%) !important;
+      box-shadow: 0 8px 20px rgba(15, 39, 56, .13), inset 0 1px 0 rgba(255,255,255,.07) !important;
+    }
+    #header-card.dashboard-sidebar .route-overview-topline {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      gap: 8px !important;
+      margin-bottom: 13px !important;
+    }
+    #header-card.dashboard-sidebar .route-overview-label {
+      color: #a9c2d0 !important;
+      font-size: 8px !important;
+      font-weight: 850 !important;
+      letter-spacing: .13em !important;
+      white-space: nowrap !important;
+    }
+    #header-card.dashboard-sidebar .header-quick-actions {
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 6px !important;
+    }
+    #header-card.dashboard-sidebar .live-status {
+      min-height: 27px !important;
+      padding: 4px 8px !important;
+      border: 1px solid rgba(117, 204, 157, .3) !important;
+      border-radius: 99px !important;
+      background: rgba(48, 131, 91, .2) !important;
+      color: #b5e7cd !important;
+      font-size: 8px !important;
+      font-weight: 850 !important;
+      letter-spacing: .055em !important;
+    }
+    #header-card.dashboard-sidebar .pulse-dot {
+      width: 6px !important;
+      height: 6px !important;
+      flex: 0 0 6px !important;
+      background: #78c99b !important;
+      box-shadow: none !important;
+    }
+    #header-card.dashboard-sidebar .panel-toggle-button {
+      width: 29px !important;
+      height: 29px !important;
+      flex: 0 0 29px !important;
+      border: 1px solid rgba(214, 231, 239, .22) !important;
+      border-radius: 8px !important;
+      background: rgba(255,255,255,.08) !important;
+      color: #e3edf2 !important;
+    }
+    #header-card.dashboard-sidebar .panel-toggle-button:hover {
+      border-color: rgba(214, 231, 239, .42) !important;
+      background: rgba(255,255,255,.15) !important;
+    }
+    #header-card.dashboard-sidebar .header-title {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: flex-start !important;
+      flex-wrap: nowrap !important;
+      gap: 0 !important;
+      margin: 0 !important;
+    }
+    #header-card.dashboard-sidebar .line-badge {
+      display: flex !important;
+      align-items: center !important;
+      gap: 11px !important;
+      min-width: 0 !important;
+    }
+    #header-card.dashboard-sidebar .badge-tag {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      min-width: 53px !important;
+      min-height: 47px !important;
+      padding: 0 9px !important;
+      border: 1px solid #c0d1da !important;
+      border-radius: 12px !important;
+      background: #e8f0f4 !important;
+      color: #17394d !important;
+      box-shadow: none !important;
+      font-size: 15px !important;
+      font-weight: 900 !important;
+      letter-spacing: -.025em !important;
+    }
+    #header-card.dashboard-sidebar .badge-text { min-width: 0 !important; }
+    #header-card.dashboard-sidebar .badge-text h1 {
+      color: #f3f7fa !important;
+      font-size: 16px !important;
+      font-weight: 800 !important;
+      line-height: 1.2 !important;
+      letter-spacing: -.025em !important;
+      overflow-wrap: anywhere !important;
+    }
+    #header-card.dashboard-sidebar .badge-text p {
+      margin-top: 4px !important;
+      color: #b6c9d4 !important;
+      font-size: 10px !important;
+      line-height: 1.35 !important;
+    }
+
+    #header-card.dashboard-sidebar .info-grid {
+      display: grid !important;
+      grid-template-columns: minmax(0,1.15fr) minmax(0,.85fr) !important;
+      gap: 0 !important;
+      margin: 11px 0 0 !important;
+      padding: 10px 11px !important;
+      border: 1px solid #e0e7eb !important;
+      border-radius: 13px !important;
+      background: #fff !important;
+    }
+    #header-card.dashboard-sidebar .info-item {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 4px !important;
+      min-width: 0 !important;
+      padding: 1px 3px !important;
+    }
+    #header-card.dashboard-sidebar .info-item + .info-item {
+      padding-left: 12px !important;
+      border-left: 1px solid #e4eaee !important;
+    }
+    #header-card.dashboard-sidebar .info-label {
+      color: #788b98 !important;
+      font-size: 8px !important;
+      font-weight: 800 !important;
+      letter-spacing: .09em !important;
+      line-height: 1.25 !important;
+    }
+    #header-card.dashboard-sidebar .info-value {
+      margin: 0 !important;
+      color: #27485c !important;
+      font-size: 11px !important;
+      font-weight: 800 !important;
+      line-height: 1.35 !important;
+      font-variant-numeric: tabular-nums !important;
+      overflow-wrap: anywhere !important;
+    }
+
+    #header-card.dashboard-sidebar .map-tools-panel {
+      margin-top: 13px !important;
+      padding: 13px !important;
+      border: 1px solid #e0e7eb !important;
+      border-radius: 16px !important;
+      background: #fff !important;
+    }
+    #header-card.dashboard-sidebar .tools-section-heading {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      gap: 9px !important;
+      margin: 0 0 10px !important;
+      padding: 0 !important;
+      border: 0 !important;
+      color: #203c4f !important;
+      font-size: 13px !important;
+      font-weight: 850 !important;
+      line-height: 1.25 !important;
+    }
+    #header-card.dashboard-sidebar .tools-section-heading > div {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 3px !important;
+    }
+    #header-card.dashboard-sidebar .tools-section-heading small {
+      color: #81919d !important;
+      font-size: 9px !important;
+      font-weight: 500 !important;
+      line-height: 1.35 !important;
+    }
+    #header-card.dashboard-sidebar .tools-section-heading > i {
+      display: grid !important;
+      place-items: center !important;
+      width: 30px !important;
+      height: 30px !important;
+      border-radius: 9px !important;
+      background: #edf3f6 !important;
+      color: #577488 !important;
+      font-size: 12px !important;
+    }
+    #header-card.dashboard-sidebar .map-tools { margin: 0 !important; }
+    #header-card.dashboard-sidebar .stop-search-row {
+      display: grid !important;
+      grid-template-columns: minmax(0,1fr) 40px auto !important;
+      align-items: center !important;
+      gap: 6px !important;
+    }
+    #header-card.dashboard-sidebar #buscador-paradas {
+      width: 100% !important;
+      min-width: 0 !important;
+      height: 42px !important;
+      padding: 0 11px !important;
+      border: 1px solid #d5e0e6 !important;
+      border-radius: 10px !important;
+      background: #f8fafb !important;
+      color: #1e3545 !important;
+      font-size: 11px !important;
+      outline: none !important;
+      box-shadow: none !important;
+    }
+    #header-card.dashboard-sidebar #buscador-paradas::placeholder {
+      color: #93a1aa !important;
+      opacity: 1 !important;
+    }
+    #header-card.dashboard-sidebar #buscador-paradas:focus {
+      border-color: #7597aa !important;
+      box-shadow: 0 0 0 3px rgba(83, 125, 149, .12) !important;
+    }
+    #header-card.dashboard-sidebar .tool-button {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 6px !important;
+      height: 42px !important;
+      min-width: 40px !important;
+      padding: 0 9px !important;
+      border: 1px solid #d5e0e6 !important;
+      border-radius: 10px !important;
+      background: #f8fafb !important;
+      color: #405c6e !important;
+      font-size: 10px !important;
+      font-weight: 750 !important;
+      box-shadow: none !important;
+    }
+    #header-card.dashboard-sidebar .tool-button:hover {
+      border-color: #a9bdc9 !important;
+      background: #edf3f6 !important;
+    }
+    #header-card.dashboard-sidebar #btn-paradas-cercanas { width: 40px !important; padding: 0 !important; }
+    #header-card.dashboard-sidebar #btn-mostrar-favoritos { min-width: 82px !important; }
+    #header-card.dashboard-sidebar .favorite-count {
+      min-width: 17px !important;
+      height: 17px !important;
+      border: 0 !important;
+      border-radius: 99px !important;
+      background: #e6edf1 !important;
+      color: #355366 !important;
+      font-size: 9px !important;
+    }
+
+    #header-card.dashboard-sidebar .search-results,
+    #header-card.dashboard-sidebar .favorites-panel,
+    #header-card.dashboard-sidebar .line-filter-panel {
+      margin-top: 7px !important;
+      border: 1px solid #e0e7eb !important;
+      border-radius: 11px !important;
+      background: #f8fafb !important;
+      color: #20394a !important;
+      box-shadow: none !important;
+    }
+    #header-card.dashboard-sidebar .search-result,
+    #header-card.dashboard-sidebar .favorite-row {
+      border-color: #e5ebef !important;
+      color: #20394a !important;
+    }
+    #header-card.dashboard-sidebar .search-result:hover,
+    #header-card.dashboard-sidebar .favorite-row:hover { background: #edf3f6 !important; }
+    #header-card.dashboard-sidebar .search-result-name,
+    #header-card.dashboard-sidebar .favorite-go { color: #20394a !important; }
+    #header-card.dashboard-sidebar .search-result-meta,
+    #header-card.dashboard-sidebar .favorites-note { color: #718490 !important; }
+    #header-card.dashboard-sidebar .line-filter-row { display: block !important; margin-top: 8px !important; }
+    #header-card.dashboard-sidebar .line-filter-toggle {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      width: 100% !important;
+      min-height: 43px !important;
+      padding: 7px 10px !important;
+      border: 1px solid #dce5ea !important;
+      border-radius: 10px !important;
+      background: #f7f9fa !important;
+      color: #294657 !important;
+      box-shadow: none !important;
+    }
+    #header-card.dashboard-sidebar .line-filter-title { color: #294657 !important; font-size: 10px !important; font-weight: 800 !important; }
+    #header-card.dashboard-sidebar .line-filter-summary { color: #7f909b !important; font-size: 9px !important; }
+    #header-card.dashboard-sidebar .line-filter-panel { padding: 9px !important; }
+    #header-card.dashboard-sidebar .line-filter-actions { gap: 6px !important; }
+    #header-card.dashboard-sidebar .line-filter-action {
+      min-height: 30px !important;
+      border: 1px solid #d4dfe5 !important;
+      border-radius: 8px !important;
+      background: #fff !important;
+      color: #3c5667 !important;
+      font-size: 9px !important;
+    }
+    #header-card.dashboard-sidebar #buscador-filtros-lineas {
+      width: 100% !important;
+      height: 36px !important;
+      margin-top: 8px !important;
+      padding: 0 9px !important;
+      border: 1px solid #d5e0e6 !important;
+      border-radius: 8px !important;
+      background: #fff !important;
+      color: #20394a !important;
+      font-size: 11px !important;
+    }
+    #header-card.dashboard-sidebar #buscador-filtros-lineas::placeholder { color: #93a1aa !important; }
+    #header-card.dashboard-sidebar #lista-filtros-lineas {
+      display: flex !important;
+      flex-wrap: wrap !important;
+      gap: 5px !important;
+      max-height: 112px !important;
+      overflow-y: auto !important;
+      margin-top: 8px !important;
+    }
+    #header-card.dashboard-sidebar #lista-filtros-lineas .line-filter {
+      min-height: 30px !important;
+      padding: 5px 8px !important;
+      border: 1px solid #d5e0e6 !important;
+      border-radius: 99px !important;
+      background: #fff !important;
+      color: #647984 !important;
+      font-size: 9px !important;
+    }
+    #header-card.dashboard-sidebar #lista-filtros-lineas .line-filter.active {
+      border-color: #9eb4c0 !important;
+      background: #eaf1f4 !important;
+      color: #25495e !important;
+    }
+    #header-card.dashboard-sidebar .favorites-panel { padding: 10px !important; }
+    #header-card.dashboard-sidebar .favorites-panel-heading { color: #294657 !important; font-size: 11px !important; }
+
+    #header-card.dashboard-sidebar .fleet-section {
+      margin-top: 15px !important;
+      padding: 0 0 2px !important;
+      border: 0 !important;
+      min-width: 0 !important;
+    }
+    #header-card.dashboard-sidebar .fleet-section-heading {
+      align-items: center !important;
+      margin: 0 0 5px !important;
+    }
+    #header-card.dashboard-sidebar .fleet-overline {
+      color: #9b5055 !important;
+      font-size: 8px !important;
+      font-weight: 850 !important;
+      letter-spacing: .12em !important;
+    }
+    #header-card.dashboard-sidebar .fleet-section-heading h2 {
+      margin-top: 3px !important;
+      color: #203c4f !important;
+      font-size: 15px !important;
+      font-weight: 850 !important;
+      letter-spacing: -.025em !important;
+    }
+    #header-card.dashboard-sidebar .fleet-count {
+      min-width: 34px !important;
+      height: 34px !important;
+      border: 1px solid #d8e3e9 !important;
+      border-radius: 11px !important;
+      background: #eaf1f4 !important;
+      color: #274d63 !important;
+      font-size: 14px !important;
+    }
+    #header-card.dashboard-sidebar .fleet-state {
+      margin: 0 0 5px !important;
+      color: #7b8d98 !important;
+      font-size: 9px !important;
+      line-height: 1.35 !important;
+    }
+    #header-card.dashboard-sidebar .fleet-filter-summary {
+      margin: 0 0 8px !important;
+      color: #758995 !important;
+      font-size: 9px !important;
+      line-height: 1.35 !important;
+    }
+    #header-card.dashboard-sidebar .fleet-list {
+      display: grid !important;
+      gap: 7px !important;
+      max-height: min(34vh, 300px) !important;
+      overflow-y: auto !important;
+      padding: 1px 3px 3px 1px !important;
+    }
+    #header-card.dashboard-sidebar .fleet-route-group-toggle {
+      display: flex !important;
+      align-items: center !important;
+      gap: 9px !important;
+      width: 100% !important;
+      min-height: 42px !important;
+      padding: 7px 9px !important;
+      border: 1px solid #e0e7eb !important;
+      border-radius: 10px !important;
+      background: #fff !important;
+      color: #20394a !important;
+      box-shadow: none !important;
+    }
+    #header-card.dashboard-sidebar .fleet-route-group-copy strong { color: #294657 !important; font-size: 10px !important; }
+    #header-card.dashboard-sidebar .fleet-route-group-copy small { color: #82919a !important; font-size: 9px !important; }
+    #header-card.dashboard-sidebar .fleet-group-chevron { color: #8497a2 !important; }
+    #header-card.dashboard-sidebar .fleet-route-tag {
+      border: 1px solid #d5e0e6 !important;
+      border-radius: 7px !important;
+      background: #edf3f6 !important;
+      color: #35566a !important;
+    }
+    #header-card.dashboard-sidebar .fleet-vehicle-card {
+      border: 1px solid #e0e7eb !important;
+      border-left: 3px solid var(--fleet-route-color, #527198) !important;
+      border-radius: 11px !important;
+      background: #fff !important;
+      color: #20394a !important;
+      box-shadow: 0 2px 6px rgba(27, 53, 69, .035) !important;
+    }
+    #header-card.dashboard-sidebar .fleet-vehicle-card:hover,
+    #header-card.dashboard-sidebar .fleet-vehicle-card:focus-visible {
+      border-color: #bdcdd6 !important;
+      border-left-color: var(--fleet-route-color, #527198) !important;
+      background: #f9fbfc !important;
+      box-shadow: 0 5px 13px rgba(27, 53, 69, .08) !important;
+      transform: none !important;
+    }
+    #header-card.dashboard-sidebar .fleet-vehicle-number { color: #718491 !important; }
+    #header-card.dashboard-sidebar .fleet-vehicle-number strong { color: #294657 !important; }
+    #header-card.dashboard-sidebar .fleet-card-open { color: #8a9aa4 !important; }
+    #header-card.dashboard-sidebar .fleet-destination-label { color: #82939d !important; }
+    #header-card.dashboard-sidebar .fleet-destination { color: #213d50 !important; }
+    #header-card.dashboard-sidebar .fleet-next-stop,
+    #header-card.dashboard-sidebar .fleet-next-stop > span,
+    #header-card.dashboard-sidebar .fleet-next-stop strong { color: #657d8c !important; }
+    #header-card.dashboard-sidebar .fleet-empty {
+      border: 1px dashed #ccd9e0 !important;
+      border-radius: 12px !important;
+      background: #fff !important;
+      color: #718490 !important;
+    }
+    #header-card.dashboard-sidebar .footer-actions {
+      display: block !important;
+      margin: 14px 0 0 !important;
+      padding: 12px 0 0 !important;
+      border: 0 !important;
+      border-top: 1px solid #dce4e9 !important;
+    }
+    #header-card.dashboard-sidebar .footer-actions .btn-action {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      width: 100% !important;
+      min-height: 42px !important;
+      border: 1px solid #244d65 !important;
+      border-radius: 11px !important;
+      background: #244d65 !important;
+      color: #fff !important;
+      font-size: 11px !important;
+      font-weight: 800 !important;
+      box-shadow: none !important;
+    }
+    #header-card.dashboard-sidebar .footer-actions .btn-action:hover {
+      border-color: #173d54 !important;
+      background: #173d54 !important;
+    }
+
+    /* Versión oscura: misma estructura, superficies profundas y separadas. */
+    body.theme-dark #header-card.dashboard-sidebar {
+      border-color: #344b5a !important;
+      background: #101e29 !important;
+      color: #edf4f8 !important;
+      box-shadow: 0 20px 55px rgba(0,0,0,.42) !important;
+    }
+    body.theme-dark #header-card.dashboard-sidebar .sidebar-brand {
+      border-bottom-color: #2c414f !important;
+    }
+    body.theme-dark #header-card.dashboard-sidebar .sidebar-brand-lockup strong { color: #edf4f8 !important; }
+    body.theme-dark #header-card.dashboard-sidebar .sidebar-brand-lockup small { color: #9eb1bd !important; }
+    body.theme-dark #header-card.dashboard-sidebar .theme-toggle-compact,
+    body.theme-dark #header-card.dashboard-sidebar .sidebar-back-button {
+      border-color: #435966 !important;
+      background: #1a2e3b !important;
+      color: #dce8ee !important;
+    }
+    body.theme-dark #header-card.dashboard-sidebar .theme-toggle-compact:hover,
+    body.theme-dark #header-card.dashboard-sidebar .sidebar-back-button:hover {
+      border-color: #668294 !important;
+      background: #243d4d !important;
+    }
+    body.theme-dark #header-card.dashboard-sidebar .route-overview {
+      border-color: #355164 !important;
+      background: linear-gradient(145deg, #193547 0%, #142b3a 100%) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.045) !important;
+    }
+    body.theme-dark #header-card.dashboard-sidebar .badge-tag {
+      border-color: #597384 !important;
+      background: #dce8ed !important;
+      color: #17394d !important;
+    }
+    body.theme-dark #header-card.dashboard-sidebar .info-grid {
+      border-color: #304652 !important;
+      background: #172a36 !important;
+    }
+    body.theme-dark #header-card.dashboard-sidebar .info-item + .info-item { border-left-color: #344a57 !important; }
+    body.theme-dark #header-card.dashboard-sidebar .info-label { color: #9fb2bd !important; }
+    body.theme-dark #header-card.dashboard-sidebar .info-value { color: #dceaf0 !important; }
+    body.theme-dark #header-card.dashboard-sidebar .map-tools-panel {
+      border-color: #304652 !important;
+      background: #172a36 !important;
+    }
+    body.theme-dark #header-card.dashboard-sidebar .tools-section-heading { color: #edf4f8 !important; }
+    body.theme-dark #header-card.dashboard-sidebar .tools-section-heading small { color: #9eb1bd !important; }
+    body.theme-dark #header-card.dashboard-sidebar .tools-section-heading > i {
+      background: #223d4d !important;
+      color: #a9c9d8 !important;
+    }
+    body.theme-dark #header-card.dashboard-sidebar #buscador-paradas,
+    body.theme-dark #header-card.dashboard-sidebar .tool-button,
+    body.theme-dark #header-card.dashboard-sidebar .line-filter-toggle,
+    body.theme-dark #header-card.dashboard-sidebar .line-filter-action,
+    body.theme-dark #header-card.dashboard-sidebar #buscador-filtros-lineas,
+    body.theme-dark #header-card.dashboard-sidebar #lista-filtros-lineas .line-filter {
+      border-color: #415865 !important;
+      background: #203642 !important;
+      color: #e6eff3 !important;
+      -webkit-text-fill-color: #e6eff3 !important;
+    }
+    body.theme-dark #header-card.dashboard-sidebar #buscador-paradas::placeholder,
+    body.theme-dark #header-card.dashboard-sidebar #buscador-filtros-lineas::placeholder { color: #a4b6c0 !important; }
+    body.theme-dark #header-card.dashboard-sidebar .tool-button i { color: #b7d0dc !important; }
+    body.theme-dark #header-card.dashboard-sidebar .favorite-count {
+      background: #334d5b !important;
+      color: #edf4f8 !important;
+    }
+    body.theme-dark #header-card.dashboard-sidebar .search-results,
+    body.theme-dark #header-card.dashboard-sidebar .favorites-panel,
+    body.theme-dark #header-card.dashboard-sidebar .line-filter-panel {
+      border-color: #3c5360 !important;
+      background: #1a303c !important;
+      color: #edf4f8 !important;
+    }
+    body.theme-dark #header-card.dashboard-sidebar .search-result,
+    body.theme-dark #header-card.dashboard-sidebar .favorite-row {
+      border-color: #344a57 !important;
+      color: #e6eff3 !important;
+    }
+    body.theme-dark #header-card.dashboard-sidebar .search-result-name,
+    body.theme-dark #header-card.dashboard-sidebar .favorite-go,
+    body.theme-dark #header-card.dashboard-sidebar .favorites-panel-heading { color: #e6eff3 !important; }
+    body.theme-dark #header-card.dashboard-sidebar .search-result-meta,
+    body.theme-dark #header-card.dashboard-sidebar .favorites-note { color: #9eb1bd !important; }
+    body.theme-dark #header-card.dashboard-sidebar .line-filter-title,
+    body.theme-dark #header-card.dashboard-sidebar .line-filter-summary { color: #e2edf2 !important; }
+    body.theme-dark #header-card.dashboard-sidebar #lista-filtros-lineas .line-filter.active {
+      border-color: #6a8797 !important;
+      background: #2c4b5d !important;
+      color: #f2f7f9 !important;
+    }
+    body.theme-dark #header-card.dashboard-sidebar .fleet-overline { color: #d38b8f !important; }
+    body.theme-dark #header-card.dashboard-sidebar .fleet-section-heading h2 { color: #edf4f8 !important; }
+    body.theme-dark #header-card.dashboard-sidebar .fleet-count {
+      border-color: #3d5969 !important;
+      background: #203b4b !important;
+      color: #d9e8ef !important;
+    }
+    body.theme-dark #header-card.dashboard-sidebar .fleet-state,
+    body.theme-dark #header-card.dashboard-sidebar .fleet-filter-summary { color: #a6bac4 !important; }
+    body.theme-dark #header-card.dashboard-sidebar .fleet-route-group-toggle {
+      border-color: #3b5260 !important;
+      background: #192e3b !important;
+      color: #e4edf2 !important;
+    }
+    body.theme-dark #header-card.dashboard-sidebar .fleet-route-group-copy strong,
+    body.theme-dark #header-card.dashboard-sidebar .fleet-vehicle-number strong,
+    body.theme-dark #header-card.dashboard-sidebar .fleet-destination { color: #edf4f8 !important; }
+    body.theme-dark #header-card.dashboard-sidebar .fleet-route-group-copy small,
+    body.theme-dark #header-card.dashboard-sidebar .fleet-vehicle-number,
+    body.theme-dark #header-card.dashboard-sidebar .fleet-card-open,
+    body.theme-dark #header-card.dashboard-sidebar .fleet-destination-label,
+    body.theme-dark #header-card.dashboard-sidebar .fleet-next-stop,
+    body.theme-dark #header-card.dashboard-sidebar .fleet-next-stop > span,
+    body.theme-dark #header-card.dashboard-sidebar .fleet-next-stop strong { color: #afc1ca !important; }
+    body.theme-dark #header-card.dashboard-sidebar .fleet-route-tag {
+      border-color: #526a78 !important;
+      background: #294454 !important;
+      color: #eaf2f6 !important;
+    }
+    body.theme-dark #header-card.dashboard-sidebar .fleet-vehicle-card {
+      border-color: #3b5260 !important;
+      border-left-color: var(--fleet-route-color, #7391a6) !important;
+      background: #192e3b !important;
+      color: #edf4f8 !important;
+      box-shadow: none !important;
+    }
+    body.theme-dark #header-card.dashboard-sidebar .fleet-vehicle-card:hover,
+    body.theme-dark #header-card.dashboard-sidebar .fleet-vehicle-card:focus-visible {
+      border-color: #587384 !important;
+      background: #203a49 !important;
+    }
+    body.theme-dark #header-card.dashboard-sidebar .fleet-empty {
+      border-color: #455c69 !important;
+      background: #192e3b !important;
+      color: #b5c6ce !important;
+    }
+    body.theme-dark #header-card.dashboard-sidebar .footer-actions { border-top-color: #304652 !important; }
+    body.theme-dark #header-card.dashboard-sidebar .footer-actions .btn-action {
+      border-color: #315c73 !important;
+      background: #315c73 !important;
+      color: #f3f7f9 !important;
+    }
+    body.theme-dark #header-card.dashboard-sidebar .footer-actions .btn-action:hover {
+      border-color: #3f718b !important;
+      background: #3f718b !important;
+    }
+
+    @media (max-width: 720px) {
+      #header-card.dashboard-sidebar {
+        top: max(8px, env(safe-area-inset-top)) !important;
+        right: 8px !important;
+        bottom: auto !important;
+        left: 8px !important;
+        width: auto !important;
+        max-width: none !important;
+        max-height: min(61dvh, 610px) !important;
+        padding: 11px !important;
+        border-radius: 19px !important;
+      }
+      #header-card.dashboard-sidebar .sidebar-brand {
+        gap: 6px !important;
+        margin-bottom: 10px !important;
+        padding-bottom: 9px !important;
+      }
+      #header-card.dashboard-sidebar .sidebar-brand-mark { width: 30px !important; height: 30px !important; flex-basis: 30px !important; }
+      #header-card.dashboard-sidebar .sidebar-brand-lockup strong { font-size: 10px !important; }
+      #header-card.dashboard-sidebar .sidebar-brand-lockup small { font-size: 7px !important; }
+      #header-card.dashboard-sidebar .theme-toggle-compact,
+      #header-card.dashboard-sidebar .sidebar-back-button {
+        min-height: 30px !important;
+        padding: 0 7px !important;
+        font-size: 8px !important;
+      }
+      #header-card.dashboard-sidebar .route-overview { padding: 11px !important; border-radius: 14px !important; }
+      #header-card.dashboard-sidebar .route-overview-topline { margin-bottom: 9px !important; }
+      #header-card.dashboard-sidebar .route-overview-label { font-size: 7px !important; }
+      #header-card.dashboard-sidebar .live-status { min-height: 23px !important; padding: 3px 6px !important; font-size: 7px !important; }
+      #header-card.dashboard-sidebar .panel-toggle-button { width: 25px !important; height: 25px !important; flex-basis: 25px !important; }
+      #header-card.dashboard-sidebar .badge-tag { min-width: 43px !important; min-height: 39px !important; font-size: 13px !important; }
+      #header-card.dashboard-sidebar .badge-text h1 { font-size: 13px !important; }
+      #header-card.dashboard-sidebar .badge-text p { font-size: 9px !important; }
+      #header-card.dashboard-sidebar .info-grid { margin-top: 8px !important; padding: 8px !important; }
+      #header-card.dashboard-sidebar .info-label { font-size: 7px !important; }
+      #header-card.dashboard-sidebar .info-value { font-size: 9px !important; }
+      #header-card.dashboard-sidebar .map-tools-panel { margin-top: 9px !important; padding: 9px !important; border-radius: 13px !important; }
+      #header-card.dashboard-sidebar .tools-section-heading { margin-bottom: 7px !important; font-size: 11px !important; }
+      #header-card.dashboard-sidebar .tools-section-heading small { font-size: 8px !important; }
+      #header-card.dashboard-sidebar .tools-section-heading > i { width: 26px !important; height: 26px !important; }
+      #header-card.dashboard-sidebar .stop-search-row { grid-template-columns: minmax(0,1fr) 36px auto !important; gap: 5px !important; }
+      #header-card.dashboard-sidebar #buscador-paradas,
+      #header-card.dashboard-sidebar .tool-button { height: 37px !important; min-height: 37px !important; font-size: 10px !important; }
+      #header-card.dashboard-sidebar #btn-paradas-cercanas { width: 36px !important; min-width: 36px !important; }
+      #header-card.dashboard-sidebar #btn-mostrar-favoritos { min-width: 76px !important; }
+      #header-card.dashboard-sidebar .line-filter-toggle { min-height: 37px !important; }
+      #header-card.dashboard-sidebar .fleet-section { margin-top: 11px !important; }
+      #header-card.dashboard-sidebar .fleet-section-heading h2 { font-size: 12px !important; }
+      #header-card.dashboard-sidebar .fleet-count { min-width: 29px !important; height: 29px !important; font-size: 12px !important; }
+      #header-card.dashboard-sidebar .fleet-state,
+      #header-card.dashboard-sidebar .fleet-filter-summary { font-size: 8px !important; }
+      #header-card.dashboard-sidebar .fleet-list { max-height: min(18dvh, 155px) !important; }
+      #header-card.dashboard-sidebar .fleet-vehicle-card { gap: 5px !important; padding: 8px 9px !important; }
+      #header-card.dashboard-sidebar .fleet-destination { font-size: 10px !important; }
+      #header-card.dashboard-sidebar .footer-actions { margin-top: 9px !important; padding-top: 8px !important; }
+      #header-card.dashboard-sidebar .footer-actions .btn-action { min-height: 36px !important; font-size: 9px !important; }
+    }
+    @media (max-width: 380px) {
+      #header-card.dashboard-sidebar .sidebar-brand-lockup small { display: none !important; }
+      #header-card.dashboard-sidebar .theme-toggle-compact span { display: none !important; }
+      #header-card.dashboard-sidebar .theme-toggle-compact { width: 30px !important; padding: 0 !important; }
+      #header-card.dashboard-sidebar #btn-mostrar-favoritos { min-width: 38px !important; width: 38px !important; padding: 0 !important; }
+      #header-card.dashboard-sidebar #btn-mostrar-favoritos > span:not(.favorite-count) { display: none !important; }
+      #header-card.dashboard-sidebar .fleet-list { max-height: 16dvh !important; }
+    }
 </style>
 </head>
 <body>
@@ -6117,45 +6868,52 @@
   </div>
 
   <!-- Tarjeta Flotante sobre el Mapa -->
-  <div class="header-card" id="header-card" style="display: none;">
+  <!-- Panel lateral: dashboard de servicio y herramientas del mapa -->
+  <div class="header-card dashboard-sidebar" id="header-card" style="display: none;">
     <div class="sidebar-brand">
       <div class="sidebar-brand-lockup">
         <img class="sidebar-brand-mark" src="{{ url_for('static', filename='mapa-tpa-mark.svg') }}" alt="" aria-hidden="true">
-        <span><strong>MAPA TPA</strong><small>TRANSPORTE · ARAGÓN</small></span>
+        <span><strong>MAPA TPA</strong><small>TRANSPORTE PÚBLICO · ARAGÓN</small></span>
       </div>
       <div class="sidebar-brand-actions">
         <button type="button" class="theme-toggle theme-toggle-compact" data-theme-toggle aria-pressed="false" aria-label="Activar modo oscuro" title="Activar modo oscuro">
           <i class="fa-solid fa-moon" aria-hidden="true"></i><span data-theme-label>Modo oscuro</span>
         </button>
-      <button type="button" class="sidebar-back-button" onclick="volverAlMenu()" aria-label="Volver al catálogo">
-        <i class="fa-solid fa-arrow-left" aria-hidden="true"></i><span>Concesiones</span>
-      </button>
-      </div>
-    </div>
-    <div class="header-title">
-      <div class="line-badge">
-        <span class="badge-tag" id="badge-linea-tag">T05</span>
-        <div class="badge-text">
-          <h1 id="vehicle-title">Buscando buses...</h1>
-          <p id="vehicle-subtitle">Localización en tiempo real</p>
-        </div>
-      </div>
-      <div class="header-quick-actions">
-        <div class="live-status" id="live-status">
-          <div class="pulse-dot" id="live-dot"></div>
-          <span id="live-status-text">CONECTANDO</span>
-        </div>
-        <button class="panel-toggle-button" id="btn-ocultar-panel" type="button"
-          aria-label="Ocultar panel de información" title="Ocultar panel"
-          aria-expanded="true" onclick="ocultarPanel()">
-          <i class="fa-solid fa-chevron-up"></i>
+        <button type="button" class="sidebar-back-button" onclick="volverAlMenu()" aria-label="Volver al catálogo">
+          <i class="fa-solid fa-arrow-left" aria-hidden="true"></i><span>Concesiones</span>
         </button>
       </div>
     </div>
 
+    <section class="route-overview" aria-label="Servicio seleccionado">
+      <div class="route-overview-topline">
+        <span class="route-overview-label">SERVICIO SELECCIONADO</span>
+        <div class="header-quick-actions">
+          <div class="live-status" id="live-status">
+            <div class="pulse-dot" id="live-dot"></div>
+            <span id="live-status-text">CONECTANDO</span>
+          </div>
+          <button class="panel-toggle-button" id="btn-ocultar-panel" type="button"
+            aria-label="Ocultar panel de información" title="Ocultar panel"
+            aria-expanded="true" onclick="ocultarPanel()">
+            <i class="fa-solid fa-chevron-up"></i>
+          </button>
+        </div>
+      </div>
+      <div class="header-title">
+        <div class="line-badge">
+          <span class="badge-tag" id="badge-linea-tag">T05</span>
+          <div class="badge-text">
+            <h1 id="vehicle-title">Buscando autobuses...</h1>
+            <p id="vehicle-subtitle">Localización en tiempo real</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <div class="info-grid">
       <div class="info-item">
-        <span class="info-label">Coches identificados</span>
+        <span class="info-label">Vehículos identificados</span>
         <span class="info-value" id="bus-info">Conectando...</span>
       </div>
       <div class="info-item">
@@ -6163,6 +6921,57 @@
         <span class="info-value" id="last-updated">--:--:--</span>
       </div>
     </div>
+
+    <section class="map-tools-panel" aria-label="Búsqueda y herramientas del mapa">
+      <div class="tools-section-heading">
+        <div>
+          <span>Explorar el mapa</span>
+          <small>Busca paradas y consulta las líneas activas</small>
+        </div>
+        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+      </div>
+      <div class="map-tools">
+        <div class="stop-search-row">
+          <input id="buscador-paradas" type="search" autocomplete="off"
+            placeholder="Nombre de parada o localidad" aria-label="Buscar parada">
+          <button class="tool-button" id="btn-paradas-cercanas" type="button" title="Ver paradas cercanas" aria-label="Ver paradas cercanas">
+            <i class="fa-solid fa-location-crosshairs" aria-hidden="true"></i>
+          </button>
+          <button class="tool-button" id="btn-mostrar-favoritos" type="button">
+            <i class="fa-solid fa-star" aria-hidden="true"></i> <span>Favoritos</span>
+            <span class="favorite-count" id="contador-favoritos">0</span>
+          </button>
+        </div>
+        <div class="search-results" id="resultados-paradas" hidden></div>
+        <div class="line-filter-row" id="contenedor-filtros-lineas" hidden>
+          <button class="line-filter-toggle" id="btn-toggle-filtros-lineas" type="button"
+            aria-expanded="false" aria-controls="panel-filtros-lineas">
+            <span class="line-filter-toggle-copy">
+              <span class="line-filter-title">Filtrar autobuses</span>
+              <span class="line-filter-summary" id="resumen-filtros-lineas">Todas las líneas activas</span>
+            </span>
+            <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+          </button>
+          <div class="line-filter-panel" id="panel-filtros-lineas" hidden>
+            <div class="line-filter-actions">
+              <button class="line-filter-action" id="btn-seleccionar-todas-lineas" type="button">Seleccionar todas</button>
+              <button class="line-filter-action" id="btn-desmarcar-todas-lineas" type="button">Desmarcar todas</button>
+            </div>
+            <input id="buscador-filtros-lineas" type="search" autocomplete="off"
+              placeholder="Buscar línea..." aria-label="Buscar línea">
+            <div id="lista-filtros-lineas"></div>
+          </div>
+        </div>
+        <div class="favorites-panel" id="panel-favoritos" hidden>
+          <div class="favorites-panel-heading">
+            <strong>Mis paradas favoritas</strong>
+            <button class="tool-close" id="btn-cerrar-favoritos" type="button" aria-label="Cerrar favoritos">×</button>
+          </div>
+          <div id="lista-favoritos"></div>
+          <p class="favorites-note">Los avisos requieren permiso del navegador y que el mapa permanezca abierto.</p>
+        </div>
+      </div>
+    </section>
 
     <section class="fleet-section" aria-label="Autobuses en circulación">
       <div class="fleet-section-heading">
@@ -6179,55 +6988,9 @@
       </div>
     </section>
 
-    <div class="tools-section-heading">
-      <span>Herramientas del mapa</span>
-      <i class="fa-solid fa-sliders" aria-hidden="true"></i>
-    </div>
-    <div class="map-tools">
-      <div class="stop-search-row">
-        <input id="buscador-paradas" type="search" autocomplete="off"
-          placeholder="Buscar parada..." aria-label="Buscar parada">
-        <button class="tool-button" id="btn-paradas-cercanas" type="button" title="Ver paradas cercanas">
-          <i class="fa-solid fa-location-crosshairs"></i>
-        </button>
-        <button class="tool-button" id="btn-mostrar-favoritos" type="button">
-          <i class="fa-solid fa-star"></i> <span>Favoritos</span>
-          <span class="favorite-count" id="contador-favoritos">0</span>
-        </button>
-      </div>
-      <div class="search-results" id="resultados-paradas" hidden></div>
-      <div class="line-filter-row" id="contenedor-filtros-lineas" hidden>
-        <button class="line-filter-toggle" id="btn-toggle-filtros-lineas" type="button"
-          aria-expanded="false" aria-controls="panel-filtros-lineas">
-          <span class="line-filter-toggle-copy">
-            <span class="line-filter-title">Filtrar autobuses</span>
-            <span class="line-filter-summary" id="resumen-filtros-lineas">Todas las líneas activas</span>
-          </span>
-          <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
-        </button>
-        <div class="line-filter-panel" id="panel-filtros-lineas" hidden>
-          <div class="line-filter-actions">
-            <button class="line-filter-action" id="btn-seleccionar-todas-lineas" type="button">Seleccionar todas</button>
-            <button class="line-filter-action" id="btn-desmarcar-todas-lineas" type="button">Desmarcar todas</button>
-          </div>
-          <input id="buscador-filtros-lineas" type="search" autocomplete="off"
-            placeholder="Buscar línea..." aria-label="Buscar línea">
-          <div id="lista-filtros-lineas"></div>
-        </div>
-      </div>
-      <div class="favorites-panel" id="panel-favoritos" hidden>
-        <div class="favorites-panel-heading">
-          <strong>Mis paradas favoritas</strong>
-          <button class="tool-close" id="btn-cerrar-favoritos" type="button" aria-label="Cerrar favoritos">×</button>
-        </div>
-        <div id="lista-favoritos"></div>
-        <p class="favorites-note">Los avisos requieren permiso del navegador y que el mapa permanezca abierto.</p>
-      </div>
-    </div>
-
     <div class="footer-actions">
       <button class="btn-action" onclick="centrarEnBus()">
-        <i class="fa-solid fa-crosshairs"></i> Encuadrar
+        <i class="fa-solid fa-crosshairs" aria-hidden="true"></i> Centrar vista
       </button>
     </div>
   </div>
