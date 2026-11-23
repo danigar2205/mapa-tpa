@@ -1,4 +1,5 @@
 import os
+import fcntl
 import html
 from html.parser import HTMLParser
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -1945,6 +1946,115 @@ AVANZA_URBANOS_STATE = {
     "fin_escaneo": None,
 }
 
+AVANZA_SHARED_STATE_PATH = os.environ.get(
+    "AVANZA_SHARED_STATE_PATH",
+    "/tmp/mapa-tpa-avanza-state.json",
+)
+AVANZA_SHARED_LOCK_PATH = os.environ.get(
+    "AVANZA_SHARED_LOCK_PATH",
+    "/tmp/mapa-tpa-avanza-scan.lock",
+)
+AVANZA_SHARED_WRITE_LOCK = threading.Lock()
+
+
+def _leer_avanza_estado_compartido():
+    """Lee el estado común a todos los workers de la misma instancia."""
+    try:
+        with open(AVANZA_SHARED_STATE_PATH, "r", encoding="utf-8") as fichero:
+            contenido = json.load(fichero)
+        if not isinstance(contenido, dict):
+            return {}
+        return contenido
+    except (OSError, ValueError, TypeError):
+        return {}
+
+
+def _guardar_avanza_estado_compartido(estado=None, cache=None, actualizar_cache=False):
+    """
+    Escribe de forma atómica el progreso y la última flota en un fichero común.
+    Cada worker web lee el mismo fichero, aunque las peticiones roten de proceso.
+    """
+    with AVANZA_SHARED_WRITE_LOCK:
+        contenido = _leer_avanza_estado_compartido()
+        if estado is not None:
+            contenido["state"] = estado
+        if actualizar_cache:
+            contenido["cache"] = cache
+        directorio = os.path.dirname(AVANZA_SHARED_STATE_PATH) or "."
+        os.makedirs(directorio, exist_ok=True)
+        temporal = (
+            AVANZA_SHARED_STATE_PATH +
+            f".{os.getpid()}.{threading.get_ident()}.tmp"
+        )
+        try:
+            with open(temporal, "w", encoding="utf-8") as fichero:
+                json.dump(contenido, fichero, ensure_ascii=False, separators=(",", ":"))
+            os.replace(temporal, AVANZA_SHARED_STATE_PATH)
+        finally:
+            try:
+                if os.path.exists(temporal):
+                    os.remove(temporal)
+            except OSError:
+                pass
+
+
+def _sincronizar_avanza_estado_compartido():
+    """Actualiza las copias locales desde el estado publicado por el worker activo."""
+    contenido = _leer_avanza_estado_compartido()
+    estado = contenido.get("state")
+    cache = contenido.get("cache")
+    with AVANZA_URBANOS_LOCK:
+        if isinstance(estado, dict):
+            AVANZA_URBANOS_STATE.update(estado)
+        if isinstance(cache, dict):
+            datos_cache = cache.get("data")
+            timestamp_cache = cache.get("timestamp")
+            if isinstance(datos_cache, dict) and isinstance(timestamp_cache, (int, float)):
+                AVANZA_URBANOS_CACHE.update({
+                    "data": datos_cache,
+                    "timestamp": float(timestamp_cache),
+                })
+        return (
+            dict(AVANZA_URBANOS_CACHE.get("data") or {}),
+            dict(AVANZA_URBANOS_STATE),
+            float(AVANZA_URBANOS_CACHE.get("timestamp") or 0.0),
+        )
+
+
+def _adquirir_bloqueo_avanza_compartido():
+    """
+    Bloqueo entre procesos, no solo entre hilos. El descriptor queda abierto
+    durante todo el barrido y el SO lo libera automáticamente si el worker muere.
+    """
+    directorio = os.path.dirname(AVANZA_SHARED_LOCK_PATH) or "."
+    os.makedirs(directorio, exist_ok=True)
+    descriptor = os.open(AVANZA_SHARED_LOCK_PATH, os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return descriptor
+    except BlockingIOError:
+        os.close(descriptor)
+        return None
+    except Exception:
+        os.close(descriptor)
+        raise
+
+
+def _liberar_bloqueo_avanza_compartido(descriptor):
+    if descriptor is None:
+        return
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_UN)
+    except OSError:
+        pass
+    try:
+        os.close(descriptor)
+    except OSError:
+        pass
+
+
+
+
 
 class AvanzaHTMLParser(HTMLParser):
     """Extrae selects y el nonce sin depender de expresiones HTML frágiles."""
@@ -2379,6 +2489,11 @@ def extraer_bus_avanza(maquina, poste, nombre_parada=None):
 def _actualizar_estado_avanza(**cambios):
     with AVANZA_URBANOS_LOCK:
         AVANZA_URBANOS_STATE.update(cambios)
+        estado = dict(AVANZA_URBANOS_STATE)
+    try:
+        _guardar_avanza_estado_compartido(estado=estado)
+    except OSError as exc:
+        print(f"[AVANZA URBANOS] No se pudo guardar el progreso compartido: {exc}")
 
 
 AVANZA_GPS_THREAD_LOCAL = threading.local()
@@ -2627,12 +2742,13 @@ def consultar_flota_avanza_urbana():
     }
     return resultado
 
-def _trabajador_barrido_avanza():
+def _trabajador_barrido_avanza(descriptor_bloqueo=None):
     try:
         resultado = consultar_flota_avanza_urbana()
+        timestamp_cache = time.monotonic()
         with AVANZA_URBANOS_LOCK:
             AVANZA_URBANOS_CACHE.update({
-                "timestamp": time.monotonic(),
+                "timestamp": timestamp_cache,
                 "data": resultado,
             })
             AVANZA_URBANOS_STATE.update({
@@ -2650,6 +2766,12 @@ def _trabajador_barrido_avanza():
                 "ultimo_error": None,
                 "fin_escaneo": datetime.now(ZONA_HORARIA).isoformat(),
             })
+            estado_final = dict(AVANZA_URBANOS_STATE)
+        _guardar_avanza_estado_compartido(
+            estado=estado_final,
+            cache={"timestamp": timestamp_cache, "data": resultado},
+            actualizar_cache=True,
+        )
     except Exception as exc:
         print(f"[AVANZA URBANOS] Error en el barrido de flota: {exc}")
         _actualizar_estado_avanza(
@@ -2659,48 +2781,78 @@ def _trabajador_barrido_avanza():
             fin_escaneo=datetime.now(ZONA_HORARIA).isoformat(),
         )
     finally:
-        AVANZA_URBAN_SCAN_LOCK.release()
+        _liberar_bloqueo_avanza_compartido(descriptor_bloqueo)
+        # Mantiene compatibilidad con el bloqueo local anterior si estaba tomado.
+        if AVANZA_URBAN_SCAN_LOCK.locked():
+            try:
+                AVANZA_URBAN_SCAN_LOCK.release()
+            except RuntimeError:
+                pass
 
 
 def iniciar_barrido_avanza_si_necesario(forzar=False):
-    """Inicia como máximo un barrido; las consultas del navegador no esperan a que termine."""
-    if not AVANZA_URBAN_SCAN_LOCK.acquire(blocking=False):
+    """
+    Inicia un único barrido en toda la instancia Render. El bloqueo de fichero
+    evita que otro worker Gunicorn comience desde cero al recibir el siguiente poll.
+    """
+    descriptor = _adquirir_bloqueo_avanza_compartido()
+    if descriptor is None:
         return
 
-    ahora = time.monotonic()
-    with AVANZA_URBANOS_LOCK:
-        cacheada = AVANZA_URBANOS_CACHE.get("data")
+    try:
+        datos_compartidos = _leer_avanza_estado_compartido()
+        cache_compartida = datos_compartidos.get("cache") or {}
+        cacheada = cache_compartida.get("data")
+        timestamp_cache = cache_compartida.get("timestamp") or 0.0
         edad = (
-            ahora - AVANZA_URBANOS_CACHE.get("timestamp", 0.0)
-            if cacheada is not None else float("inf")
+            time.monotonic() - float(timestamp_cache)
+            if isinstance(timestamp_cache, (int, float)) and timestamp_cache > 0
+            else float("inf")
         )
-        if not forzar and cacheada is not None and edad < AVANZA_URBANOS_TTL:
-            AVANZA_URBAN_SCAN_LOCK.release()
-            return
-        AVANZA_URBANOS_STATE.update({
-            "escaneo_en_curso": True,
-            "fase": "iniciando",
-            "progreso": 0,
-            "total_progreso": 0,
-            "progreso_general": 0,
-            "total_progreso_general": 0,
-            "sentidos_consultados": 0,
-            "total_sentidos": 0,
-            "paradas_gps_completadas": 0,
-            "coches_unicos_detectados": 0,
-            "buses_parciales": [],
-            "lineas_descubiertas": 0,
-            "paradas_descubiertas": 0,
-            "ultimo_error": None,
-            "inicio_escaneo": datetime.now(ZONA_HORARIA).isoformat(),
-        })
 
-    hilo = threading.Thread(
-        target=_trabajador_barrido_avanza,
-        name="avanza-urbanos-barrido",
-        daemon=True,
-    )
-    hilo.start()
+        if not forzar and isinstance(cacheada, dict) and edad < AVANZA_URBANOS_TTL:
+            with AVANZA_URBANOS_LOCK:
+                AVANZA_URBANOS_CACHE.update({
+                    "timestamp": float(timestamp_cache),
+                    "data": cacheada,
+                })
+                if isinstance(datos_compartidos.get("state"), dict):
+                    AVANZA_URBANOS_STATE.update(datos_compartidos["state"])
+            _liberar_bloqueo_avanza_compartido(descriptor)
+            return
+
+        with AVANZA_URBANOS_LOCK:
+            AVANZA_URBANOS_STATE.update({
+                "escaneo_en_curso": True,
+                "fase": "iniciando",
+                "progreso": 0,
+                "total_progreso": 0,
+                "progreso_general": 0,
+                "total_progreso_general": 0,
+                "sentidos_consultados": 0,
+                "total_sentidos": 0,
+                "paradas_gps_completadas": 0,
+                "coches_unicos_detectados": 0,
+                "buses_parciales": [],
+                "lineas_descubiertas": 0,
+                "paradas_descubiertas": 0,
+                "ultimo_error": None,
+                "scan_id": str(uuid.uuid4()),
+                "inicio_escaneo": datetime.now(ZONA_HORARIA).isoformat(),
+            })
+            estado_inicial = dict(AVANZA_URBANOS_STATE)
+        _guardar_avanza_estado_compartido(estado=estado_inicial)
+
+        hilo = threading.Thread(
+            target=_trabajador_barrido_avanza,
+            args=(descriptor,),
+            name="avanza-urbanos-barrido",
+            daemon=True,
+        )
+        hilo.start()
+    except Exception:
+        _liberar_bloqueo_avanza_compartido(descriptor)
+        raise
 
 
 @app.route('/api/avanza/urbanos')
@@ -2709,9 +2861,7 @@ def get_avanza_urbanos():
     iniciar_barrido_avanza_si_necesario(
         forzar=request.args.get("forzar") == "1"
     )
-    with AVANZA_URBANOS_LOCK:
-        datos = dict(AVANZA_URBANOS_CACHE.get("data") or {})
-        estado = dict(AVANZA_URBANOS_STATE)
+    datos, estado, _ = _sincronizar_avanza_estado_compartido()
 
     if not datos:
         datos = {
