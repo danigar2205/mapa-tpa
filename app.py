@@ -1911,6 +1911,10 @@ AVANZA_PAUSA_POSTES = 0.0
 AVANZA_CONCURRENCIA_GPS = 6
 AVANZA_GPS_TIMEOUT_CONNECT = 3.0
 AVANZA_GPS_TIMEOUT_READ = 4.0
+AVANZA_GPS_PARADAS_POR_LOTE = 20
+AVANZA_GPS_REFRESCOS_POR_LOTE = 3
+AVANZA_GPS_SEGUIMIENTO_LOTE = 12
+AVANZA_GPS_SEGUIMIENTO_INTERVALO = 10.0
 
 try:
     AVANZA_URBANOS_TTL = max(120, int(os.environ.get("AVANZA_URBANOS_TTL", AVANZA_URBANOS_TTL)))
@@ -1952,6 +1956,8 @@ AVANZA_URBANOS_STATE = {
     "buses_parciales": [],
     "lineas_descubiertas": 0,
     "paradas_descubiertas": 0,
+    "seguimiento_en_curso": False,
+    "actualizado": None,
     "ultimo_error": None,
     "inicio_escaneo": None,
     "fin_escaneo": None,
@@ -2662,6 +2668,7 @@ def extraer_bus_avanza(maquina, poste, nombre_parada=None):
         "distancia_km": distancia_km,
         "poste": int(poste),
         "parada": nombre_parada or f"Parada {poste}",
+        "capturado_epoch": time.time(),
     }
 
 
@@ -2772,6 +2779,30 @@ def _consultar_poste_gps_avanza(parada_info):
         }
 
 
+
+def _fusionar_buses_avanza(buses_por_coche, buses_nuevos):
+    """Conserva para cada coche la posición procedente de la consulta más reciente."""
+    for bus in buses_nuevos or []:
+        if not isinstance(bus, dict):
+            continue
+        coche = str(bus.get("coche") or bus.get("id") or "").strip()
+        if not coche:
+            continue
+        actual = dict(bus)
+        try:
+            capturado = float(actual.get("capturado_epoch") or time.time())
+        except (TypeError, ValueError):
+            capturado = time.time()
+        actual["capturado_epoch"] = capturado
+        anterior = buses_por_coche.get(coche)
+        try:
+            captura_anterior = float(anterior.get("capturado_epoch") or 0) if anterior else 0
+        except (TypeError, ValueError):
+            captura_anterior = 0
+        if anterior is None or capturado >= captura_anterior:
+            buses_por_coche[coche] = actual
+
+
 def consultar_flota_avanza_urbana():
     """
     Barre las paradas descubiertas. Si el proceso se interrumpe, retoma las
@@ -2852,6 +2883,11 @@ def consultar_flota_avanza_urbana():
 
     ultimo_checkpoint_gps = time.monotonic()
     resultados_desde_checkpoint = 0
+    cursor_refresco = 0
+
+    postes_por_numero = {
+        str(item["poste"]): item for item in postes
+    }
 
     def publicar_progreso_gps(forzar=False):
         nonlocal ultimo_checkpoint_gps, resultados_desde_checkpoint
@@ -2907,56 +2943,103 @@ def consultar_flota_avanza_urbana():
         ultimo_checkpoint_gps = ahora_checkpoint
         resultados_desde_checkpoint = 0
 
-    with ThreadPoolExecutor(
-        max_workers=AVANZA_CONCURRENCIA_GPS,
-        thread_name_prefix="avanza-gps",
-    ) as executor:
-        futuros = {
-            executor.submit(_consultar_poste_gps_avanza, parada_info): parada_info
-            for parada_info in postes_pendientes
+    # No se encolan todas las paradas de golpe: al cerrar cada lote se
+    # reconsultan algunos postes que ya han localizado autobuses.
+    for inicio_lote in range(0, len(postes_pendientes), AVANZA_GPS_PARADAS_POR_LOTE):
+        lote = postes_pendientes[
+            inicio_lote:inicio_lote + AVANZA_GPS_PARADAS_POR_LOTE
+        ]
+        with ThreadPoolExecutor(
+            max_workers=AVANZA_CONCURRENCIA_GPS,
+            thread_name_prefix="avanza-gps",
+        ) as executor:
+            futuros = {
+                executor.submit(_consultar_poste_gps_avanza, parada_info): parada_info
+                for parada_info in lote
+            }
+
+            for futuro in as_completed(futuros):
+                try:
+                    resultado_parada = futuro.result()
+                except Exception as exc:
+                    parada_info = futuros[futuro]
+                    resultado_parada = {
+                        "poste": parada_info["poste"],
+                        "nombre": parada_info.get("nombre") or f"Parada {parada_info['poste']}",
+                        "buses": [],
+                        "error": f"poste {parada_info['poste']}: {str(exc)[:160]}",
+                    }
+
+                poste_key = str(resultado_parada["poste"])
+                postes_gps_completados.add(poste_key)
+                if resultado_parada.get("error"):
+                    errores.append(resultado_parada["error"])
+                    errores_gps.append(resultado_parada["error"])
+                else:
+                    paradas_consultadas.append({
+                        "poste": resultado_parada["poste"],
+                        "nombre": resultado_parada["nombre"],
+                    })
+
+                _fusionar_buses_avanza(
+                    buses_por_coche, resultado_parada.get("buses", [])
+                )
+                resultados_desde_checkpoint += 1
+                publicar_progreso_gps()
+
+        # Primera publicación del lote: los coches ya aparecen en el mapa.
+        publicar_progreso_gps(forzar=True)
+
+        # Reconsulta unos pocos postes que ya han devuelto coches. Esto actualiza
+        # coordenadas de vehículos conocidos sin esperar al final de toda la red.
+        buses_conocidos = {
+            str(bus["coche"]): dict(bus) for bus in buses_previos
+            if bus.get("coche")
         }
+        buses_conocidos.update({
+            str(bus["coche"]): dict(bus) for bus in buses_por_coche.values()
+            if bus.get("coche")
+        })
+        fuentes = sorted({
+            str(bus.get("poste"))
+            for bus in buses_conocidos.values()
+            if bus.get("poste") is not None and str(bus.get("poste")).isdigit()
+        }, key=int)
 
-        for futuro in as_completed(futuros):
-            try:
-                resultado_parada = futuro.result()
-            except Exception as exc:
-                parada_info = futuros[futuro]
-                resultado_parada = {
-                    "poste": parada_info["poste"],
-                    "nombre": parada_info.get("nombre") or f"Parada {parada_info['poste']}",
-                    "buses": [],
-                    "error": f"poste {parada_info['poste']}: {str(exc)[:160]}",
-                }
-
-            poste_key = str(resultado_parada["poste"])
-            postes_gps_completados.add(poste_key)
-            if resultado_parada.get("error"):
-                errores.append(resultado_parada["error"])
-                errores_gps.append(resultado_parada["error"])
-            else:
-                paradas_consultadas.append({
-                    "poste": resultado_parada["poste"],
-                    "nombre": resultado_parada["nombre"],
+        if fuentes:
+            cantidad_refrescos = min(AVANZA_GPS_REFRESCOS_POR_LOTE, len(fuentes))
+            seleccion = [
+                fuentes[(cursor_refresco + indice) % len(fuentes)]
+                for indice in range(cantidad_refrescos)
+            ]
+            cursor_refresco = (cursor_refresco + cantidad_refrescos) % len(fuentes)
+            paradas_refresco = [
+                postes_por_numero.get(poste, {
+                    "poste": int(poste), "nombre": f"Parada {poste}"
                 })
+                for poste in seleccion
+            ]
+            with ThreadPoolExecutor(
+                max_workers=min(AVANZA_GPS_REFRESCOS_POR_LOTE, len(paradas_refresco)),
+                thread_name_prefix="avanza-gps-refresh",
+            ) as executor:
+                futuros_refresco = [
+                    executor.submit(_consultar_poste_gps_avanza, parada_info)
+                    for parada_info in paradas_refresco
+                ]
+                for futuro in as_completed(futuros_refresco):
+                    try:
+                        resultado_refresco = futuro.result()
+                    except Exception:
+                        continue
+                    if not resultado_refresco.get("error"):
+                        _fusionar_buses_avanza(
+                            buses_por_coche, resultado_refresco.get("buses", [])
+                        )
 
-            for bus in resultado_parada.get("buses", []):
-                clave = str(bus["coche"])
-                anterior = buses_por_coche.get(clave)
-                eta_nueva = bus["eta_minutos"]
-                eta_anterior = anterior.get("eta_minutos") if anterior else None
-                if anterior is None or (
-                    eta_nueva is not None
-                    and (eta_anterior is None or eta_nueva < eta_anterior)
-                ):
-                    buses_por_coche[clave] = bus
-
-            # Evita escribir cientos de veces el estado completo en Redis:
-            # guarda cada cinco respuestas o, como máximo, cada dos segundos.
-            resultados_desde_checkpoint += 1
-            publicar_progreso_gps()
-
-    # Publica también el último lote, aunque no llegue al tamaño del bloque.
-    publicar_progreso_gps(forzar=True)
+            # Publica las coordenadas refrescadas sin incrementar el porcentaje:
+            # los refrescos no son nuevas paradas del barrido.
+            publicar_progreso_gps(forzar=True)
 
     if not paradas_consultadas and errores:
         raise ValueError(
@@ -2997,6 +3080,7 @@ def consultar_flota_avanza_urbana():
         ),
         "total_paradas": total_postes,
         "paradas_descubiertas": total_postes,
+        "_postes_red": postes,
         "lineas_descubiertas": lineas_descubiertas,
         "sentidos_consultados": sentidos_consultados,
         "actualizado": datetime.now(ZONA_HORARIA).isoformat(),
@@ -3007,6 +3091,87 @@ def consultar_flota_avanza_urbana():
         "errores": errores[:20],
     }
     return resultado
+
+
+ 
+def _seguir_actualizando_flota_avanza(resultado, timestamp_cache):
+    """
+    Durante la vigencia de la caché, sigue consultando postes en rotación para
+    mover los marcadores ya cargados y detectar coches en paradas posteriores.
+    """
+    postes_red = list(resultado.get("_postes_red") or [])
+    if not postes_red or not resultado.get("buses"):
+        return
+
+    buses_por_coche = {
+        str(bus["coche"]): dict(bus)
+        for bus in resultado.get("buses", [])
+        if isinstance(bus, dict) and bus.get("coche")
+    }
+    cursor = 0
+    while time.time() - timestamp_cache < AVANZA_URBANOS_TTL:
+        restante = AVANZA_URBANOS_TTL - (time.time() - timestamp_cache)
+        if restante <= 0:
+            break
+        time.sleep(min(AVANZA_GPS_SEGUIMIENTO_INTERVALO, restante))
+        if time.time() - timestamp_cache >= AVANZA_URBANOS_TTL:
+            break
+
+        lote = [
+            postes_red[(cursor + indice) % len(postes_red)]
+            for indice in range(min(AVANZA_GPS_SEGUIMIENTO_LOTE, len(postes_red)))
+        ]
+        cursor = (cursor + len(lote)) % len(postes_red)
+        with ThreadPoolExecutor(
+            max_workers=AVANZA_CONCURRENCIA_GPS,
+            thread_name_prefix="avanza-gps-live",
+        ) as executor:
+            futuros = [
+                executor.submit(_consultar_poste_gps_avanza, parada_info)
+                for parada_info in lote
+            ]
+            for futuro in as_completed(futuros):
+                try:
+                    consulta = futuro.result()
+                except Exception:
+                    continue
+                if not consulta.get("error"):
+                    _fusionar_buses_avanza(
+                        buses_por_coche, consulta.get("buses", [])
+                    )
+
+        buses_actualizados = sorted(
+            buses_por_coche.values(),
+            key=lambda bus: (
+                str(bus.get("linea") or ""),
+                int(bus["coche"]) if str(bus.get("coche", "")).isdigit() else 0,
+            ),
+        )
+        actualizado = datetime.now(ZONA_HORARIA).isoformat()
+        resultado_cache = dict(resultado)
+        resultado_cache["buses"] = buses_actualizados
+        resultado_cache["actualizado"] = actualizado
+
+        with AVANZA_URBANOS_LOCK:
+            AVANZA_URBANOS_CACHE.update({
+                # El TTL no se renueva: al vencer se inicia otro barrido completo.
+                "timestamp": timestamp_cache,
+                "data": resultado_cache,
+            })
+            AVANZA_URBANOS_STATE.update({
+                "buses_parciales": buses_actualizados,
+                "coches_unicos_detectados": len(buses_actualizados),
+                "seguimiento_en_curso": True,
+                "actualizado": actualizado,
+            })
+            estado_actualizado = dict(AVANZA_URBANOS_STATE)
+
+        _guardar_avanza_estado_compartido(
+            estado=estado_actualizado,
+            cache={"timestamp": timestamp_cache, "data": resultado_cache},
+            actualizar_cache=True,
+        )
+
 
 
 def _trabajador_barrido_avanza(descriptor_bloqueo=None):
@@ -3021,6 +3186,8 @@ def _trabajador_barrido_avanza(descriptor_bloqueo=None):
             AVANZA_URBANOS_STATE.update({
                 "escaneo_en_curso": False,
                 "fase": "completado",
+                "seguimiento_en_curso": True,
+                "actualizado": resultado.get("actualizado"),
                 "progreso": resultado["total_paradas"],
                 "total_progreso": resultado["total_paradas"],
                 "progreso_general": resultado["sentidos_consultados"] + resultado["total_paradas"],
@@ -3039,11 +3206,20 @@ def _trabajador_barrido_avanza(descriptor_bloqueo=None):
             cache={"timestamp": timestamp_cache, "data": resultado},
             actualizar_cache=True,
         )
+        _seguir_actualizando_flota_avanza(resultado, timestamp_cache)
+        with AVANZA_URBANOS_LOCK:
+            AVANZA_URBANOS_STATE.update({
+                "seguimiento_en_curso": False,
+                "actualizado": resultado.get("actualizado"),
+            })
+            estado_seguimiento_final = dict(AVANZA_URBANOS_STATE)
+        _guardar_avanza_estado_compartido(estado=estado_seguimiento_final)
     except Exception as exc:
         print(f"[AVANZA URBANOS] Error en el barrido de flota: {exc}")
         _actualizar_estado_avanza(
             escaneo_en_curso=False,
             fase="error",
+            seguimiento_en_curso=False,
             ultimo_error=str(exc)[:300],
             fin_escaneo=datetime.now(ZONA_HORARIA).isoformat(),
         )
@@ -3113,6 +3289,7 @@ def iniciar_barrido_avanza_si_necesario(forzar=False):
         with AVANZA_URBANOS_LOCK:
             AVANZA_URBANOS_STATE.update({
                 "escaneo_en_curso": True,
+                "seguimiento_en_curso": False,
                 "fase": estado_previo.get("fase", "iniciando") if reanudar_escaneo else "iniciando",
                 "progreso": int(estado_previo.get("progreso") or 0) if reanudar_escaneo else 0,
                 "total_progreso": int(estado_previo.get("total_progreso") or 0) if reanudar_escaneo else 0,
@@ -3178,6 +3355,7 @@ def get_avanza_urbanos():
         datos["buses"] = list(estado.get("buses_parciales") or datos.get("buses") or [])
     if estado.get("ultimo_error") and not datos.get("buses"):
         datos["error"] = estado["ultimo_error"]
+    datos.pop("_postes_red", None)
     respuesta = jsonify(datos)
     respuesta.headers["Cache-Control"] = "no-store"
     return respuesta
