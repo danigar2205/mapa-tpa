@@ -10068,7 +10068,7 @@
         document.getElementById('avanza-last-update').textContent =
           !actualizado || Number.isNaN(actualizado.getTime())
             ? 'Sin datos' : actualizado.toLocaleTimeString('es-ES');
-        const paradas = Array.isArray(datos.paradas_consultadas) ? datos.paradas_consultadas : [];
+        const paradasConRespuesta = Math.max(0, Number(datos.paradas_consultadas_count || 0));
         const totalParadas = Number(datos.total_paradas || datos.paradas_descubiertas || 0);
         const lineas = Number(datos.lineas_descubiertas || 0);
         const progreso = Number(datos.progreso || 0);
@@ -10092,7 +10092,7 @@
         // no simplemente peticiones que se intentaron y dieron error.
         if (datos.fase === 'completado') {
           porcentajeTotal = totalParadas > 0
-            ? (Math.min(paradas.length, totalParadas) / totalParadas) * 100
+            ? (Math.min(paradasConRespuesta, totalParadas) / totalParadas) * 100
             : 0;
         }
         porcentajeTotal = Math.round(Math.max(0, Math.min(100, porcentajeTotal)));
@@ -10115,8 +10115,8 @@
             cochesDetectados + ' coches únicos localizados';
         } else if (datos.fase === 'completado') {
           tituloBarra = datos.seguimiento_en_curso ? 'Seguimiento GPS activo' : 'Barrido finalizado';
-          detalleBarra = paradas.length + ' de ' + totalParadas + ' paradas con respuesta' +
-            (totalParadas > paradas.length ? ' · ' + (totalParadas - paradas.length) + ' sin respuesta' : '') +
+          detalleBarra = paradasConRespuesta + ' de ' + totalParadas + ' paradas con respuesta' +
+            (totalParadas > paradasConRespuesta ? ' · ' + (totalParadas - paradasConRespuesta) + ' sin respuesta' : '') +
             ' · ' + cochesDetectados + ' coches únicos' +
             (datos.seguimiento_en_curso ? ' · refrescando posiciones' : '');
         } else if (datos.fase === 'error') {
@@ -10129,7 +10129,7 @@
           ? ' · ' + progresoGeneral + '/' + totalProgresoGeneral + ' operaciones realizadas.'
           : '';
         const textoCobertura = totalParadas
-          ? (paradas.length + ' de ' + totalParadas + ' paradas consultadas' +
+          ? (paradasConRespuesta + ' de ' + totalParadas + ' paradas consultadas' +
              (lineas ? ' · ' + lineas + ' líneas' : '') +
              ' · ' + buses.length + ' coches únicos, sin duplicados.')
           : 'Descubriendo el catálogo operativo de líneas y paradas de Avanza…';
