@@ -3893,7 +3893,7 @@
     }
     .btn-menu, .btn-menu:not(.btn-deshabilitado) {
       display: grid !important;
-      grid-template-columns: 48px minmax(0, 1fr) 18px !important;
+      grid-template-columns: 66px minmax(0, 1fr) 18px !important;
       align-items: center !important;
       justify-content: initial !important;
       gap: 9px !important;
@@ -3919,18 +3919,67 @@
       box-shadow: 0 2px 7px rgba(23,43,58,.08) !important;
     }
     .btn-menu:active:not(:disabled) { transform: none !important; }
+    .concession-logo-frame {
+      position: relative !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      width: 62px !important;
+      height: 48px !important;
+      min-width: 0 !important;
+      padding: 5px !important;
+      overflow: hidden !important;
+      border: 1px solid #e1e7e9 !important;
+      border-radius: 4px !important;
+      background: #fff !important;
+    }
+    .concession-logo-frame::after {
+      content: attr(data-fallback);
+      display: none;
+      color: #344d5d;
+      font-size: 8px;
+      font-weight: 900;
+      line-height: 1.15;
+      text-align: center;
+      letter-spacing: .02em;
+    }
+    .concession-logo-frame.is-broken::after { display: block; }
+    .concession-logo {
+      display: block !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      height: 100% !important;
+      max-height: 100% !important;
+      object-fit: contain !important;
+      object-position: center !important;
+    }
+    .concession-logo-frame.logo-dark-frame {
+      border-color: #263a45 !important;
+      background: #263a45 !important;
+    }
+    .concession-logo-frame.logo-dark-frame::after { color: #fff; }
+    .concession-logo-pair { gap: 3px !important; padding: 5px 3px !important; }
+    .concession-logo-pair .concession-logo { width: calc(50% - 2px) !important; }
+    .concession-copy {
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      justify-content: center !important;
+      gap: 4px !important;
+      min-width: 0 !important;
+    }
     .btn-title {
-      display: grid !important;
+      display: inline-grid !important;
       place-items: center !important;
-      width: 46px !important;
-      min-width: 46px !important;
-      min-height: 38px !important;
-      padding: 0 4px !important;
+      width: auto !important;
+      min-width: 41px !important;
+      min-height: 20px !important;
+      padding: 0 7px !important;
       border: 1px solid #aab9c2 !important;
-      border-radius: 2px !important;
+      border-radius: 3px !important;
       background: #eaf0f4 !important;
       color: var(--tpa-ink) !important;
-      font-size: 13px !important;
+      font-size: 10px !important;
       font-weight: 800 !important;
       line-height: 1 !important;
       white-space: nowrap !important;
@@ -4933,6 +4982,14 @@
     body.theme-dark .concession-search > i,
     body.theme-dark .concession-search:focus-within { color: #8fc5e2 !important; }
     body.theme-dark .concession-search input::placeholder { opacity: .72 !important; }
+    body.theme-dark .concession-logo-frame:not(.logo-dark-frame) {
+      border-color: #e1e7e9 !important;
+      background: #fff !important;
+    }
+    body.theme-dark .concession-logo-frame.logo-dark-frame {
+      border-color: #405663 !important;
+      background: #263a45 !important;
+    }
     body.theme-dark .btn-menu,
     body.theme-dark .btn-menu.btn-deshabilitado,
     body.theme-dark .btn-menu.btn-deshabilitado:disabled {
@@ -7927,81 +7984,126 @@
             </div>
           </section>
           <div class="lista-botones" aria-label="Listado de concesiones">
-            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T01">
-                          <span class="btn-title">T01</span>
-                          <span class="btn-subtitle">Jacetania y Alto Gállego - Zaragoza</span>
-                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-                        </button>
-            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T02">
-                          <span class="btn-title">T02</span>
-                          <span class="btn-subtitle">Sobrarbe y Ribagorza - Barbastro</span>
-                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-                        </button>
-            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T03">
-                          <span class="btn-title">T03</span>
-                          <span class="btn-subtitle">Fraga - Huesca por Monzón</span>
-                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-                        </button>
-            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T04">
-                          <span class="btn-title">T04</span>
-                          <span class="btn-subtitle">Monegros - Huesca y Zaragoza</span>
-                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-                        </button>
-            <button class="btn-menu" data-concesion="T05">
-                          <span class="btn-title">T05</span>
-                          <span class="btn-subtitle">Área de Fraga-Zaragoza por el eje del Ebro</span>
-                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-arrow-right"></i></span>
-                        </button>
-            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T06">
-                          <span class="btn-title">T06</span>
-                          <span class="btn-subtitle">Bajo Aragón - Zaragoza</span>
-                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-                        </button>
-            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T07">
-                          <span class="btn-title">T07</span>
-                          <span class="btn-subtitle">Bajo Aragón y Cuencas Mineras - Teruel</span>
-                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-                        </button>
-            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T08">
-                          <span class="btn-title">T08</span>
-                          <span class="btn-subtitle">Maestrazgo - Teruel</span>
-                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-                        </button>
-            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T09">
-                          <span class="btn-title">T09</span>
-                          <span class="btn-subtitle">Gúdar-Javalambre - Teruel</span>
-                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-                        </button>
-            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T10">
-                          <span class="btn-title">T10</span>
-                          <span class="btn-subtitle">Serranía de Albarracín - Teruel</span>
-                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-                        </button>
-            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T11">
-                          <span class="btn-title">T11</span>
-                          <span class="btn-subtitle">Teruel - Zaragoza por Calamocha</span>
-                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-                        </button>
-            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T12">
-                          <span class="btn-title">T12</span>
-                          <span class="btn-subtitle">Campo de Belchite - Zaragoza</span>
-                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-                        </button>
-            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T13">
-                          <span class="btn-title">T13</span>
-                          <span class="btn-subtitle">Calatayud y Aranda - Zaragoza</span>
-                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-                        </button>
-            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T14">
-                          <span class="btn-title">T14</span>
-                          <span class="btn-subtitle">Moncayo y Campo de Borja - Zaragoza</span>
-                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-                        </button>
-            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T15">
-                          <span class="btn-title">T15</span>
-                          <span class="btn-subtitle">Cinco Villas - Zaragoza</span>
-                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-                        </button>
+            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T01" data-operador="Avanza Movilidad Integral, S.L.">
+              <span class="concession-logo-frame" role="img" aria-label="Logotipo de Avanza" title="Avanza Movilidad Integral, S.L." data-fallback="AVANZA"><img class="concession-logo" src="https://www.zaragoza.es/cont/paginas/medioambiente/bosque-zaragozanos/empresas/AVANZA_Logo.png" alt="" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentNode.classList.add('is-broken')"></span>
+              <span class="concession-copy">
+                <span class="btn-title">T01</span>
+                <span class="btn-subtitle">Jacetania y Alto Gállego - Zaragoza</span>
+              </span>
+              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+            </button>
+            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T02" data-operador="Automóviles Zaragoza, S.A. y Alcalabus, S.L. · Monbus">
+              <span class="concession-logo-frame" role="img" aria-label="Logotipo de Monbus" title="Automóviles Zaragoza, S.A. y Alcalabus, S.L. · Monbus" data-fallback="MONBUS"><img class="concession-logo" src="https://upload.wikimedia.org/wikipedia/commons/b/bc/Monbuslogo.png" alt="" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentNode.classList.add('is-broken')"></span>
+              <span class="concession-copy">
+                <span class="btn-title">T02</span>
+                <span class="btn-subtitle">Sobrarbe y Ribagorza - Barbastro</span>
+              </span>
+              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+            </button>
+            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T03" data-operador="Avanza Movilidad Integral, S.L.">
+              <span class="concession-logo-frame" role="img" aria-label="Logotipo de Avanza" title="Avanza Movilidad Integral, S.L." data-fallback="AVANZA"><img class="concession-logo" src="https://www.zaragoza.es/cont/paginas/medioambiente/bosque-zaragozanos/empresas/AVANZA_Logo.png" alt="" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentNode.classList.add('is-broken')"></span>
+              <span class="concession-copy">
+                <span class="btn-title">T03</span>
+                <span class="btn-subtitle">Fraga - Huesca por Monzón</span>
+              </span>
+              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+            </button>
+            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T04" data-operador="Los Monegros Movilidad, S.L. · gestión actual del lote 4">
+              <span class="concession-logo-frame logo-dark-frame" role="img" aria-label="Logotipo de Los Monegros Movilidad · THP" title="Los Monegros Movilidad, S.L. · gestión actual del lote 4" data-fallback="MONEGROS"><img class="concession-logo" src="https://therpasa.es/wp-content/uploads/2025/10/Recursos-MAIL-FORM-y-NEWS-12.png" alt="" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentNode.classList.add('is-broken')"></span>
+              <span class="concession-copy">
+                <span class="btn-title">T04</span>
+                <span class="btn-subtitle">Monegros - Huesca y Zaragoza</span>
+              </span>
+              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+            </button>
+            <button class="btn-menu" data-concesion="T05" data-operador="Ágreda Bus, S.L.">
+              <span class="concession-logo-frame" role="img" aria-label="Logotipo de Ágreda Bus" title="Ágreda Bus, S.L." data-fallback="ÁGREDA BUS"><img class="concession-logo" src="{{ url_for('static', filename='agreda-bus.svg') }}" alt="" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentNode.classList.add('is-broken')"></span>
+              <span class="concession-copy">
+                <span class="btn-title">T05</span>
+                <span class="btn-subtitle">Área de Fraga-Zaragoza por el eje del Ebro</span>
+              </span>
+              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-arrow-right"></i></span>
+            </button>
+            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T06" data-operador="La Hispano de Fuente en Segures, S.A. · HIFE">
+              <span class="concession-logo-frame" role="img" aria-label="Logotipo de HIFE" title="La Hispano de Fuente en Segures, S.A. · HIFE" data-fallback="HIFE"><img class="concession-logo" src="https://busbud.imgix.net/operator-logos/hife.png?auto=format&amp;bg=0FFF&amp;fit=crop&amp;fit=fill&amp;h=630&amp;w=1200" alt="" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentNode.classList.add('is-broken')"></span>
+              <span class="concession-copy">
+                <span class="btn-title">T06</span>
+                <span class="btn-subtitle">Bajo Aragón - Zaragoza</span>
+              </span>
+              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+            </button>
+            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T07" data-operador="Autobuses Magallón">
+              <span class="concession-logo-frame" role="img" aria-label="Logotipo de Autobuses Magallón" title="Autobuses Magallón" data-fallback="MAGALLÓN"><img class="concession-logo" src="{{ url_for('static', filename='magallon.svg') }}" alt="" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentNode.classList.add('is-broken')"></span>
+              <span class="concession-copy">
+                <span class="btn-title">T07</span>
+                <span class="btn-subtitle">Bajo Aragón y Cuencas Mineras - Teruel</span>
+              </span>
+              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+            </button>
+            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T08" data-operador="Líneas Regulares Aragón Sur">
+              <span class="concession-logo-frame" role="img" aria-label="Logotipo de Aragón Sur Bus" title="Líneas Regulares Aragón Sur" data-fallback="ARAGÓN SUR BUS"><img class="concession-logo" src="https://aragonsurbus.com/wp-content/uploads/2024/07/logo_aragon_sur_bus.png" alt="" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentNode.classList.add('is-broken')"></span>
+              <span class="concession-copy">
+                <span class="btn-title">T08</span>
+                <span class="btn-subtitle">Maestrazgo - Teruel</span>
+              </span>
+              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+            </button>
+            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T09" data-operador="Automóviles Zaragoza, S.A. y Alcalabus, S.L. · Monbus">
+              <span class="concession-logo-frame" role="img" aria-label="Logotipo de Monbus" title="Automóviles Zaragoza, S.A. y Alcalabus, S.L. · Monbus" data-fallback="MONBUS"><img class="concession-logo" src="https://upload.wikimedia.org/wikipedia/commons/b/bc/Monbuslogo.png" alt="" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentNode.classList.add('is-broken')"></span>
+              <span class="concession-copy">
+                <span class="btn-title">T09</span>
+                <span class="btn-subtitle">Gúdar-Javalambre - Teruel</span>
+              </span>
+              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+            </button>
+            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T10" data-operador="Autobuses Furió, S.L.">
+              <span class="concession-logo-frame" role="img" aria-label="Logotipo de Autobuses Furió" title="Autobuses Furió, S.L." data-fallback="AUTOBUSES FURIÓ"><img class="concession-logo" src="{{ url_for('static', filename='autobuses-furio.svg') }}" alt="" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentNode.classList.add('is-broken')"></span>
+              <span class="concession-copy">
+                <span class="btn-title">T10</span>
+                <span class="btn-subtitle">Serranía de Albarracín - Teruel</span>
+              </span>
+              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+            </button>
+            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T11" data-operador="Transporte de Viajeros Zaragoza-Teruel, S.L. · Jiménez Movilidad">
+              <span class="concession-logo-frame" role="img" aria-label="Logotipo de Jiménez Movilidad" title="Transporte de Viajeros Zaragoza-Teruel, S.L. · Jiménez Movilidad" data-fallback="JIMÉNEZ"><img class="concession-logo" src="https://busbud.imgix.net/operator-logos/jimenez.png?auto=format&amp;bg=0FFF&amp;fit=crop&amp;fit=fill&amp;h=630&amp;w=1200" alt="" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentNode.classList.add('is-broken')"></span>
+              <span class="concession-copy">
+                <span class="btn-title">T11</span>
+                <span class="btn-subtitle">Teruel - Zaragoza por Calamocha</span>
+              </span>
+              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+            </button>
+            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T12" data-operador="La Veloz, S.A.">
+              <span class="concession-logo-frame" role="img" aria-label="Logotipo de La Veloz" title="La Veloz, S.A." data-fallback="LA VELOZ"><img class="concession-logo" src="{{ url_for('static', filename='la-veloz.svg') }}" alt="" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentNode.classList.add('is-broken')"></span>
+              <span class="concession-copy">
+                <span class="btn-title">T12</span>
+                <span class="btn-subtitle">Campo de Belchite - Zaragoza</span>
+              </span>
+              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+            </button>
+            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T13" data-operador="Automóviles Zaragoza, S.A. y Alcalabus, S.L. · Monbus">
+              <span class="concession-logo-frame" role="img" aria-label="Logotipo de Monbus" title="Automóviles Zaragoza, S.A. y Alcalabus, S.L. · Monbus" data-fallback="MONBUS"><img class="concession-logo" src="https://upload.wikimedia.org/wikipedia/commons/b/bc/Monbuslogo.png" alt="" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentNode.classList.add('is-broken')"></span>
+              <span class="concession-copy">
+                <span class="btn-title">T13</span>
+                <span class="btn-subtitle">Calatayud y Aranda - Zaragoza</span>
+              </span>
+              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+            </button>
+            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T14" data-operador="Aragón Movilidad, S.L. · agrupación Monbus–LINEcar">
+              <span class="concession-logo-frame concession-logo-pair" role="img" aria-label="Logotipos de Monbus y LINEcar" title="Aragón Movilidad, S.L. · agrupación Monbus–LINEcar" data-fallback="MONBUS · LINECAR"><img class="concession-logo" src="https://upload.wikimedia.org/wikipedia/commons/b/bc/Monbuslogo.png" alt="" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentNode.classList.add('is-broken')"><img class="concession-logo" src="https://busbud.imgix.net/operator-logos/Linecar.png?auto=format&amp;bg=0FFF&amp;fit=crop&amp;fit=fill&amp;h=630&amp;w=1200" alt="" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentNode.classList.add('is-broken')"></span>
+              <span class="concession-copy">
+                <span class="btn-title">T14</span>
+                <span class="btn-subtitle">Moncayo y Campo de Borja - Zaragoza</span>
+              </span>
+              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+            </button>
+            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T15" data-operador="Autobuses Cinco Villas, S.A.U. · Grupo Transvia">
+              <span class="concession-logo-frame" role="img" aria-label="Logotipo de Autobuses Cinco Villas · THP" title="Autobuses Cinco Villas, S.A.U. · Grupo Transvia" data-fallback="CINCO VILLAS"><img class="concession-logo" src="https://therpasa.es/wp-content/uploads/2025/10/Captura-de-pantalla-2025-10-22-a-las-11.44.59.png" alt="" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentNode.classList.add('is-broken')"></span>
+              <span class="concession-copy">
+                <span class="btn-title">T15</span>
+                <span class="btn-subtitle">Cinco Villas - Zaragoza</span>
+              </span>
+              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+            </button>
           </div>
           <div class="catalog-legend">
             <span><i class="legend-dot legend-ready"></i> Disponible</span>
@@ -8362,7 +8464,7 @@
           boton.disabled = !disponible;
           boton.classList.toggle('btn-deshabilitado', !disponible);
           boton.classList.toggle('is-available', disponible);
-          boton.title = estadoInterfaz;
+          boton.title = estadoInterfaz + (boton.dataset.operador ? ' · Operador: ' + boton.dataset.operador : '');
           if (subtitulo) subtitulo.innerHTML = escaparHTML(configuracion.descripcion) +
             '<small class="concession-status">' + escaparHTML(estadoInterfaz) + '</small>';
           boton.onclick = disponible ? () => iniciarMapa(codigo) : null;
