@@ -10084,8 +10084,10 @@
           detalleBarra = progreso + ' de ' + totalProgreso + ' paradas consultadas · ' +
             cochesDetectados + ' coches únicos localizados';
         } else if (datos.fase === 'completado') {
-          tituloBarra = 'Descarga completada';
-          detalleBarra = totalParadas + ' paradas consultadas · ' + cochesDetectados + ' coches únicos';
+          tituloBarra = datos.seguimiento_en_curso ? 'Seguimiento GPS activo' : 'Descarga completada';
+          detalleBarra = datos.seguimiento_en_curso
+            ? totalParadas + ' paradas en rotación · ' + cochesDetectados + ' coches únicos · actualizando posiciones'
+            : totalParadas + ' paradas consultadas · ' + cochesDetectados + ' coches únicos';
         } else if (datos.fase === 'error') {
           tituloBarra = 'Error durante la descarga';
           detalleBarra = String(datos.ultimo_error || 'No se ha podido completar el barrido').slice(0, 130);
