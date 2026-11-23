@@ -8452,7 +8452,7 @@
     <div class="avanza-panel-heading">
       <span class="avanza-panel-eyebrow">MOVILIDAD · ZARAGOZA</span>
       <h1>Autobuses urbanos</h1>
-      <p>Localización GPS de Avanza</p>
+      <p>Seguimiento GPS de la red urbana de Avanza</p>
     </div>
     <div class="avanza-panel-stats">
       <div><strong id="avanza-bus-count">—</strong><span>vehículos localizados</span></div>
@@ -9751,7 +9751,7 @@
       panel.hidden = false;
       document.getElementById('avanza-bus-count').textContent = '—';
       document.getElementById('avanza-last-update').textContent = '—';
-      document.getElementById('avanza-coverage-note').textContent = 'Consultando las posiciones GPS de Avanza…';
+      document.getElementById('avanza-coverage-note').textContent = 'Preparando el barrido de todas las paradas y líneas de Avanza…';
       document.getElementById('avanza-panel-message').textContent = '';
 
       initMap();
@@ -9790,9 +9790,9 @@
       const boton = document.getElementById('avanza-refresh-button');
       if (forzar && boton) boton.disabled = true;
       try {
-        const respuesta = await fetch('/api/avanza/urbanos', { cache: 'no-store' });
+        const respuesta = await fetch('/api/avanza/urbanos' + (forzar ? '?forzar=1' : ''), { cache: 'no-store' });
         const datos = await respuesta.json();
-        if (!respuesta.ok) {
+        if (!respuesta.ok || (datos.error && !datos.escaneo_en_curso)) {
           throw new Error(datos.error || 'No se ha podido consultar el GPS de Avanza.');
         }
         if (!avanzaUrbanosActiva) return;
@@ -9872,19 +9872,39 @@
           Number.isNaN(actualizado.getTime()) ? new Date().toLocaleTimeString('es-ES') :
           actualizado.toLocaleTimeString('es-ES');
         const paradas = Array.isArray(datos.paradas_consultadas) ? datos.paradas_consultadas : [];
-        const nombresParadas = paradas.map(item => item.nombre || ('Parada ' + item.poste));
-        document.getElementById('avanza-coverage-note').textContent =
-          paradas.length + (paradas.length === 1 ? ' parada consultada: ' : ' paradas consultadas: ') +
-          (nombresParadas.join(' · ') || 'sin detalle') +
-          '. La fuente publica los próximos vehículos de cada parada, no toda la flota de la ciudad.';
+        const totalParadas = Number(datos.total_paradas || datos.paradas_descubiertas || 0);
+        const lineas = Number(datos.lineas_descubiertas || 0);
+        const enEscaneo = Boolean(datos.escaneo_en_curso);
+        const fase = String(datos.fase || '');
+        const progreso = Number(datos.progreso || 0);
+        const totalProgreso = Number(datos.total_progreso || 0);
+        const textoCobertura = totalParadas
+          ? (paradas.length + ' de ' + totalParadas + ' paradas consultadas' +
+             (lineas ? ' · ' + lineas + ' líneas' : '') +
+             ' · ' + buses.length + ' coches únicos, sin duplicados.')
+          : 'Descubriendo el catálogo operativo de líneas y paradas de Avanza…';
+        document.getElementById('avanza-coverage-note').textContent = enEscaneo
+          ? (fase === 'descubriendo_paradas'
+              ? 'Localizando paradas: ' + progreso + '/' + totalProgreso +
+                ' sentidos consultados · ' + Number(datos.paradas_descubiertas || 0) + ' postes únicos encontrados.'
+              : 'Consultando el GPS de toda la red: ' + progreso + '/' + totalProgreso +
+                ' paradas · ' + buses.length + ' coches únicos detectados hasta ahora.')
+          : textoCobertura + (datos.duracion_segundos ? ' Barrido: ' + datos.duracion_segundos + ' s.' : '');
         const mensaje = document.getElementById('avanza-panel-message');
-        mensaje.textContent = datos.errores?.length
-          ? 'Algunas paradas no han respondido; se muestran los datos recibidos.'
-          : (buses.length ? 'Selecciona un autobús en el mapa para ver sus datos.' :
-             'No hay autobuses próximos publicados en las paradas consultadas.');
+        mensaje.textContent = enEscaneo
+          ? (buses.length
+              ? 'Se mantiene el último mapa mientras se actualizan las posiciones.'
+              : 'Se están recorriendo las líneas y paradas; los autobuses aparecerán al terminar el primer barrido.')
+          : (datos.errores?.length
+              ? 'Barrido terminado con algunas paradas sin respuesta; se muestran los coches recibidos.'
+              : (buses.length
+                  ? 'Selecciona un autobús en el mapa. Los coches repetidos entre paradas se muestran una sola vez.'
+                  : 'No se han recibido posiciones GPS en este barrido.'));
         const pill = document.getElementById('avanza-live-pill');
-        pill.dataset.state = buses.length ? 'online' : 'empty';
-        document.getElementById('avanza-live-text').textContent = buses.length ? 'EN DIRECTO' : 'SIN VEHÍCULOS';
+        pill.dataset.state = enEscaneo ? 'loading' : (datos.fase === 'error' ? 'error' : (buses.length ? 'online' : 'empty'));
+        document.getElementById('avanza-live-text').textContent = enEscaneo
+          ? 'ACTUALIZANDO FLOTA'
+          : (datos.fase === 'error' ? 'ERROR DE GPS' : (buses.length ? 'BARRIDO COMPLETADO' : 'SIN VEHÍCULOS'));
       } catch (error) {
         if (!avanzaUrbanosActiva) return;
         const pill = document.getElementById('avanza-live-pill');
