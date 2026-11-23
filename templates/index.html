@@ -7653,6 +7653,23 @@
     .gateway-action:focus-visible { outline: 3px solid #79a8a0; outline-offset: 3px; }
     .gateway-action-tpa { background: #b9232b; }
     .gateway-action-ctaz { background: #2e8175; }
+    .gateway-action-disabled,
+    .gateway-action-disabled:disabled {
+      border: 1px solid #d1d9d3;
+      background: #e9eeea;
+      color: #74817a;
+      cursor: not-allowed;
+      opacity: 1;
+      filter: none;
+      transform: none;
+      box-shadow: none;
+    }
+    .gateway-action-disabled:hover,
+    .gateway-action-disabled:disabled:hover {
+      filter: none;
+      transform: none;
+    }
+    .gateway-card-tag-pending { background: #edf0e8; color: #68765d; }
     .gateway-action i { flex: 0 0 auto; font-size: 13px; }
     .gateway-footer {
       display: flex; justify-content: space-between; gap: 14px; margin-top: 28px;
@@ -7672,6 +7689,9 @@
     body.theme-dark .gateway-ctaz-lockup small { color: #b1c2bc; }
     body.theme-dark .gateway-card { border-color: #344b47; background: #1c2b2d; box-shadow: 0 15px 45px rgba(0,0,0,.2); }
     body.theme-dark .gateway-card-tag { background: #2b403b; color: #c6d6ce; }
+    body.theme-dark .gateway-action-disabled,
+    body.theme-dark .gateway-action-disabled:disabled { border-color: #43514b; background: #303b36; color: #aab8af; }
+    body.theme-dark .gateway-card-tag-pending { background: #354138; color: #c5d0bd; }
     body.theme-dark .gateway-footer { border-color: #344b47; color: #9eb1a9; }
     body.theme-dark .gateway-footer span:first-child { color: #d3e2db; }
     @media (max-width: 720px) {
@@ -7770,7 +7790,7 @@
 
         <article class="gateway-card gateway-card-ctaz">
           <div class="gateway-card-top">
-            <span class="gateway-card-tag">ÁREA METROPOLITANA</span>
+            <span class="gateway-card-tag gateway-card-tag-pending">PRÓXIMAMENTE</span>
             <div class="gateway-ctaz-lockup">
               <img class="gateway-logo-ctaz" src="{{ url_for('static', filename='ctaz-logo.png') }}" alt="">
               <span><strong>CTAZ</strong><small>Consorcio de Transportes<br>del Área de Zaragoza</small></span>
@@ -7798,13 +7818,13 @@
 
           <div class="gateway-card-copy">
             <h2>Consorcio de Transportes del Área de Zaragoza</h2>
-            <p>Consulta la información de los servicios de transporte público del área metropolitana de Zaragoza desde la web oficial del Consorcio.</p>
+            <p>La integración del transporte del área de Zaragoza se habilitará cuando estén disponibles los datos GTFS y GTFS-RT del Consorcio. Hasta entonces, este acceso permanecerá desactivado.</p>
           </div>
 
-          <a class="gateway-action gateway-action-ctaz" href="https://www.ctaz.es/servicios/transporte-publico-ctaz-2/" target="_blank" rel="noopener noreferrer">
-            <span>Consultar transporte CTAZ</span>
-            <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
-          </a>
+          <button type="button" class="gateway-action gateway-action-ctaz gateway-action-disabled" disabled aria-disabled="true" title="Disponible cuando se integren GTFS y GTFS-RT">
+            <span>Próximamente · integración pendiente</span>
+            <i class="fa-solid fa-lock" aria-hidden="true"></i>
+          </button>
         </article>
       </div>
 
@@ -7907,81 +7927,81 @@
             </div>
           </section>
           <div class="lista-botones" aria-label="Listado de concesiones">
-            <button class="btn-menu" data-concesion="T05">
-              <span class="btn-title">T05</span>
-              <span class="btn-subtitle">Área de Fraga-Zaragoza por el eje del Ebro</span>
-              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-arrow-right"></i></span>
-            </button>
             <button class="btn-menu btn-deshabilitado" disabled data-concesion="T01">
-              <span class="btn-title">T01</span>
-              <span class="btn-subtitle">Jacetania y Alto Gállego - Zaragoza</span>
-              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-            </button>
+                          <span class="btn-title">T01</span>
+                          <span class="btn-subtitle">Jacetania y Alto Gállego - Zaragoza</span>
+                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+                        </button>
             <button class="btn-menu btn-deshabilitado" disabled data-concesion="T02">
-              <span class="btn-title">T02</span>
-              <span class="btn-subtitle">Sobrarbe y Ribagorza - Barbastro</span>
-              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-            </button>
+                          <span class="btn-title">T02</span>
+                          <span class="btn-subtitle">Sobrarbe y Ribagorza - Barbastro</span>
+                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+                        </button>
             <button class="btn-menu btn-deshabilitado" disabled data-concesion="T03">
-              <span class="btn-title">T03</span>
-              <span class="btn-subtitle">Fraga - Huesca por Monzón</span>
-              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-            </button>
+                          <span class="btn-title">T03</span>
+                          <span class="btn-subtitle">Fraga - Huesca por Monzón</span>
+                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+                        </button>
             <button class="btn-menu btn-deshabilitado" disabled data-concesion="T04">
-              <span class="btn-title">T04</span>
-              <span class="btn-subtitle">Monegros - Huesca y Zaragoza</span>
-              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-            </button>
+                          <span class="btn-title">T04</span>
+                          <span class="btn-subtitle">Monegros - Huesca y Zaragoza</span>
+                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+                        </button>
+            <button class="btn-menu" data-concesion="T05">
+                          <span class="btn-title">T05</span>
+                          <span class="btn-subtitle">Área de Fraga-Zaragoza por el eje del Ebro</span>
+                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-arrow-right"></i></span>
+                        </button>
             <button class="btn-menu btn-deshabilitado" disabled data-concesion="T06">
-              <span class="btn-title">T06</span>
-              <span class="btn-subtitle">Bajo Aragón - Zaragoza</span>
-              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-            </button>
+                          <span class="btn-title">T06</span>
+                          <span class="btn-subtitle">Bajo Aragón - Zaragoza</span>
+                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+                        </button>
             <button class="btn-menu btn-deshabilitado" disabled data-concesion="T07">
-              <span class="btn-title">T07</span>
-              <span class="btn-subtitle">Bajo Aragón y Cuencas Mineras - Teruel</span>
-              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-            </button>
+                          <span class="btn-title">T07</span>
+                          <span class="btn-subtitle">Bajo Aragón y Cuencas Mineras - Teruel</span>
+                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+                        </button>
             <button class="btn-menu btn-deshabilitado" disabled data-concesion="T08">
-              <span class="btn-title">T08</span>
-              <span class="btn-subtitle">Maestrazgo - Teruel</span>
-              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-            </button>
+                          <span class="btn-title">T08</span>
+                          <span class="btn-subtitle">Maestrazgo - Teruel</span>
+                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+                        </button>
             <button class="btn-menu btn-deshabilitado" disabled data-concesion="T09">
-              <span class="btn-title">T09</span>
-              <span class="btn-subtitle">Gúdar-Javalambre - Teruel</span>
-              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-            </button>
+                          <span class="btn-title">T09</span>
+                          <span class="btn-subtitle">Gúdar-Javalambre - Teruel</span>
+                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+                        </button>
             <button class="btn-menu btn-deshabilitado" disabled data-concesion="T10">
-              <span class="btn-title">T10</span>
-              <span class="btn-subtitle">Serranía de Albarracín - Teruel</span>
-              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-            </button>
+                          <span class="btn-title">T10</span>
+                          <span class="btn-subtitle">Serranía de Albarracín - Teruel</span>
+                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+                        </button>
             <button class="btn-menu btn-deshabilitado" disabled data-concesion="T11">
-              <span class="btn-title">T11</span>
-              <span class="btn-subtitle">Teruel - Zaragoza por Calamocha</span>
-              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-            </button>
+                          <span class="btn-title">T11</span>
+                          <span class="btn-subtitle">Teruel - Zaragoza por Calamocha</span>
+                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+                        </button>
             <button class="btn-menu btn-deshabilitado" disabled data-concesion="T12">
-              <span class="btn-title">T12</span>
-              <span class="btn-subtitle">Campo de Belchite - Zaragoza</span>
-              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-            </button>
+                          <span class="btn-title">T12</span>
+                          <span class="btn-subtitle">Campo de Belchite - Zaragoza</span>
+                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+                        </button>
             <button class="btn-menu btn-deshabilitado" disabled data-concesion="T13">
-              <span class="btn-title">T13</span>
-              <span class="btn-subtitle">Calatayud y Aranda - Zaragoza</span>
-              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-            </button>
+                          <span class="btn-title">T13</span>
+                          <span class="btn-subtitle">Calatayud y Aranda - Zaragoza</span>
+                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+                        </button>
             <button class="btn-menu btn-deshabilitado" disabled data-concesion="T14">
-              <span class="btn-title">T14</span>
-              <span class="btn-subtitle">Moncayo y Campo de Borja - Zaragoza</span>
-              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-            </button>
+                          <span class="btn-title">T14</span>
+                          <span class="btn-subtitle">Moncayo y Campo de Borja - Zaragoza</span>
+                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+                        </button>
             <button class="btn-menu btn-deshabilitado" disabled data-concesion="T15">
-              <span class="btn-title">T15</span>
-              <span class="btn-subtitle">Cinco Villas - Zaragoza</span>
-              <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
-            </button>
+                          <span class="btn-title">T15</span>
+                          <span class="btn-subtitle">Cinco Villas - Zaragoza</span>
+                          <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+                        </button>
           </div>
           <div class="catalog-legend">
             <span><i class="legend-dot legend-ready"></i> Disponible</span>
@@ -8322,7 +8342,10 @@
         if (!respuesta.ok) throw new Error('HTTP ' + respuesta.status);
         const datos = await respuesta.json();
         catalogoConcesiones = Object.fromEntries((datos.concesiones || []).map(item => [item.codigo, item]));
-        lista.querySelectorAll('[data-concesion]').forEach(boton => {
+        const botonesConcesion = Array.from(lista.querySelectorAll('[data-concesion]'))
+          .sort((a, b) => a.dataset.concesion.localeCompare(b.dataset.concesion, 'es', { numeric: true, sensitivity: 'base' }));
+        botonesConcesion.forEach(boton => lista.appendChild(boton));
+        botonesConcesion.forEach(boton => {
           const codigo = boton.dataset.concesion;
           const configuracion = catalogoConcesiones[codigo];
           if (!configuracion) return;
