@@ -4658,9 +4658,186 @@
       outline-offset: 2px !important;
     }
 
+
+    /* Filtros de línea: texto legible en el panel claro */
+    .header-card #panel-filtros-lineas,
+    .header-card #panel-filtros-lineas * {
+      text-shadow: none !important;
+    }
+    .header-card #panel-filtros-lineas {
+      border-color: #b9c6ce !important;
+      background: #ffffff !important;
+      color: #172b3a !important;
+    }
+    .header-card #panel-filtros-lineas .line-filter-action,
+    .header-card #panel-filtros-lineas #buscador-filtros-lineas {
+      border: 1px solid #aab8c1 !important;
+      background: #ffffff !important;
+      color: #172b3a !important;
+      -webkit-text-fill-color: #172b3a !important;
+      opacity: 1 !important;
+    }
+    .header-card #panel-filtros-lineas .line-filter-action:hover,
+    .header-card #panel-filtros-lineas .line-filter-action:focus-visible {
+      border-color: #174e72 !important;
+      background: #edf3f6 !important;
+      color: #123d59 !important;
+      -webkit-text-fill-color: #123d59 !important;
+    }
+    .header-card #panel-filtros-lineas #buscador-filtros-lineas::placeholder {
+      color: #657985 !important;
+      -webkit-text-fill-color: #657985 !important;
+      opacity: 1 !important;
+    }
+    .header-card #lista-filtros-lineas .line-filter,
+    .header-card #lista-filtros-lineas .line-filter:visited {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: flex-start !important;
+      gap: 7px !important;
+      min-width: 0 !important;
+      min-height: 36px !important;
+      padding: 7px 9px !important;
+      border: 1px solid #c3cfd6 !important;
+      border-radius: 4px !important;
+      background: #ffffff !important;
+      color: #172b3a !important;
+      -webkit-text-fill-color: #172b3a !important;
+      font-size: 11px !important;
+      font-weight: 750 !important;
+      line-height: 1.3 !important;
+      opacity: 1 !important;
+      text-shadow: none !important;
+    }
+    .header-card #lista-filtros-lineas .line-filter.active,
+    .header-card #lista-filtros-lineas .line-filter[aria-pressed="true"] {
+      border-color: #174e72 !important;
+      background: #e8f0f4 !important;
+      color: #123d59 !important;
+      -webkit-text-fill-color: #123d59 !important;
+    }
+    .header-card #lista-filtros-lineas .line-filter:hover,
+    .header-card #lista-filtros-lineas .line-filter:focus-visible {
+      border-color: #174e72 !important;
+      background: #f0f5f8 !important;
+      color: #123d59 !important;
+      -webkit-text-fill-color: #123d59 !important;
+      outline-offset: 2px !important;
+    }
+    .header-card #lista-filtros-lineas .filter-dot {
+      display: inline-block !important;
+      flex: 0 0 8px !important;
+      width: 8px !important;
+      height: 8px !important;
+      border-radius: 50% !important;
+    }
+
+    /* Pantalla de entrada: identidad de marca y carga animada */
+    #mapa-tpa-loader {
+      position: fixed;
+      inset: 0;
+      z-index: 100000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background:
+        radial-gradient(ellipse at 50% 38%, rgba(44, 91, 121, .28), transparent 48%),
+        linear-gradient(145deg, #172b3a 0%, #101c2b 58%, #0b1420 100%);
+      opacity: 1;
+      visibility: visible;
+      transition: opacity .28s ease, visibility .28s ease;
+    }
+    #mapa-tpa-loader.is-hiding {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    #mapa-tpa-loader[hidden] { display: none !important; }
+    .mapa-tpa-loader-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: min(100%, 320px);
+      text-align: center;
+      color: #ffffff;
+    }
+    .mapa-tpa-loader-logo {
+      display: block;
+      width: 76px;
+      height: 76px;
+      margin-bottom: 20px;
+      object-fit: contain;
+      filter: drop-shadow(0 12px 24px rgba(0,0,0,.24));
+      animation: mapa-tpa-logo-in .55s cubic-bezier(.2,.8,.2,1) both;
+    }
+    .mapa-tpa-loader-brand {
+      color: #ffffff;
+      font-size: 21px;
+      font-weight: 850;
+      letter-spacing: .13em;
+    }
+    .mapa-tpa-loader-caption {
+      margin-top: 8px;
+      color: #c2d1dc;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .mapa-tpa-loader-track {
+      position: relative;
+      width: min(220px, 80%);
+      height: 3px;
+      margin-top: 27px;
+      overflow: hidden;
+      border-radius: 99px;
+      background: rgba(255,255,255,.17);
+    }
+    .mapa-tpa-loader-track::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: -42%;
+      width: 42%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #ffffff, #e7b9bd, #b32632);
+      animation: mapa-tpa-loading 1.15s ease-in-out infinite;
+    }
+    .mapa-tpa-loader-status {
+      margin-top: 13px;
+      color: #9fb4c3;
+      font-size: 9px;
+      font-weight: 750;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    @keyframes mapa-tpa-loading {
+      0% { left: -42%; }
+      100% { left: 100%; }
+    }
+    @keyframes mapa-tpa-logo-in {
+      from { opacity: 0; transform: translateY(8px) scale(.94); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #mapa-tpa-loader, .mapa-tpa-loader-logo { animation: none !important; transition: none !important; }
+      .mapa-tpa-loader-track::after { animation-duration: 2.5s !important; }
+    }
+
 </style>
 </head>
 <body>
+
+  <div id="mapa-tpa-loader" role="status" aria-live="polite" aria-label="Cargando Mapa TPA">
+    <div class="mapa-tpa-loader-content">
+      <img class="mapa-tpa-loader-logo" src="{{ url_for('static', filename='mapa-tpa-mark.svg') }}" alt="Logo Mapa TPA">
+      <div class="mapa-tpa-loader-brand">MAPA TPA</div>
+      <div class="mapa-tpa-loader-caption">Preparando el mapa y los servicios de transporte</div>
+      <div class="mapa-tpa-loader-track" aria-hidden="true"></div>
+      <div class="mapa-tpa-loader-status">Descargando recursos</div>
+    </div>
+  </div>
+
 
   <!-- Inicio: portada y catálogo de concesiones -->
   <div id="pantalla-inicio">
@@ -5025,6 +5202,33 @@
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
+
+    // Mostrar una breve transición de entrada mientras termina de cargar la página.
+    (() => {
+      const loader = document.getElementById('mapa-tpa-loader');
+      if (!loader) return;
+      const startedAt = Date.now();
+      let finished = false;
+      const finishLoading = () => {
+        if (finished) return;
+        finished = true;
+        const minimumVisible = 850;
+        const remaining = Math.max(0, minimumVisible - (Date.now() - startedAt));
+        window.setTimeout(() => {
+          loader.classList.add('is-hiding');
+          window.setTimeout(() => {
+            loader.hidden = true;
+            loader.remove();
+          }, 300);
+        }, remaining);
+      };
+      if (document.readyState === 'complete') finishLoading();
+      else window.addEventListener('load', finishLoading, { once: true });
+      // Si algún recurso externo se queda esperando, la portada nunca bloquea la web.
+      window.setTimeout(finishLoading, 2600);
+    })();
+
+
     // El historial local anterior se ha retirado; eliminar su base IndexedDB
     // sin tocar los favoritos, que se guardan en localStorage.
     if ('indexedDB' in window) {
