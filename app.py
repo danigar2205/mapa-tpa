@@ -1913,9 +1913,10 @@ AVANZA_PAUSA_RECORRIDOS = 0.0
 AVANZA_PAUSA_POSTES = 0.0
 # La consulta de recorridos va separada para reservar capacidad al GPS de paradas.
 AVANZA_CONCURRENCIA_RECORRIDOS = 12
-AVANZA_CONCURRENCIA_GPS = 24
-AVANZA_GPS_TIMEOUT_CONNECT = 3.0
-AVANZA_GPS_TIMEOUT_READ = 4.0
+# 24 peticiones simultáneas provocaron demasiados timeouts en el GPS de Avanza.
+AVANZA_CONCURRENCIA_GPS = 16
+AVANZA_GPS_TIMEOUT_CONNECT = 4.0
+AVANZA_GPS_TIMEOUT_READ = 8.0
 AVANZA_GPS_REFRESCOS_POR_LOTE = 1
 AVANZA_GPS_SEGUIMIENTO_LOTE = 14
 AVANZA_GPS_SEGUIMIENTO_NOVEDADES = 4
@@ -1930,7 +1931,7 @@ try:
     AVANZA_PAUSA_RECORRIDOS = max(0.0, float(os.environ.get("AVANZA_PAUSA_RECORRIDOS", AVANZA_PAUSA_RECORRIDOS)))
     AVANZA_PAUSA_POSTES = max(0.0, float(os.environ.get("AVANZA_PAUSA_POSTES", AVANZA_PAUSA_POSTES)))
     AVANZA_CONCURRENCIA_RECORRIDOS = min(16, max(1, int(os.environ.get("AVANZA_CONCURRENCIA_RECORRIDOS", AVANZA_CONCURRENCIA_RECORRIDOS))))
-    AVANZA_CONCURRENCIA_GPS = min(32, max(16, int(os.environ.get("AVANZA_CONCURRENCIA_GPS", AVANZA_CONCURRENCIA_GPS))))
+    AVANZA_CONCURRENCIA_GPS = min(16, max(8, int(os.environ.get("AVANZA_CONCURRENCIA_GPS", AVANZA_CONCURRENCIA_GPS))))
 except (TypeError, ValueError):
     pass
 try:
@@ -2909,22 +2910,59 @@ def _sesion_gps_avanza():
 
 
 def _consultar_poste_gps_avanza(parada_info):
-    """Consulta y analiza un poste; función independiente y segura para un hilo."""
+    """Consulta y analiza un poste, reintentando respuestas HTTP transitorias."""
     poste = parada_info["poste"]
     nombre_parada = parada_info.get("nombre") or f"Parada {poste}"
-    try:
-        sesion = _sesion_gps_avanza()
-        respuesta = sesion.post(
-            AVANZA_URBANOS_ENDPOINT,
-            data={"poste": str(poste), "coche": "0"},
-            headers={
-                "Referer": f"https://gps.avanzabus.com/zaragoza/fParadas/{poste}",
-                "Origin": "https://gps.avanzabus.com",
-            },
-            # Límite corto para que las últimas paradas lentas no bloqueen el final del barrido.
-            timeout=(AVANZA_GPS_TIMEOUT_CONNECT, AVANZA_GPS_TIMEOUT_READ),
-        )
+    sesion = _sesion_gps_avanza()
+    headers = {
+        "Referer": f"https://gps.avanzabus.com/zaragoza/fParadas/{poste}",
+        "Origin": "https://gps.avanzabus.com",
+    }
+
+    # Un único reintento para errores de conexión o respuestas temporales del servidor.
+    # Los timeouts de lectura no se repiten aquí: una segunda espera por cada poste
+    # podría alargar demasiado un barrido completo.
+    for intento in range(2):
+        try:
+            respuesta = sesion.post(
+                AVANZA_URBANOS_ENDPOINT,
+                data={"poste": str(poste), "coche": "0"},
+                headers=headers,
+                timeout=(AVANZA_GPS_TIMEOUT_CONNECT, AVANZA_GPS_TIMEOUT_READ),
+            )
+        except requests.exceptions.Timeout as exc:
+            return {
+                "poste": poste,
+                "nombre": nombre_parada,
+                "buses": [],
+                "error": f"poste {poste}: {str(exc)[:160]}",
+            }
+        except requests.exceptions.ConnectionError as exc:
+            if intento == 0:
+                time.sleep(0.35)
+                continue
+            return {
+                "poste": poste,
+                "nombre": nombre_parada,
+                "buses": [],
+                "error": f"poste {poste}: {str(exc)[:160]}",
+            }
+        except (requests.RequestException, ValueError, TypeError) as exc:
+            return {
+                "poste": poste,
+                "nombre": nombre_parada,
+                "buses": [],
+                "error": f"poste {poste}: {str(exc)[:160]}",
+            }
+
         if respuesta.status_code != 200:
+            if intento == 0 and respuesta.status_code in {429, 500, 502, 503, 504}:
+                try:
+                    espera = min(1.5, max(0.25, float(respuesta.headers.get("Retry-After", 0.5))))
+                except (TypeError, ValueError):
+                    espera = 0.5
+                time.sleep(espera)
+                continue
             return {
                 "poste": poste,
                 "nombre": nombre_parada,
@@ -2979,13 +3017,13 @@ def _consultar_poste_gps_avanza(parada_info):
             "buses": buses,
             "error": None,
         }
-    except (requests.RequestException, ValueError, TypeError) as exc:
-        return {
-            "poste": poste,
-            "nombre": nombre_parada,
-            "buses": [],
-            "error": f"poste {poste}: {str(exc)[:160]}",
-        }
+
+    return {
+        "poste": poste,
+        "nombre": nombre_parada,
+        "buses": [],
+        "error": f"poste {poste}: no se pudo completar la consulta GPS",
+    }
 
 
 
