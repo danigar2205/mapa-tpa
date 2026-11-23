@@ -1707,3 +1707,69 @@ class CorreccionesCoordenadasT11Tests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OptimizacionesAvanzaTests(unittest.TestCase):
+    def test_fusiona_un_coche_con_su_posicion_mas_reciente(self):
+        flota = {
+            "4809": {
+                "coche": "4809",
+                "lat": 41.0,
+                "lon": -0.9,
+                "eta_minutos": 1,
+                "capturado_epoch": 100.0,
+            }
+        }
+        app_module._fusionar_buses_avanza(flota, [{
+            "coche": "4809",
+            "lat": 41.1,
+            "lon": -0.8,
+            "eta_minutos": 8,
+            "capturado_epoch": 200.0,
+        }])
+        self.assertEqual(flota["4809"]["lat"], 41.1)
+        self.assertEqual(flota["4809"]["eta_minutos"], 8)
+
+    def test_ignora_una_posicion_mas_antigua_que_la_ya_guardada(self):
+        flota = {
+            "4809": {
+                "coche": "4809",
+                "lat": 41.1,
+                "lon": -0.8,
+                "capturado_epoch": 200.0,
+            }
+        }
+        app_module._fusionar_buses_avanza(flota, [{
+            "coche": "4809",
+            "lat": 41.0,
+            "lon": -0.9,
+            "capturado_epoch": 150.0,
+        }])
+        self.assertEqual(flota["4809"]["lat"], 41.1)
+
+    def test_cache_compartida_no_duplica_el_catalogo_de_paradas(self):
+        cache = {
+            "timestamp": 100.0,
+            "data": {
+                "buses": [{"coche": "4809"}],
+                "_postes_red": [{"poste": 1}, {"poste": 2}],
+            },
+        }
+        limpia = app_module._cache_avanza_sin_catalogo(cache)
+        self.assertNotIn("_postes_red", limpia["data"])
+        self.assertIn("_postes_red", cache["data"])
+
+    def test_cache_sin_catalogo_conserva_la_lista_de_autobuses(self):
+        cache = {
+            "timestamp": 100.0,
+            "data": {
+                "buses": [{"coche": "4809"}, {"coche": "4810"}],
+                "_postes_red": [{"poste": 1}],
+            },
+        }
+        limpia = app_module._cache_avanza_sin_catalogo(cache)
+        self.assertEqual(
+            [bus["coche"] for bus in limpia["data"]["buses"]],
+            ["4809", "4810"],
+        )
+
