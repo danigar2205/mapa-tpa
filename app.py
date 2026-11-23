@@ -1898,10 +1898,10 @@ AVANZA_URBANOS_ENDPOINT = (
 AVANZA_LINEAS_URL = "https://zaragoza.avanzagrupo.com/lineas-y-horarios/"
 AVANZA_AJAX_URL = "https://zaragoza.avanzagrupo.com/wp-admin/admin-ajax.php"
 
-AVANZA_URBANOS_TTL = 300
+AVANZA_URBANOS_TTL = 360
 AVANZA_CATALOGO_POSTES_TTL = 21600
-AVANZA_PAUSA_RECORRIDOS = 0.35
-AVANZA_PAUSA_POSTES = 0.25
+AVANZA_PAUSA_RECORRIDOS = 1.0
+AVANZA_PAUSA_POSTES = 0.35
 
 try:
     AVANZA_URBANOS_TTL = max(120, int(os.environ.get("AVANZA_URBANOS_TTL", AVANZA_URBANOS_TTL)))
@@ -2196,7 +2196,18 @@ def obtener_postes_avanza_urbanos(http):
                 postes.append({"poste": poste, "nombre": f"Parada {poste}"})
         if postes:
             return postes, 0, 0, []
-    return descubrir_postes_avanza(http)
+    try:
+        return descubrir_postes_avanza(http)
+    except Exception as exc:
+        # Conserva el piloto conocido si Avanza cambia el formulario o el nonce.
+        # Se muestra como cobertura limitada, nunca como flota completa.
+        print(f"[AVANZA URBANOS] No se pudo descubrir la red completa: {exc}")
+        return (
+            [{"poste": 14, "nombre": "Parada 14 · cobertura limitada"}],
+            0,
+            0,
+            [f"No se pudo descubrir el catálogo completo; se usa solo el poste 14: {str(exc)[:160]}"],
+        )
 
 
 def limpiar_texto_html_avanza(valor):
