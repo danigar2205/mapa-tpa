@@ -1868,3 +1868,63 @@ class OptimizacionesAvanzaTests(unittest.TestCase):
         self.assertIn(app_module.AVANZA_REDIS_STATE_DATA_KEY, cliente.datos)
         self.assertIn(app_module.AVANZA_REDIS_CACHE_DATA_KEY, cliente.datos)
         self.assertIn(app_module.AVANZA_REDIS_CATALOG_DATA_KEY, cliente.datos)
+
+    def test_endpoint_avanza_devuelve_contador_sin_array_de_paradas(self):
+        datos = {
+            "buses": [{"coche": "4809"}],
+            "paradas_consultadas": [{"poste": 10}, {"poste": 20}],
+            "total_paradas": 4,
+            "actualizado": "2026-11-23T20:00:00+01:00",
+        }
+        estado = {
+            "fase": "completado",
+            "escaneo_en_curso": False,
+            "seguimiento_en_curso": True,
+            "coches_unicos_detectados": 1,
+        }
+        with (
+            patch.object(app_module, "iniciar_barrido_avanza_si_necesario"),
+            patch.object(
+                app_module,
+                "_sincronizar_avanza_estado_compartido",
+                return_value=(datos, estado, 100.0),
+            ),
+        ):
+            respuesta = app.test_client().get("/api/avanza/urbanos")
+
+        self.assertEqual(respuesta.status_code, 200)
+        payload = respuesta.get_json()
+        self.assertEqual(payload["paradas_consultadas_count"], 2)
+        self.assertEqual(payload["paradas_sin_respuesta_count"], 2)
+        self.assertNotIn("paradas_consultadas", payload)
+        self.assertEqual(len(payload["buses"]), 1)
+
+    def test_endpoint_avanza_usa_el_progreso_actual_durante_el_escaneo(self):
+        datos = {
+            "buses": [{"coche": "4809"}],
+            "paradas_consultadas": [{"poste": 1}, {"poste": 2}, {"poste": 3}],
+            "total_paradas": 3,
+        }
+        estado = {
+            "fase": "consultando_gps",
+            "escaneo_en_curso": True,
+            "paradas_descubiertas": 5,
+            "paradas_gps_consultadas": [{"poste": 10}, {"poste": 20}],
+            "buses_parciales": [{"coche": "4810"}],
+        }
+        with (
+            patch.object(app_module, "iniciar_barrido_avanza_si_necesario"),
+            patch.object(
+                app_module,
+                "_sincronizar_avanza_estado_compartido",
+                return_value=(datos, estado, 100.0),
+            ),
+        ):
+            respuesta = app.test_client().get("/api/avanza/urbanos")
+
+        payload = respuesta.get_json()
+        self.assertEqual(payload["paradas_consultadas_count"], 2)
+        self.assertEqual(payload["total_paradas"], 5)
+        self.assertEqual(payload["buses"][0]["coche"], "4810")
+        self.assertNotIn("paradas_gps_consultadas", payload)
+        self.assertNotIn("buses_parciales", payload)
