@@ -8630,6 +8630,7 @@
     let avanzaUrbanosIntervalo = null;
     let avanzaUrbanosSolicitud = false;
     let avanzaUrbanosPrimeraCarga = true;
+    let ultimaFlotaAvanza = [];
     const marcadoresAvanzaUrbanos = {};
     let capasParadas = null;
     let paradasVisibles = true;
@@ -9890,7 +9891,24 @@
 
         const enEscaneo = Boolean(datos.escaneo_en_curso);
         const fase = String(datos.fase || '');
-        const buses = Array.isArray(datos.buses) ? datos.buses : [];
+        const busesRecibidos = Array.isArray(datos.buses) ? datos.buses : [];
+        let buses = busesRecibidos;
+        if (enEscaneo) {
+          // Durante un barrido nuevo, los datos parciales se fusionan con la
+          // última flota conocida; no se vacía el panel mientras el mapa
+          // conserva los marcadores del barrido anterior.
+          const acumulados = new Map(
+            ultimaFlotaAvanza.map(bus => [String(bus.coche || bus.id || ''), bus])
+          );
+          busesRecibidos.forEach(bus => {
+            const coche = String(bus.coche || bus.id || '').trim();
+            if (coche) acumulados.set(coche, bus);
+          });
+          buses = Array.from(acumulados.values());
+          ultimaFlotaAvanza = buses;
+        } else {
+          ultimaFlotaAvanza = busesRecibidos;
+        }
         const idsActuales = new Set();
         const posiciones = [];
         const listaVehiculos = buses
@@ -9990,7 +10008,10 @@
         const totalProgreso = Number(datos.total_progreso || 0);
         const progresoGeneral = Number(datos.progreso_general || 0);
         const totalProgresoGeneral = Number(datos.total_progreso_general || 0);
-        const cochesDetectados = Number(datos.coches_unicos_detectados ?? buses.length);
+        const cochesDetectados = Math.max(
+          Number(datos.coches_unicos_detectados || 0),
+          buses.length
+        );
         document.getElementById('avanza-bus-count').textContent =
           String(enEscaneo ? cochesDetectados : buses.length);
         const porcentajeFase = totalProgreso > 0
