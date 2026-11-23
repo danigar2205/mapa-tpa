@@ -7903,6 +7903,18 @@
     .avanza-bus-popup-head div { display: flex; flex-direction: column; gap: 2px; }
     .avanza-bus-popup-head small { color: #738496; font-size: 8px; font-weight: 800; letter-spacing: .1em; }
     .avanza-bus-popup-head strong { font-size: 14px; }
+    .avanza-bus-popup-direction {
+      display: flex; flex-direction: column; gap: 4px;
+      margin-top: 11px; padding: 9px 10px; border-radius: 8px;
+      background: #f1f5f9; color: #243746;
+    }
+    .avanza-bus-popup-direction small {
+      color: #718294; font-size: 8px; font-weight: 800; letter-spacing: .1em;
+    }
+    .avanza-bus-popup-direction strong {
+      color: #263746; font-size: 12px; font-weight: 800; line-height: 1.4;
+      overflow-wrap: anywhere;
+    }
     .avanza-bus-list { margin-top: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,.09); border-radius: 10px; background: rgba(255,255,255,.035); }
     .avanza-bus-list-top { display: flex; align-items: center; justify-content: space-between; padding: 9px 10px 7px; }
     .avanza-bus-list-top span { color: #c5d8e6; font-size: 9px; font-weight: 800; letter-spacing: .08em; }
@@ -9987,10 +9999,15 @@
             iconAnchor: [anchoEtiqueta / 2, 21]
           });
 
+          const sentido = String(bus.sentido || bus.destino || '').trim();
           const popup = `<div class="avanza-bus-popup">
             <div class="avanza-bus-popup-head">
               <span class="avanza-bus-popup-line" style="--avanza-line-color:${color}">${escaparHTML(linea)}</span>
               <div><small>AUTOBÚS URBANO</small><strong>Coche ${escaparHTML(coche)}</strong></div>
+            </div>
+            <div class="avanza-bus-popup-direction">
+              <small>SENTIDO</small>
+              <strong>${escaparHTML(sentido || 'Dirección no indicada')}</strong>
             </div>
           </div>`;
 
