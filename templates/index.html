@@ -7699,13 +7699,18 @@
     .gateway-illustration svg { display: block; width: 100%; height: 100%; }
     .gateway-illustration-tpa { background: linear-gradient(135deg, #f5f5e9, #e8eee4); }
     .gateway-illustration-ctaz { background: linear-gradient(135deg, #edf4f0, #e3efeb); }
-    .gateway-avanza-lockup { display: flex; align-items: center; gap: 10px; color: #263c40; }
-    .gateway-avanza-lockup i { display: grid; place-items: center; width: 58px; height: 58px; border-radius: 15px; background: #e9f2f5; color: #176f94; font-size: 27px; }
+    .gateway-card-avanza { border-color: #edc4c8; border-top: 4px solid #c91f32; }
+    .gateway-card-avanza .gateway-card-tag { background: #fdebed; color: #a91e2d; }
+    .gateway-avanza-lockup { display: flex; align-items: center; justify-content: flex-end; gap: 10px; color: #263c40; min-width: 0; }
+    .gateway-logo-avanza { display: block; width: 138px; height: 54px; flex: 0 1 138px; object-fit: cover; object-position: center; border-radius: 7px; background: #fff; }
     .gateway-avanza-lockup span { display: flex; flex-direction: column; gap: 3px; }
-    .gateway-avanza-lockup strong { font-size: 19px; font-weight: 900; letter-spacing: -.02em; }
-    .gateway-avanza-lockup small { color: #5b706e; font-size: 10px; line-height: 1.3; }
-    .gateway-illustration-avanza { background: linear-gradient(135deg, #eaf2f6, #e7eff1); }
-    .gateway-action-avanza { background: #176f94; }
+    .gateway-avanza-lockup strong { color: #b51f2c; font-size: 11px; font-weight: 900; letter-spacing: .12em; }
+    .gateway-avanza-lockup small { color: #657078; font-size: 9px; line-height: 1.3; text-align: right; }
+    .gateway-illustration-avanza { background: linear-gradient(135deg, #fff1f1, #f2e8e9); }
+    .gateway-illustration-avanza svg { filter: drop-shadow(0 5px 8px rgba(84,28,32,.08)); }
+    .gateway-action-avanza { background: linear-gradient(100deg, #c51f32, #a7192c); }
+    .gateway-card-avanza .gateway-action:focus-visible { outline-color: #c51f32; }
+    .gateway-card-avanza .gateway-action:hover { filter: brightness(1.08); }
     @media (max-width: 980px) and (min-width: 721px) {
       .gateway-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .gateway-card-avanza { grid-column: 1 / -1; min-height: 310px; }
@@ -7761,7 +7766,9 @@
     body.theme-dark .gateway-ctaz-lockup small, body.theme-dark .gateway-avanza-lockup small { color: #b1c2bc; }
     body.theme-dark .gateway-card { border-color: #344b47; background: #1c2b2d; box-shadow: 0 15px 45px rgba(0,0,0,.2); }
     body.theme-dark .gateway-card-tag { background: #2b403b; color: #c6d6ce; }
-    body.theme-dark .gateway-avanza-lockup i { background: #273e48; color: #8dd5f1; }
+    body.theme-dark .gateway-card-avanza { border-color: #70313a; }
+    body.theme-dark .gateway-card-avanza .gateway-card-tag { background: #48272c; color: #f2b7be; }
+    body.theme-dark .gateway-avanza-lockup small { color: #c4b9bb; }
     body.theme-dark .gateway-action-disabled,
     body.theme-dark .gateway-action-disabled:disabled { border-color: #43514b; background: #303b36; color: #aab8af; }
     body.theme-dark .gateway-card-tag-pending { background: #354138; color: #c5d0bd; }
@@ -8005,26 +8012,38 @@
           <div class="gateway-card-top">
             <span class="gateway-card-tag">RED URBANA · ZARAGOZA</span>
             <div class="gateway-avanza-lockup">
-              <i class="fa-solid fa-bus-simple" aria-hidden="true"></i>
-              <span><strong>AVANZA</strong><small>Autobuses urbanos<br>de Zaragoza</small></span>
+              <img class="gateway-logo-avanza"
+                src="https://www.zaragoza.es/cont/paginas/medioambiente/bosque-zaragozanos/empresas/AVANZA_Logo.png"
+                alt="Avanza · by Mobility ADO" loading="lazy" decoding="async">
+              <span><strong>ZARAGOZA</strong><small>Autobuses urbanos</small></span>
             </div>
           </div>
 
           <div class="gateway-illustration gateway-illustration-avanza" aria-hidden="true">
             <svg viewBox="0 0 420 180" role="presentation">
-              <path d="M0 139h420v41H0Z" fill="#dbe7e9"/>
-              <path d="M0 151c72-13 140-13 210 0s140 13 210 0" fill="none" stroke="#a8c0c4" stroke-width="3"/>
-              <path d="M22 35h82m-41-18v36M335 39h62m-31-17v34" stroke="#c2d4d8" stroke-width="3" stroke-linecap="round"/>
-              <g transform="translate(94 49)">
-                <path d="M10 34c0-15 11-26 26-26h162c16 0 28 12 28 28v77H10Z" fill="#f8fbfc" stroke="#6c8791" stroke-width="3"/>
-                <path d="M10 78h216v29H10Z" fill="#176f94"/>
-                <path d="M28 23h49v42H28zm57 0h49v42H85zm57 0h49v42h-49z" fill="#b9dce5"/>
-                <path d="M28 29h49m8 0h49m8 0h49" stroke="#fff" stroke-width="4" opacity=".75"/>
-                <path d="M22 86h18m145 0h31" stroke="#dff4f8" stroke-width="5" stroke-linecap="round"/>
-                <circle cx="58" cy="115" r="17" fill="#263746"/><circle cx="58" cy="115" r="6" fill="#e5edf0"/>
-                <circle cx="181" cy="115" r="17" fill="#263746"/><circle cx="181" cy="115" r="6" fill="#e5edf0"/>
+              <path d="M0 143h420v37H0Z" fill="#e3dfe0"/>
+              <path d="M0 153c76-14 150-14 214 0s137 13 206-1" fill="none" stroke="#bbb2b4" stroke-width="3"/>
+              <path d="M22 35h72m-36-17v34M338 35h60m-30-16v33" stroke="#d4bfc2" stroke-width="3" stroke-linecap="round"/>
+              <path d="M24 129h372" stroke="#fff" stroke-width="3" stroke-dasharray="17 13" opacity=".85"/>
+              <g transform="translate(77 43)">
+                <ellipse cx="139" cy="119" rx="132" ry="10" fill="#8e777b" opacity=".22"/>
+                <path d="M10 43c0-19 13-33 32-33h183c20 0 34 14 34 35v73H10Z" fill="#d92335" stroke="#6e1723" stroke-width="3"/>
+                <path d="M10 83h249v28H10Z" fill="#35383d"/>
+                <path d="M33 20h51v48H33zm59 0h53v48H92zm61 0h53v48h-53zm61 2h23c9 0 15 8 15 17v29h-38z" fill="#1d252b"/>
+                <path d="M89 17v53m61-53v53m61-53v53" stroke="#69747c" stroke-width="3"/>
+                <path d="M24 91h18m170 0h35" stroke="#ece7e7" stroke-width="4" stroke-linecap="round"/>
+                <path d="M15 111h238v8H15Z" fill="#aeb2b5"/>
+                <path d="M222 80h28v9h-28Z" fill="#f8e6e7"/>
+                <text x="111" y="91" fill="#fff" font-size="17" font-weight="800" font-family="Arial, sans-serif" letter-spacing=".3">avanza</text>
+                <path d="M179 79l11 12-11 11" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="57" cy="115" r="18" fill="#25282c"/><circle cx="57" cy="115" r="7" fill="#b8bec2"/>
+                <circle cx="207" cy="115" r="18" fill="#25282c"/><circle cx="207" cy="115" r="7" fill="#b8bec2"/>
+                <path d="M249 67h15l-4 13h-11Z" fill="#f6e7a5"/>
+                <path d="M10 46h-9v31h9Z" fill="#292d31"/>
               </g>
-              <circle cx="320" cy="89" r="7" fill="#176f94"/><circle cx="342" cy="105" r="5" fill="#54a5be"/><circle cx="302" cy="116" r="5" fill="#54a5be"/>
+              <path d="M306 60l24 0-12 12" fill="none" stroke="#bf2434" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" opacity=".3"/>
+              <circle cx="354" cy="99" r="5" fill="#bf2434" opacity=".35"/>
+              <circle cx="373" cy="115" r="3" fill="#777d82" opacity=".55"/>
             </svg>
           </div>
 
