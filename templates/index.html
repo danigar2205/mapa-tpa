@@ -6337,8 +6337,12 @@
     let herramientasInicializadas = false;
     let catalogoConcesiones = {};
     let configuracionConcesionActiva = null;
+    // Tonos más sobrios y equilibrados para identificar las líneas.
+    // Se mantienen diferenciados, pero sin los azules, verdes y naranjas tan saturados.
     const COLORES_LINEA = {
-      'T05-01': '#2563EB', 'T05-20': '#0F766E', 'T05-50': '#C2410C'
+      'T05-01': '#527198',
+      'T05-20': '#47796F',
+      'T05-50': '#9F684E'
     };
 
     function escaparHTML(valor) {
@@ -6719,7 +6723,10 @@
       rutas.forEach(ruta => {
         const nombre = String(ruta.short_name || '').trim();
         if (!nombre) return;
-        const color = '#' + String(ruta.color || '2563EB').replace(/^#/, '');
+        const colorFuente = '#' + String(ruta.color || '2563EB').replace(/^#/, '');
+        // Para las líneas T05 se prioriza nuestra paleta suavizada; en otras
+        // concesiones se conserva el color GTFS hasta definir una paleta propia.
+        const color = COLORES_LINEA[nombre] || colorFuente;
         lineas.set(nombre, color);
         COLORES_LINEA[nombre] = color;
       });
