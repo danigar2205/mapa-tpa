@@ -3664,7 +3664,36 @@ def get_avanza_urbanos():
         datos["buses"] = list(estado.get("buses_parciales") or datos.get("buses") or [])
     if estado.get("ultimo_error") and not datos.get("buses"):
         datos["error"] = estado["ultimo_error"]
-    datos.pop("_postes_red", None)
+
+    fase_actual = str(estado.get("fase") or datos.get("fase") or "")
+    if fase_actual == "consultando_gps":
+        paradas_con_respuesta = len(estado.get("paradas_gps_consultadas") or [])
+        datos["total_paradas"] = int(
+            estado.get("paradas_descubiertas") or datos.get("total_paradas") or 0
+        )
+    elif fase_actual == "descubriendo_paradas":
+        paradas_con_respuesta = 0
+    else:
+        paradas_con_respuesta = len(datos.get("paradas_consultadas") or [])
+    datos["paradas_consultadas_count"] = paradas_con_respuesta
+    datos["paradas_sin_respuesta_count"] = max(
+        0, int(datos.get("total_paradas") or 0) - paradas_con_respuesta
+    ) if fase_actual == "completado" else 0
+
+    # Son estructuras internas para reanudar el escaneo, no datos que necesite el mapa.
+    for clave_interna in (
+        "_postes_red",
+        "paradas_consultadas",
+        "paradas_gps_consultadas",
+        "postes_gps_completados",
+        "buses_parciales",
+        "buses_gps_parciales",
+        "recorridos_completados",
+        "postes_catalogo_parcial",
+        "errores_recorridos_parcial",
+        "errores_gps_parciales",
+    ):
+        datos.pop(clave_interna, None)
     respuesta = jsonify(datos)
     respuesta.headers["Cache-Control"] = "no-store"
     return respuesta
