@@ -8122,6 +8122,7 @@
             '<small class="concession-status">' + escaparHTML(estadoInterfaz) + '</small>';
           boton.onclick = disponible ? () => iniciarMapa(codigo) : null;
         });
+        renderFavoritos();
       } catch (error) {
         console.warn('No se pudo cargar el catálogo de concesiones:', error);
         const botonT05 = lista.querySelector('[data-concesion="T05"]');
@@ -8130,6 +8131,7 @@
           botonT05.classList.remove('btn-deshabilitado');
           botonT05.onclick = () => iniciarMapa('T05');
         }
+        renderFavoritos();
       }
     }
 
