@@ -9867,10 +9867,10 @@
         avanzaUrbanosPrimeraCarga = false;
 
         document.getElementById('avanza-bus-count').textContent = String(buses.length);
-        const actualizado = datos.actualizado ? new Date(datos.actualizado) : new Date();
+        const actualizado = datos.actualizado ? new Date(datos.actualizado) : null;
         document.getElementById('avanza-last-update').textContent =
-          Number.isNaN(actualizado.getTime()) ? new Date().toLocaleTimeString('es-ES') :
-          actualizado.toLocaleTimeString('es-ES');
+          !actualizado || Number.isNaN(actualizado.getTime())
+            ? '—' : actualizado.toLocaleTimeString('es-ES');
         const paradas = Array.isArray(datos.paradas_consultadas) ? datos.paradas_consultadas : [];
         const totalParadas = Number(datos.total_paradas || datos.paradas_descubiertas || 0);
         const lineas = Number(datos.lineas_descubiertas || 0);
@@ -9895,11 +9895,13 @@
           ? (buses.length
               ? 'Se mantiene el último mapa mientras se actualizan las posiciones.'
               : 'Se están recorriendo las líneas y paradas; los autobuses aparecerán al terminar el primer barrido.')
-          : (datos.errores?.length
-              ? 'Barrido terminado con algunas paradas sin respuesta; se muestran los coches recibidos.'
-              : (buses.length
-                  ? 'Selecciona un autobús en el mapa. Los coches repetidos entre paradas se muestran una sola vez.'
-                  : 'No se han recibido posiciones GPS en este barrido.'));
+          : (datos.fase === 'error'
+              ? 'No se ha podido completar el barrido: ' + String(datos.ultimo_error || 'error de conexión')
+              : (datos.errores?.length
+                  ? 'Barrido terminado con incidencias; se muestran los coches recibidos. ' + String(datos.errores[0]).slice(0, 130)
+                  : (buses.length
+                      ? 'Selecciona un autobús en el mapa. Los coches repetidos entre paradas se muestran una sola vez.'
+                      : 'No se han recibido posiciones GPS en este barrido.')));
         const pill = document.getElementById('avanza-live-pill');
         pill.dataset.state = enEscaneo ? 'loading' : (datos.fase === 'error' ? 'error' : (buses.length ? 'online' : 'empty'));
         document.getElementById('avanza-live-text').textContent = enEscaneo
