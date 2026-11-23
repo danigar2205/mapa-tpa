@@ -10040,10 +10040,11 @@
         }
         avanzaUrbanosPrimeraCarga = false;
 
-        const actualizado = datos.actualizado ? new Date(datos.actualizado) : null;
+        const marcaTiempoActualizacion = datos.actualizado || datos.fin_escaneo || datos.inicio_escaneo || null;
+        const actualizado = marcaTiempoActualizacion ? new Date(marcaTiempoActualizacion) : null;
         document.getElementById('avanza-last-update').textContent =
           !actualizado || Number.isNaN(actualizado.getTime())
-            ? '—' : actualizado.toLocaleTimeString('es-ES');
+            ? 'Sin datos' : actualizado.toLocaleTimeString('es-ES');
         const paradas = Array.isArray(datos.paradas_consultadas) ? datos.paradas_consultadas : [];
         const totalParadas = Number(datos.total_paradas || datos.paradas_descubiertas || 0);
         const lineas = Number(datos.lineas_descubiertas || 0);
@@ -10064,7 +10065,13 @@
         let porcentajeTotal = fase === 'descubriendo_paradas'
           ? porcentajeFase * 0.15
           : (fase === 'consultando_gps' ? 15 + porcentajeFase * 0.85 : 0);
-        if (datos.fase === 'completado') porcentajeTotal = 100;
+        // Al terminar, el porcentaje representa paradas con respuesta válida,
+        // no simplemente peticiones que se intentaron y dieron error.
+        if (datos.fase === 'completado') {
+          porcentajeTotal = totalParadas > 0
+            ? (Math.min(paradas.length, totalParadas) / totalParadas) * 100
+            : 0;
+        }
         porcentajeTotal = Math.round(Math.max(0, Math.min(100, porcentajeTotal)));
         const barra = document.getElementById('avanza-progress-card');
         barra.dataset.state = datos.fase === 'completado' ? 'complete' : (datos.fase === 'error' ? 'error' : 'loading');
@@ -10084,10 +10091,11 @@
           detalleBarra = progreso + ' de ' + totalProgreso + ' paradas consultadas · ' +
             cochesDetectados + ' coches únicos localizados';
         } else if (datos.fase === 'completado') {
-          tituloBarra = datos.seguimiento_en_curso ? 'Seguimiento GPS activo' : 'Descarga completada';
-          detalleBarra = datos.seguimiento_en_curso
-            ? totalParadas + ' paradas en rotación · ' + cochesDetectados + ' coches únicos · actualizando posiciones'
-            : totalParadas + ' paradas consultadas · ' + cochesDetectados + ' coches únicos';
+          tituloBarra = datos.seguimiento_en_curso ? 'Seguimiento GPS activo' : 'Barrido finalizado';
+          detalleBarra = paradas.length + ' de ' + totalParadas + ' paradas con respuesta' +
+            (totalParadas > paradas.length ? ' · ' + (totalParadas - paradas.length) + ' sin respuesta' : '') +
+            ' · ' + cochesDetectados + ' coches únicos' +
+            (datos.seguimiento_en_curso ? ' · refrescando posiciones' : '');
         } else if (datos.fase === 'error') {
           tituloBarra = 'Error durante la descarga';
           detalleBarra = String(datos.ultimo_error || 'No se ha podido completar el barrido').slice(0, 130);
@@ -10130,7 +10138,11 @@
         pill.dataset.state = enEscaneo ? 'loading' : (datos.fase === 'error' ? 'error' : (buses.length ? 'online' : 'empty'));
         document.getElementById('avanza-live-text').textContent = enEscaneo
           ? 'ACTUALIZANDO FLOTA'
-          : (datos.fase === 'error' ? 'ERROR DE GPS' : (buses.length ? 'BARRIDO COMPLETADO' : 'SIN VEHÍCULOS'));
+          : (datos.fase === 'error'
+              ? 'ERROR DE GPS'
+              : (datos.seguimiento_en_curso
+                  ? 'SEGUIMIENTO GPS ACTIVO'
+                  : (buses.length ? 'BARRIDO FINALIZADO' : 'SIN VEHÍCULOS')));
       } catch (error) {
         if (!avanzaUrbanosActiva) return;
         const pill = document.getElementById('avanza-live-pill');
