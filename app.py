@@ -1909,6 +1909,8 @@ AVANZA_CATALOGO_POSTES_TTL = 21600
 AVANZA_PAUSA_RECORRIDOS = 0.0
 AVANZA_PAUSA_POSTES = 0.0
 AVANZA_CONCURRENCIA_GPS = 6
+AVANZA_GPS_TIMEOUT_CONNECT = 3.0
+AVANZA_GPS_TIMEOUT_READ = 4.0
 
 try:
     AVANZA_URBANOS_TTL = max(120, int(os.environ.get("AVANZA_URBANOS_TTL", AVANZA_URBANOS_TTL)))
@@ -1918,6 +1920,11 @@ try:
     AVANZA_PAUSA_RECORRIDOS = max(0.0, float(os.environ.get("AVANZA_PAUSA_RECORRIDOS", AVANZA_PAUSA_RECORRIDOS)))
     AVANZA_PAUSA_POSTES = max(0.0, float(os.environ.get("AVANZA_PAUSA_POSTES", AVANZA_PAUSA_POSTES)))
     AVANZA_CONCURRENCIA_GPS = min(6, max(1, int(os.environ.get("AVANZA_CONCURRENCIA_GPS", AVANZA_CONCURRENCIA_GPS))))
+except (TypeError, ValueError):
+    pass
+try:
+    AVANZA_GPS_TIMEOUT_CONNECT = max(1.0, min(10.0, float(os.environ.get("AVANZA_GPS_TIMEOUT_CONNECT", AVANZA_GPS_TIMEOUT_CONNECT))))
+    AVANZA_GPS_TIMEOUT_READ = max(1.0, min(10.0, float(os.environ.get("AVANZA_GPS_TIMEOUT_READ", AVANZA_GPS_TIMEOUT_READ))))
 except (TypeError, ValueError):
     pass
 
@@ -2698,7 +2705,8 @@ def _consultar_poste_gps_avanza(parada_info):
                 "Referer": f"https://gps.avanzabus.com/zaragoza/fParadas/{poste}",
                 "Origin": "https://gps.avanzabus.com",
             },
-            timeout=(5, 10),
+            # Límite corto para que las últimas paradas lentas no bloqueen el final del barrido.
+            timeout=(AVANZA_GPS_TIMEOUT_CONNECT, AVANZA_GPS_TIMEOUT_READ),
         )
         if respuesta.status_code != 200:
             return {
