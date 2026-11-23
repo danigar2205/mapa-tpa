@@ -7578,6 +7578,132 @@
       .home-favorite-stop-meta span { max-width: 150px !important; }
     }
 
+
+    /* Pantalla inicial para elegir entre las dos redes de transporte. */
+    #selector-plataforma {
+      position: fixed;
+      inset: 0;
+      z-index: 10050;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+      overflow-y: auto;
+      padding: clamp(22px, 5vh, 54px) 22px;
+      background:
+        radial-gradient(ellipse at 12% 8%, rgba(222, 230, 217, .72), transparent 34%),
+        radial-gradient(ellipse at 92% 90%, rgba(210, 226, 220, .62), transparent 35%),
+        #f4f5f1;
+      color: #172b36;
+      opacity: 1;
+      transition: opacity .22s ease, visibility .22s ease;
+    }
+    #selector-plataforma[hidden] { display: none !important; }
+    #selector-plataforma.is-leaving { opacity: 0; visibility: hidden; pointer-events: none; }
+    .gateway-shell { width: min(1060px, 100%); margin: auto; }
+    .gateway-heading { max-width: 740px; margin: 0 auto 34px; text-align: center; }
+    .gateway-eyebrow {
+      display: inline-flex; align-items: center; gap: 9px;
+      color: #54756d; font-size: 11px; font-weight: 800; letter-spacing: .16em;
+    }
+    .gateway-eyebrow-dot { width: 8px; height: 8px; border-radius: 50%; background: #c1ce17; }
+    .gateway-heading h1 {
+      margin: 16px 0 12px; color: #172b36; font-size: clamp(31px, 4.2vw, 48px);
+      font-weight: 800; letter-spacing: -.045em; line-height: 1.08;
+    }
+    .gateway-heading h1 em { color: #2f8174; font-style: normal; }
+    .gateway-heading p { margin: 0; color: #5b6c70; font-size: 15px; line-height: 1.6; }
+    .gateway-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+    .gateway-card {
+      display: flex; flex-direction: column; min-width: 0; min-height: 485px;
+      padding: 25px; border: 1px solid #d6ded9; border-radius: 19px;
+      background: rgba(255,255,255,.94); box-shadow: 0 15px 45px rgba(31,58,50,.075);
+      transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+    }
+    .gateway-card:hover { transform: translateY(-4px); box-shadow: 0 22px 54px rgba(31,58,50,.12); border-color: #a9bdb4; }
+    .gateway-card-top { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 76px; }
+    .gateway-card-tag {
+      flex: 0 0 auto; align-self: flex-start; padding: 7px 9px; border-radius: 5px;
+      background: #eef2ee; color: #536c63; font-size: 9px; font-weight: 800; letter-spacing: .1em;
+    }
+    .gateway-logo-tpa { display: block; width: min(285px, 70%); max-height: 68px; object-fit: contain; object-position: right center; }
+    .gateway-ctaz-lockup { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .gateway-logo-ctaz { display: block; width: 70px; height: 70px; object-fit: contain; }
+    .gateway-ctaz-lockup > span { display: flex; flex-direction: column; gap: 3px; }
+    .gateway-ctaz-lockup strong { color: #263c40; font-size: 23px; font-weight: 900; letter-spacing: .04em; }
+    .gateway-ctaz-lockup small { color: #5b706e; font-size: 10px; line-height: 1.35; }
+    .gateway-illustration {
+      display: flex; align-items: center; justify-content: center; height: 174px;
+      margin: 19px 0 21px; overflow: hidden; border-radius: 12px;
+    }
+    .gateway-illustration svg { display: block; width: 100%; height: 100%; }
+    .gateway-illustration-tpa { background: linear-gradient(135deg, #f5f5e9, #e8eee4); }
+    .gateway-illustration-ctaz { background: linear-gradient(135deg, #edf4f0, #e3efeb); }
+    .gateway-card-copy { flex: 1 1 auto; }
+    .gateway-card-copy h2 { margin: 0 0 9px; color: #1d343e; font-size: 19px; font-weight: 800; letter-spacing: -.025em; line-height: 1.25; }
+    .gateway-card-copy p { margin: 0; color: #5b6d70; font-size: 13px; line-height: 1.65; }
+    .gateway-action {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      width: 100%; min-height: 48px; margin-top: 22px; padding: 0 15px;
+      border: 0; border-radius: 8px; color: #fff; font: inherit; font-size: 12px;
+      font-weight: 800; text-align: left; text-decoration: none; cursor: pointer;
+      transition: filter .18s ease, transform .18s ease;
+    }
+    .gateway-action:hover { filter: brightness(1.06); transform: translateY(-1px); }
+    .gateway-action:focus-visible { outline: 3px solid #79a8a0; outline-offset: 3px; }
+    .gateway-action-tpa { background: #b9232b; }
+    .gateway-action-ctaz { background: #2e8175; }
+    .gateway-action i { flex: 0 0 auto; font-size: 13px; }
+    .gateway-footer {
+      display: flex; justify-content: space-between; gap: 14px; margin-top: 28px;
+      padding-top: 15px; border-top: 1px solid #dbe2dc; color: #788781;
+      font-size: 10px; letter-spacing: .06em;
+    }
+    .gateway-footer span:first-child { color: #425c57; font-weight: 900; letter-spacing: .12em; }
+    body.theme-dark #selector-plataforma {
+      background: radial-gradient(ellipse at 10% 8%, rgba(54,78,70,.32), transparent 36%), #111d22;
+      color: #e9f0ec;
+    }
+    body.theme-dark .gateway-heading h1,
+    body.theme-dark .gateway-card-copy h2,
+    body.theme-dark .gateway-ctaz-lockup strong { color: #edf4ef; }
+    body.theme-dark .gateway-heading p,
+    body.theme-dark .gateway-card-copy p,
+    body.theme-dark .gateway-ctaz-lockup small { color: #b1c2bc; }
+    body.theme-dark .gateway-card { border-color: #344b47; background: #1c2b2d; box-shadow: 0 15px 45px rgba(0,0,0,.2); }
+    body.theme-dark .gateway-card-tag { background: #2b403b; color: #c6d6ce; }
+    body.theme-dark .gateway-footer { border-color: #344b47; color: #9eb1a9; }
+    body.theme-dark .gateway-footer span:first-child { color: #d3e2db; }
+    @media (max-width: 720px) {
+      #selector-plataforma { align-items: flex-start; padding: 28px 17px 22px; }
+      .gateway-shell { margin: auto; }
+      .gateway-heading { margin-bottom: 23px; text-align: left; }
+      .gateway-heading h1 { margin: 12px 0 9px; font-size: clamp(30px, 8.8vw, 40px); }
+      .gateway-heading p { max-width: 500px; font-size: 13px; }
+      .gateway-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+      .gateway-card { min-height: 0; padding: 17px; border-radius: 14px; }
+      .gateway-card-top { min-height: 62px; }
+      .gateway-logo-tpa { width: min(245px, 68%); max-height: 58px; }
+      .gateway-logo-ctaz { width: 57px; height: 57px; }
+      .gateway-ctaz-lockup strong { font-size: 20px; }
+      .gateway-illustration { height: 132px; margin: 13px 0 15px; }
+      .gateway-card-copy h2 { font-size: 17px; }
+      .gateway-card-copy p { font-size: 12px; line-height: 1.55; }
+      .gateway-action { min-height: 45px; margin-top: 16px; }
+      .gateway-footer { margin-top: 20px; }
+    }
+    @media (max-width: 380px) {
+      .gateway-card-tag { font-size: 8px; padding: 6px 7px; }
+      .gateway-logo-tpa { width: 62%; }
+      .gateway-ctaz-lockup { gap: 7px; }
+      .gateway-logo-ctaz { width: 49px; height: 49px; }
+      .gateway-ctaz-lockup small { font-size: 9px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #selector-plataforma, .gateway-card, .gateway-action { transition: none !important; }
+      .gateway-card:hover, .gateway-action:hover { transform: none; }
+    }
+
 </style>
 </head>
 <body>
@@ -7592,6 +7718,102 @@
     </div>
   </div>
 
+
+  <!-- Selector inicial de red de transporte -->
+  <section id="selector-plataforma" aria-labelledby="gateway-title">
+    <div class="gateway-shell">
+      <header class="gateway-heading">
+        <span class="gateway-eyebrow"><span class="gateway-eyebrow-dot"></span> MOVILIDAD · ARAGÓN</span>
+        <h1 id="gateway-title">¿Qué red de transporte<br><em>quieres consultar?</em></h1>
+        <p>Selecciona una plataforma para acceder a la información de transporte que necesitas.</p>
+      </header>
+
+      <div class="gateway-grid">
+        <article class="gateway-card gateway-card-tpa">
+          <div class="gateway-card-top">
+            <span class="gateway-card-tag">RED AUTONÓMICA</span>
+            <img class="gateway-logo-tpa" src="{{ url_for('static', filename='tpa-logo.png') }}" alt="Transporte Público de Aragón">
+          </div>
+
+          <div class="gateway-illustration gateway-illustration-tpa" aria-hidden="true">
+            <svg viewBox="0 0 420 180" role="presentation">
+              <circle cx="345" cy="34" r="21" fill="#f4d568"/>
+              <path d="M0 120 65 72l48 34 69-59 72 65 54-38 112 58v48H0Z" fill="#e3eadc"/>
+              <path d="m0 137 75-43 56 36 79-53 74 49 54-31 82 44v41H0Z" fill="#cbd9c5"/>
+              <path d="M0 166c87-18 143-18 217-3s140 13 203-1" fill="none" stroke="#a6b9ad" stroke-width="3" stroke-linecap="round"/>
+              <path d="M0 178c83-17 154-17 222-4s134 11 198-1" fill="none" stroke="#d4b75a" stroke-width="3" stroke-dasharray="13 12"/>
+              <g transform="translate(110 61)">
+                <path d="M8 24c0-9 7-16 16-16h138c10 0 18 8 18 18v57H8Z" fill="#fff" stroke="#8c9f9a" stroke-width="2"/>
+                <path d="M8 60h172v23H8Z" fill="#d71920"/>
+                <path d="M8 83h172v9H8Z" fill="#f3c51c"/>
+                <path d="M29 20h43v31H29zM80 20h43v31H80zM131 20h34v31h-34z" fill="#b9d4d4"/>
+                <path d="M29 24h43M80 24h43M131 24h34" stroke="#fff" stroke-width="3" opacity=".8"/>
+                <circle cx="45" cy="91" r="11" fill="#263746"/><circle cx="45" cy="91" r="4" fill="#dce5e7"/>
+                <circle cx="150" cy="91" r="11" fill="#263746"/><circle cx="150" cy="91" r="4" fill="#dce5e7"/>
+                <path d="M14 70h10M164 70h8" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+              </g>
+              <path d="M28 28h34M45 11v34" stroke="#c7d2c0" stroke-width="2" stroke-linecap="round"/>
+              <path d="M300 106h35m-17-17v34" stroke="#fff" stroke-width="3" opacity=".7" stroke-linecap="round"/>
+            </svg>
+          </div>
+
+          <div class="gateway-card-copy">
+            <h2>Transporte Público de Aragón</h2>
+            <p>Accede al catálogo de concesiones autonómicas, consulta paradas y horarios y sigue los autobuses disponibles en tiempo real.</p>
+          </div>
+
+          <button type="button" class="gateway-action gateway-action-tpa" onclick="seleccionarPlataforma('tpa')">
+            <span>Entrar en Transporte Público de Aragón</span>
+            <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+          </button>
+        </article>
+
+        <article class="gateway-card gateway-card-ctaz">
+          <div class="gateway-card-top">
+            <span class="gateway-card-tag">ÁREA METROPOLITANA</span>
+            <div class="gateway-ctaz-lockup">
+              <img class="gateway-logo-ctaz" src="{{ url_for('static', filename='ctaz-logo.png') }}" alt="">
+              <span><strong>CTAZ</strong><small>Consorcio de Transportes<br>del Área de Zaragoza</small></span>
+            </div>
+          </div>
+
+          <div class="gateway-illustration gateway-illustration-ctaz" aria-hidden="true">
+            <svg viewBox="0 0 420 180" role="presentation">
+              <circle cx="348" cy="33" r="18" fill="#c4d21a" opacity=".85"/>
+              <path d="M0 142h420v38H0Z" fill="#d8e5df"/>
+              <path d="M26 141V70h55v71M91 141V42h67v99M168 141V82h49v59M230 141V55h66v86M309 141V91h38v50M360 141V67h42v74" fill="#b7d0c8"/>
+              <path d="M38 83h10m11 0h10M105 58h11m15 0h11m-37 17h11m15 0h11m-37 17h11m15 0h11M244 72h12m14 0h12m-38 18h12m14 0h12m-38 18h12m14 0h12M370 82h9m-9 16h9m-9 16h9" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+              <path d="M0 149c84-17 156-18 218-5s132 16 202-1" fill="none" stroke="#8fb7ad" stroke-width="3"/>
+              <g transform="translate(101 75)">
+                <path d="M5 22c0-10 8-18 18-18h162c11 0 20 9 20 20v61H5Z" fill="#c2cf13" stroke="#77918c" stroke-width="2"/>
+                <path d="M17 17h48v33H17zm56 0h48v33H73zm56 0h47v33h-47z" fill="#d6efeb"/>
+                <path d="M5 62h200v23H5Z" fill="#2d8175"/>
+                <path d="M18 69h18m148 0h17" stroke="#eaf5ef" stroke-width="5" stroke-linecap="round"/>
+                <circle cx="47" cy="88" r="12" fill="#263746"/><circle cx="47" cy="88" r="4" fill="#dce5e7"/>
+                <circle cx="165" cy="88" r="12" fill="#263746"/><circle cx="165" cy="88" r="4" fill="#dce5e7"/>
+              </g>
+              <path d="M22 25c17-15 40-15 57 0m-47 8c12-10 26-10 38 0" fill="none" stroke="#a8c6bc" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+          </div>
+
+          <div class="gateway-card-copy">
+            <h2>Consorcio de Transportes del Área de Zaragoza</h2>
+            <p>Consulta la información de los servicios de transporte público del área metropolitana de Zaragoza desde la web oficial del Consorcio.</p>
+          </div>
+
+          <a class="gateway-action gateway-action-ctaz" href="https://www.ctaz.es/servicios/transporte-publico-ctaz-2/" target="_blank" rel="noopener noreferrer">
+            <span>Consultar transporte CTAZ</span>
+            <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
+          </a>
+        </article>
+      </div>
+
+      <footer class="gateway-footer">
+        <span>MAPA TPA</span>
+        <span>Selecciona una red para continuar</span>
+      </footer>
+    </div>
+  </section>
 
   <!-- Inicio: portada y catálogo de concesiones -->
   <div id="pantalla-inicio">
@@ -9203,6 +9425,19 @@
       botonMostrar.setAttribute('aria-expanded', 'true');
       botonOcultar?.setAttribute('aria-expanded', 'true');
       reajustarMapaTrasCambioPanel();
+    }
+
+    function seleccionarPlataforma(plataforma) {
+      if (plataforma !== 'tpa') return;
+      const selector = document.getElementById('selector-plataforma');
+      const inicio = document.getElementById('pantalla-inicio');
+      if (inicio) inicio.style.display = 'flex';
+      if (!selector) return;
+      selector.classList.add('is-leaving');
+      window.setTimeout(() => {
+        selector.hidden = true;
+        selector.classList.remove('is-leaving');
+      }, 230);
     }
 
     function iniciarMapa(linea) {
