@@ -6,7 +6,7 @@ try:
 except ImportError:
     redis = None
 from html.parser import HTMLParser
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed, wait, FIRST_COMPLETED
 # Desactivar extensión C de Protobuf para compatibilidad con Python 3.11+
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
@@ -1908,11 +1908,10 @@ AVANZA_URBANOS_TTL = 360
 AVANZA_CATALOGO_POSTES_TTL = 21600
 AVANZA_PAUSA_RECORRIDOS = 0.0
 AVANZA_PAUSA_POSTES = 0.0
-AVANZA_CONCURRENCIA_GPS = 6
+AVANZA_CONCURRENCIA_GPS = 8
 AVANZA_GPS_TIMEOUT_CONNECT = 3.0
 AVANZA_GPS_TIMEOUT_READ = 4.0
-AVANZA_GPS_PARADAS_POR_LOTE = 20
-AVANZA_GPS_REFRESCOS_POR_LOTE = 3
+AVANZA_GPS_REFRESCOS_POR_LOTE = 2
 AVANZA_GPS_SEGUIMIENTO_LOTE = 14
 AVANZA_GPS_SEGUIMIENTO_NOVEDADES = 4
 AVANZA_GPS_SEGUIMIENTO_INTERVALO = 6.0
@@ -1925,7 +1924,7 @@ except (TypeError, ValueError):
 try:
     AVANZA_PAUSA_RECORRIDOS = max(0.0, float(os.environ.get("AVANZA_PAUSA_RECORRIDOS", AVANZA_PAUSA_RECORRIDOS)))
     AVANZA_PAUSA_POSTES = max(0.0, float(os.environ.get("AVANZA_PAUSA_POSTES", AVANZA_PAUSA_POSTES)))
-    AVANZA_CONCURRENCIA_GPS = min(6, max(1, int(os.environ.get("AVANZA_CONCURRENCIA_GPS", AVANZA_CONCURRENCIA_GPS))))
+    AVANZA_CONCURRENCIA_GPS = min(10, max(1, int(os.environ.get("AVANZA_CONCURRENCIA_GPS", AVANZA_CONCURRENCIA_GPS))))
 except (TypeError, ValueError):
     pass
 try:
@@ -1983,6 +1982,16 @@ AVANZA_REDIS_URL = (
 AVANZA_REDIS_STATE_KEY = os.environ.get(
     "AVANZA_REDIS_STATE_KEY", "mapa-tpa:avanza:shared-state"
 )
+AVANZA_REDIS_STATE_DATA_KEY = os.environ.get(
+    "AVANZA_REDIS_STATE_DATA_KEY", AVANZA_REDIS_STATE_KEY + ":state"
+)
+AVANZA_REDIS_CACHE_DATA_KEY = os.environ.get(
+    "AVANZA_REDIS_CACHE_DATA_KEY", AVANZA_REDIS_STATE_KEY + ":cache"
+)
+AVANZA_REDIS_CATALOG_DATA_KEY = os.environ.get(
+    "AVANZA_REDIS_CATALOG_DATA_KEY", AVANZA_REDIS_STATE_KEY + ":catalogo"
+)
+AVANZA_REDIS_MIGRATED = False
 AVANZA_REDIS_LOCK_KEY = os.environ.get(
     "AVANZA_REDIS_LOCK_KEY", "mapa-tpa:avanza:scan-lock"
 )
@@ -2019,50 +2028,128 @@ def _renovar_bloqueo_avanza_redis():
 
 
 def _leer_avanza_estado_compartido():
-    """Lee el estado global desde Redis o, sin Redis, desde el fichero compartido."""
+    """Lee estado, caché y catálogo por separado desde Redis o el fichero local."""
     if AVANZA_REDIS_CLIENT is not None:
         try:
-            raw = AVANZA_REDIS_CLIENT.get(AVANZA_REDIS_STATE_KEY)
-            contenido = json.loads(raw) if raw else {}
-            return contenido if isinstance(contenido, dict) else {}
+            pipeline = AVANZA_REDIS_CLIENT.pipeline(transaction=False)
+            pipeline.get(AVANZA_REDIS_STATE_DATA_KEY)
+            pipeline.get(AVANZA_REDIS_CACHE_DATA_KEY)
+            pipeline.get(AVANZA_REDIS_CATALOG_DATA_KEY)
+            pipeline.get(AVANZA_REDIS_STATE_KEY)  # Clave antigua, durante la migración.
+            raws = pipeline.execute()
+
+            def decodificar(raw):
+                if not raw:
+                    return None
+                try:
+                    return json.loads(raw)
+                except (TypeError, ValueError):
+                    return None
+
+            estado_nuevo, cache_nueva, catalogo_nuevo, legacy = [
+                decodificar(raw) for raw in raws
+            ]
+            legacy = legacy if isinstance(legacy, dict) else {}
+            return {
+                "state": estado_nuevo if isinstance(estado_nuevo, dict) else legacy.get("state", {}),
+                "cache": cache_nueva if isinstance(cache_nueva, dict) else legacy.get("cache", {}),
+                "catalogo": catalogo_nuevo if isinstance(catalogo_nuevo, dict) else legacy.get("catalogo", {}),
+            }
         except Exception as exc:
             print(f"[AVANZA URBANOS] No se pudo leer el estado Redis: {exc}")
             return {}
     try:
         with open(AVANZA_SHARED_STATE_PATH, "r", encoding="utf-8") as fichero:
             contenido = json.load(fichero)
-        if not isinstance(contenido, dict):
-            return {}
-        return contenido
+        return contenido if isinstance(contenido, dict) else {}
     except (OSError, ValueError, TypeError):
         return {}
 
 
+def _cache_avanza_sin_catalogo(cache):
+    """No duplica el catálogo de paradas dentro de la caché de vehículos."""
+    if not isinstance(cache, dict):
+        return cache
+    resultado = dict(cache)
+    datos = resultado.get("data")
+    if isinstance(datos, dict) and "_postes_red" in datos:
+        datos_limpios = dict(datos)
+        datos_limpios.pop("_postes_red", None)
+        resultado["data"] = datos_limpios
+    return resultado
+
+
 def _guardar_avanza_estado_compartido(estado=None, cache=None, actualizar_cache=False, catalogo=None):
     """
-    Escribe de forma atómica el progreso y la última flota en un fichero común.
-    Cada worker web lee el mismo fichero, aunque las peticiones roten de proceso.
+    En Redis actualiza solo la clave que ha cambiado; el estado, la flota y el
+    catálogo se almacenan por separado para evitar serializar toda la red cada seis segundos.
     """
+    global AVANZA_REDIS_MIGRATED
     with AVANZA_SHARED_WRITE_LOCK:
-        contenido = _leer_avanza_estado_compartido()
+        cache_guardada = _cache_avanza_sin_catalogo(cache) if actualizar_cache else None
         if estado is not None:
-            contenido["state"] = estado
-        if actualizar_cache:
-            contenido["cache"] = cache
-        if catalogo is not None:
-            contenido["catalogo"] = catalogo
+            estado = dict(estado)
         if AVANZA_REDIS_CLIENT is not None:
             try:
-                AVANZA_REDIS_CLIENT.set(
-                    AVANZA_REDIS_STATE_KEY,
-                    json.dumps(contenido, ensure_ascii=False, separators=(",", ":")),
-                    ex=172800,
-                )
+                pipeline = AVANZA_REDIS_CLIENT.pipeline(transaction=False)
+                if not AVANZA_REDIS_MIGRATED:
+                    contenido = _leer_avanza_estado_compartido()
+                    if estado is not None:
+                        contenido["state"] = estado
+                    if actualizar_cache:
+                        contenido["cache"] = cache_guardada
+                    if catalogo is not None:
+                        contenido["catalogo"] = catalogo
+                    valores = (
+                        (AVANZA_REDIS_STATE_DATA_KEY, contenido.get("state")),
+                        (AVANZA_REDIS_CACHE_DATA_KEY, contenido.get("cache")),
+                        (AVANZA_REDIS_CATALOG_DATA_KEY, contenido.get("catalogo")),
+                    )
+                    for clave, valor in valores:
+                        if valor is None:
+                            pipeline.delete(clave)
+                        else:
+                            pipeline.set(
+                                clave,
+                                json.dumps(valor, ensure_ascii=False, separators=(",", ":")),
+                                ex=172800,
+                            )
+                    pipeline.delete(AVANZA_REDIS_STATE_KEY)
+                    pipeline.execute()
+                    AVANZA_REDIS_MIGRATED = True
+                else:
+                    if estado is not None:
+                        pipeline.set(
+                            AVANZA_REDIS_STATE_DATA_KEY,
+                            json.dumps(estado, ensure_ascii=False, separators=(",", ":")),
+                            ex=172800,
+                        )
+                    if actualizar_cache:
+                        pipeline.set(
+                            AVANZA_REDIS_CACHE_DATA_KEY,
+                            json.dumps(cache_guardada, ensure_ascii=False, separators=(",", ":")),
+                            ex=172800,
+                        )
+                    if catalogo is not None:
+                        pipeline.set(
+                            AVANZA_REDIS_CATALOG_DATA_KEY,
+                            json.dumps(catalogo, ensure_ascii=False, separators=(",", ":")),
+                            ex=172800,
+                        )
+                    pipeline.execute()
                 _renovar_bloqueo_avanza_redis()
                 return
             except Exception as exc:
                 print(f"[AVANZA URBANOS] No se pudo guardar el estado Redis: {exc}")
                 return
+
+        contenido = _leer_avanza_estado_compartido()
+        if estado is not None:
+            contenido["state"] = estado
+        if actualizar_cache:
+            contenido["cache"] = cache_guardada
+        if catalogo is not None:
+            contenido["catalogo"] = catalogo
         directorio = os.path.dirname(AVANZA_SHARED_STATE_PATH) or "."
         os.makedirs(directorio, exist_ok=True)
         temporal = (
@@ -2079,6 +2166,8 @@ def _guardar_avanza_estado_compartido(estado=None, cache=None, actualizar_cache=
                     os.remove(temporal)
             except OSError:
                 pass
+
+
 
 
 def _sincronizar_avanza_estado_compartido():
@@ -3233,7 +3322,6 @@ def _seguir_actualizando_flota_avanza(resultado, timestamp_cache):
                     "data": resultado_cache,
                 })
                 AVANZA_URBANOS_STATE.update({
-                    "buses_parciales": buses_actualizados,
                     "coches_unicos_detectados": len(buses_actualizados),
                     "seguimiento_en_curso": True,
                     "actualizado": actualizado,
@@ -3308,15 +3396,22 @@ def _trabajador_barrido_avanza(descriptor_bloqueo=None):
                 "actualizado": resultado.get("actualizado"),
                 "actualizado_epoch": resultado.get("actualizado_epoch"),
                 "heartbeat_epoch": time.time(),
-                "progreso": resultado["total_paradas"],
+                "progreso": len(resultado["paradas_consultadas"]),
                 "total_progreso": resultado["total_paradas"],
-                "progreso_general": resultado["sentidos_consultados"] + resultado["total_paradas"],
+                "progreso_general": resultado["sentidos_consultados"] + len(resultado["paradas_consultadas"]),
                 "total_progreso_general": resultado["sentidos_consultados"] + resultado["total_paradas"],
                 "sentidos_consultados": resultado["sentidos_consultados"],
                 "total_sentidos": resultado["sentidos_consultados"],
                 "paradas_gps_completadas": resultado["total_paradas"],
                 "coches_unicos_detectados": len(resultado["buses"]),
-                "buses_parciales": resultado["buses"],
+                "buses_parciales": [],
+                "buses_gps_parciales": [],
+                "postes_gps_completados": [],
+                "paradas_gps_consultadas": [],
+                "errores_gps_parciales": [],
+                "recorridos_completados": [],
+                "postes_catalogo_parcial": {},
+                "errores_recorridos_parcial": [],
                 "ultimo_error": None,
                 "fin_escaneo": datetime.now(ZONA_HORARIA).isoformat(),
             })
@@ -3374,6 +3469,12 @@ def iniciar_barrido_avanza_si_necesario(forzar=False):
         cache_compartida = datos_compartidos.get("cache") or {}
         cacheada = cache_compartida.get("data")
         estado_previo = datos_compartidos.get("state") or {}
+        if isinstance(cacheada, dict) and not cacheada.get("_postes_red"):
+            catalogo_red = datos_compartidos.get("catalogo") or {}
+            postes_red = catalogo_red.get("postes") or []
+            if postes_red:
+                cacheada = dict(cacheada)
+                cacheada["_postes_red"] = list(postes_red)
         reanudar_escaneo = bool(
             not forzar
             and estado_previo.get("escaneo_en_curso")
@@ -3429,7 +3530,7 @@ def iniciar_barrido_avanza_si_necesario(forzar=False):
                     "fase": "completado",
                     "seguimiento_en_curso": True,
                     "heartbeat_epoch": ahora_heartbeat,
-                    "buses_parciales": list(cacheada.get("buses") or []),
+                    "buses_parciales": [],
                     "coches_unicos_detectados": len(cacheada.get("buses") or []),
                 })
                 estado_reanudado = dict(AVANZA_URBANOS_STATE)
