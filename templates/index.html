@@ -7799,6 +7799,33 @@
       .gateway-logo-ctaz { width: 49px; height: 49px; }
       .gateway-ctaz-lockup small { font-size: 9px; }
     }
+    /* Mantener el logotipo de TPA dentro de la tarjeta en todos los anchos. */
+    .gateway-card-tpa .gateway-card-top {
+      min-width: 0;
+      gap: 10px;
+    }
+    .gateway-card-tpa .gateway-card-tag {
+      max-width: 48%;
+      white-space: nowrap;
+      letter-spacing: .07em;
+    }
+    .gateway-card-tpa .gateway-logo-tpa {
+      flex: 0 1 245px;
+      width: 100%;
+      min-width: 0;
+      max-width: calc(52% - 10px);
+      height: auto;
+      max-height: 58px;
+      object-fit: contain;
+      object-position: center;
+      margin-left: auto;
+    }
+    @media (max-width: 380px) {
+      .gateway-card-tpa .gateway-card-top { gap: 8px; }
+      .gateway-card-tpa .gateway-card-tag { max-width: 47%; font-size: 7.5px; }
+      .gateway-card-tpa .gateway-logo-tpa { max-width: calc(53% - 8px); max-height: 48px; }
+    }
+
     @media (prefers-reduced-motion: reduce) {
       #selector-plataforma, .gateway-card, .gateway-action { transition: none !important; }
       .gateway-card:hover, .gateway-action:hover { transform: none; }
