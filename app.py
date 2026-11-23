@@ -2621,6 +2621,7 @@ def iniciar_barrido_avanza_si_necesario(forzar=False):
             "sentidos_consultados": 0,
             "total_sentidos": 0,
             "paradas_consultadas": 0,
+            "coches_unicos_detectados": 0,
             "lineas_descubiertas": 0,
             "paradas_descubiertas": 0,
             "ultimo_error": None,
