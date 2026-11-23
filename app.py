@@ -1,6 +1,7 @@
 import os
 import html
 from html.parser import HTMLParser
+from concurrent.futures import ThreadPoolExecutor, as_completed
 # Desactivar extensión C de Protobuf para compatibilidad con Python 3.11+
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
@@ -1900,8 +1901,9 @@ AVANZA_AJAX_URL = "https://zaragoza.avanzagrupo.com/wp-admin/admin-ajax.php"
 
 AVANZA_URBANOS_TTL = 360
 AVANZA_CATALOGO_POSTES_TTL = 21600
-AVANZA_PAUSA_RECORRIDOS = 1.0
-AVANZA_PAUSA_POSTES = 0.35
+AVANZA_PAUSA_RECORRIDOS = 0.15
+AVANZA_PAUSA_POSTES = 0.0
+AVANZA_CONCURRENCIA_GPS = 4
 
 try:
     AVANZA_URBANOS_TTL = max(120, int(os.environ.get("AVANZA_URBANOS_TTL", AVANZA_URBANOS_TTL)))
@@ -1910,6 +1912,7 @@ except (TypeError, ValueError):
 try:
     AVANZA_PAUSA_RECORRIDOS = max(0.0, float(os.environ.get("AVANZA_PAUSA_RECORRIDOS", AVANZA_PAUSA_RECORRIDOS)))
     AVANZA_PAUSA_POSTES = max(0.0, float(os.environ.get("AVANZA_PAUSA_POSTES", AVANZA_PAUSA_POSTES)))
+    AVANZA_CONCURRENCIA_GPS = min(6, max(1, int(os.environ.get("AVANZA_CONCURRENCIA_GPS", AVANZA_CONCURRENCIA_GPS))))
 except (TypeError, ValueError):
     pass
 
@@ -1933,6 +1936,7 @@ AVANZA_URBANOS_STATE = {
     "sentidos_consultados": 0,
     "total_sentidos": 0,
     "paradas_consultadas": 0,
+    "coches_unicos_detectados": 0,
     "lineas_descubiertas": 0,
     "paradas_descubiertas": 0,
     "ultimo_error": None,
@@ -2320,10 +2324,107 @@ def _actualizar_estado_avanza(**cambios):
         AVANZA_URBANOS_STATE.update(cambios)
 
 
+AVANZA_GPS_THREAD_LOCAL = threading.local()
+
+
+def _sesion_gps_avanza():
+    """Una sesión HTTP persistente por trabajador, sin compartirla entre hilos."""
+    sesion = getattr(AVANZA_GPS_THREAD_LOCAL, "sesion", None)
+    if sesion is None:
+        sesion = requests.Session()
+        sesion.headers.update({
+            "User-Agent": "Mozilla/5.0 (compatible; MapaTPA/1.0)",
+            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "X-Requested-With": "XMLHttpRequest",
+        })
+        AVANZA_GPS_THREAD_LOCAL.sesion = sesion
+    return sesion
+
+
+def _consultar_poste_gps_avanza(parada_info):
+    """Consulta y analiza un poste; función independiente y segura para un hilo."""
+    poste = parada_info["poste"]
+    nombre_parada = parada_info.get("nombre") or f"Parada {poste}"
+    try:
+        sesion = _sesion_gps_avanza()
+        respuesta = sesion.post(
+            AVANZA_URBANOS_ENDPOINT,
+            data={"poste": str(poste), "coche": "0"},
+            headers={
+                "Referer": f"https://gps.avanzabus.com/zaragoza/fParadas/{poste}",
+                "Origin": "https://gps.avanzabus.com",
+            },
+            timeout=(5, 10),
+        )
+        if respuesta.status_code != 200:
+            return {
+                "poste": poste,
+                "nombre": nombre_parada,
+                "buses": [],
+                "error": f"poste {poste}: HTTP {respuesta.status_code}",
+            }
+
+        try:
+            datos = respuesta.json()
+        except ValueError:
+            return {
+                "poste": poste,
+                "nombre": nombre_parada,
+                "buses": [],
+                "error": f"poste {poste}: respuesta GPS no válida",
+            }
+
+        if not isinstance(datos, dict) or "maquinas" not in datos:
+            return {
+                "poste": poste,
+                "nombre": nombre_parada,
+                "buses": [],
+                "error": f"poste {poste}: respuesta sin máquinas GPS",
+            }
+
+        maquinas = datos.get("maquinas") or {}
+        entradas = (
+            list(maquinas.values()) if isinstance(maquinas, dict)
+            else (maquinas if isinstance(maquinas, list) else [])
+        )
+        nombre_feed = None
+        for maquina in entradas:
+            if not isinstance(maquina, dict):
+                continue
+            icono = str(maquina.get("icon") or "").split("?")[0].rsplit("/", 1)[-1].lower()
+            if icono == "bus_rojo.png":
+                nombre_feed = limpiar_texto_html_avanza(
+                    maquina.get("info") or maquina.get("title")
+                ) or None
+                break
+        if nombre_feed:
+            nombre_parada = nombre_feed
+
+        buses = []
+        for maquina in entradas:
+            bus = extraer_bus_avanza(maquina, poste, nombre_parada)
+            if bus:
+                buses.append(bus)
+        return {
+            "poste": poste,
+            "nombre": nombre_parada,
+            "buses": buses,
+            "error": None,
+        }
+    except (requests.RequestException, ValueError, TypeError) as exc:
+        return {
+            "poste": poste,
+            "nombre": nombre_parada,
+            "buses": [],
+            "error": f"poste {poste}: {str(exc)[:160]}",
+        }
+
+
 def consultar_flota_avanza_urbana():
     """
-    Barre los postes de todos los recorridos operativos y deduplica por coche.
-    El barrido se ejecuta en segundo plano para que el endpoint web responda rápido.
+    Barre todas las paradas descubiertas. Las consultas GPS se limitan a un
+    pequeño grupo de trabajadores concurrentes para reducir el tiempo total
+    sin saturar el servidor de Avanza.
     """
     inicio = time.monotonic()
     http = requests.Session()
@@ -2339,8 +2440,6 @@ def consultar_flota_avanza_urbana():
     if total_postes == 0:
         raise ValueError("No se han encontrado postes operativos de Avanza.")
 
-    # El contador general NO vuelve a cero al cambiar de fase:
-    # suma primero los sentidos consultados y después las paradas GPS.
     progreso_catalogo = sentidos_consultados
     total_operaciones = progreso_catalogo + total_postes
     _actualizar_estado_avanza(
@@ -2352,6 +2451,7 @@ def consultar_flota_avanza_urbana():
         sentidos_consultados=sentidos_consultados,
         total_sentidos=sentidos_consultados,
         paradas_consultadas=0,
+        coches_unicos_detectados=0,
         lineas_descubiertas=lineas_descubiertas,
         paradas_descubiertas=total_postes,
     )
@@ -2359,93 +2459,62 @@ def consultar_flota_avanza_urbana():
     buses_por_coche = {}
     paradas_consultadas = []
     errores = list(errores_catalogo)
-    headers = {
-        "User-Agent": "Mozilla/5.0 (compatible; MapaTPA/1.0)",
-        "Accept": "application/json, text/javascript, */*; q=0.01",
-        "X-Requested-With": "XMLHttpRequest",
-    }
 
-    for indice, parada_info in enumerate(postes, start=1):
-        poste = parada_info["poste"]
-        nombre_parada = parada_info.get("nombre") or f"Parada {poste}"
-        try:
-            respuesta = http.post(
-                AVANZA_URBANOS_ENDPOINT,
-                data={"poste": str(poste), "coche": "0"},
-                headers={
-                    **headers,
-                    "Referer": f"https://gps.avanzabus.com/zaragoza/fParadas/{poste}",
-                    "Origin": "https://gps.avanzabus.com",
-                },
-                timeout=(5, 10),
-            )
-            if respuesta.status_code != 200:
-                errores.append(f"poste {poste}: HTTP {respuesta.status_code}")
+    with ThreadPoolExecutor(
+        max_workers=AVANZA_CONCURRENCIA_GPS,
+        thread_name_prefix="avanza-gps",
+    ) as executor:
+        futuros = {
+            executor.submit(_consultar_poste_gps_avanza, parada_info): parada_info
+            for parada_info in postes
+        }
+
+        for indice, futuro in enumerate(as_completed(futuros), start=1):
+            try:
+                resultado_parada = futuro.result()
+            except Exception as exc:
+                parada_info = futuros[futuro]
+                resultado_parada = {
+                    "poste": parada_info["poste"],
+                    "nombre": parada_info.get("nombre") or f"Parada {parada_info['poste']}",
+                    "buses": [],
+                    "error": f"poste {parada_info['poste']}: {str(exc)[:160]}",
+                }
+
+            if resultado_parada.get("error"):
+                errores.append(resultado_parada["error"])
             else:
-                try:
-                    datos = respuesta.json()
-                except ValueError:
-                    datos = None
-                    errores.append(f"poste {poste}: respuesta GPS no válida")
-                if not isinstance(datos, dict) or "maquinas" not in datos:
-                    if datos is not None:
-                        errores.append(f"poste {poste}: respuesta sin máquinas GPS")
-                else:
-                    maquinas = datos.get("maquinas") or {}
-                    entradas = (
-                        list(maquinas.values()) if isinstance(maquinas, dict)
-                        else (maquinas if isinstance(maquinas, list) else [])
-                    )
-                    nombre_feed = None
-                    for maquina in entradas:
-                        if not isinstance(maquina, dict):
-                            continue
-                        icono = str(maquina.get("icon") or "").split("?")[0].rsplit("/", 1)[-1].lower()
-                        if icono == "bus_rojo.png":
-                            nombre_feed = limpiar_texto_html_avanza(
-                                maquina.get("info") or maquina.get("title")
-                            ) or None
-                            break
-                    if nombre_feed:
-                        nombre_parada = nombre_feed
+                paradas_consultadas.append({
+                    "poste": resultado_parada["poste"],
+                    "nombre": resultado_parada["nombre"],
+                })
 
-                    for maquina in entradas:
-                        bus = extraer_bus_avanza(maquina, poste, nombre_parada)
-                        if not bus:
-                            continue
-                        clave = bus["coche"]
-                        anterior = buses_por_coche.get(clave)
-                        eta_nueva = bus["eta_minutos"]
-                        eta_anterior = anterior.get("eta_minutos") if anterior else None
-                        # Un mismo coche puede salir en varias paradas. Se conserva
-                        # la observación con la llegada más próxima y un único marcador.
-                        if anterior is None or (
-                            eta_nueva is not None
-                            and (eta_anterior is None or eta_nueva < eta_anterior)
-                        ):
-                            buses_por_coche[clave] = bus
+            for bus in resultado_parada.get("buses", []):
+                clave = bus["coche"]
+                anterior = buses_por_coche.get(clave)
+                eta_nueva = bus["eta_minutos"]
+                eta_anterior = anterior.get("eta_minutos") if anterior else None
+                # Un mismo coche puede salir en varias paradas: se queda una sola
+                # observación, priorizando la llegada más próxima.
+                if anterior is None or (
+                    eta_nueva is not None
+                    and (eta_anterior is None or eta_nueva < eta_anterior)
+                ):
+                    buses_por_coche[clave] = bus
 
-                    paradas_consultadas.append({
-                        "poste": poste,
-                        "nombre": nombre_parada,
-                    })
-        except (requests.RequestException, ValueError, TypeError) as exc:
-            errores.append(f"poste {poste}: {str(exc)[:160]}")
-
-        _actualizar_estado_avanza(
-            fase="consultando_gps",
-            progreso=indice,
-            total_progreso=total_postes,
-            progreso_general=progreso_catalogo + indice,
-            total_progreso_general=total_operaciones,
-            sentidos_consultados=sentidos_consultados,
-            total_sentidos=sentidos_consultados,
-            paradas_consultadas=indice,
-            lineas_descubiertas=lineas_descubiertas,
-            paradas_descubiertas=total_postes,
-        )
-        if AVANZA_PAUSA_POSTES and indice < total_postes:
-            time.sleep(AVANZA_PAUSA_POSTES)
+            _actualizar_estado_avanza(
+                fase="consultando_gps",
+                progreso=indice,
+                total_progreso=total_postes,
+                progreso_general=progreso_catalogo + indice,
+                total_progreso_general=total_operaciones,
+                sentidos_consultados=sentidos_consultados,
+                total_sentidos=sentidos_consultados,
+                paradas_consultadas=indice,
+                coches_unicos_detectados=len(buses_por_coche),
+                lineas_descubiertas=lineas_descubiertas,
+                paradas_descubiertas=total_postes,
+            )
 
     if not paradas_consultadas and errores:
         raise ValueError(
@@ -2487,12 +2556,12 @@ def consultar_flota_avanza_urbana():
         "sentidos_consultados": sentidos_consultados,
         "actualizado": datetime.now(ZONA_HORARIA).isoformat(),
         "duracion_segundos": duracion,
+        "concurrencia_gps": AVANZA_CONCURRENCIA_GPS,
         "fuente": "GPS de Avanza Zaragoza · barrido de red",
         "aviso_cobertura": aviso_cobertura,
         "errores": errores[:20],
     }
     return resultado
-
 
 def _trabajador_barrido_avanza():
     try:
