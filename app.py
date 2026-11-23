@@ -2917,8 +2917,8 @@ def _fusionar_buses_avanza(buses_por_coche, buses_nuevos):
 
 def consultar_flota_avanza_urbana():
     """
-    Barre las paradas descubiertas. Si el proceso se interrumpe, retoma las
-    paradas ya consultadas y los coches obtenidos desde el último estado Redis.
+    Escanea las paradas con un pool continuo. Cada resultado libera un hilo que
+    inicia inmediatamente la siguiente consulta, sin barreras entre lotes.
     """
     inicio = time.monotonic()
     http = requests.Session()
@@ -2933,6 +2933,14 @@ def consultar_flota_avanza_urbana():
     total_postes = len(postes)
     if total_postes == 0:
         raise ValueError("No se han encontrado postes operativos de Avanza.")
+
+    # El catálogo se comparte en una clave separada y no se repite con cada flota.
+    _guardar_avanza_estado_compartido(catalogo={
+        "actualizado_epoch": time.time(),
+        "postes": postes,
+        "lineas": lineas_descubiertas,
+        "errores": errores_catalogo[:20],
+    })
 
     estado_compartido = _leer_avanza_estado_compartido().get("state") or {}
     escaneo_mismo = bool(
@@ -2958,7 +2966,7 @@ def consultar_flota_avanza_urbana():
         errores_gps = []
 
     buses_por_coche = {
-        str(bus["coche"]): bus for bus in buses_gps_parciales
+        str(bus["coche"]): dict(bus) for bus in buses_gps_parciales
     }
     with AVANZA_URBANOS_LOCK:
         buses_previos = [
@@ -2966,48 +2974,108 @@ def consultar_flota_avanza_urbana():
             if isinstance(bus, dict) and bus.get("coche")
         ]
 
-    progreso_inicial = min(len(postes_gps_completados), total_postes)
+    paradas_por_id = {
+        str(item["poste"]): dict(item)
+        for item in paradas_consultadas
+        if isinstance(item, dict) and item.get("poste") is not None
+    }
+    postes_por_numero = {str(item["poste"]): item for item in postes}
     total_operaciones = sentidos_consultados + total_postes
     _actualizar_estado_avanza(
         fase="consultando_gps",
-        progreso=progreso_inicial,
+        progreso=len(paradas_por_id),
         total_progreso=total_postes,
-        progreso_general=sentidos_consultados + progreso_inicial,
+        progreso_general=sentidos_consultados + len(paradas_por_id),
         total_progreso_general=total_operaciones,
         sentidos_consultados=sentidos_consultados,
         total_sentidos=sentidos_consultados,
-        paradas_gps_completadas=progreso_inicial,
+        paradas_gps_completadas=len(paradas_por_id),
         coches_unicos_detectados=len(buses_previos),
         buses_parciales=buses_previos,
         buses_gps_parciales=list(buses_por_coche.values()),
         postes_gps_completados=sorted(postes_gps_completados),
-        paradas_gps_consultadas=paradas_consultadas,
+        paradas_gps_consultadas=list(paradas_por_id.values()),
         errores_gps_parciales=errores_gps[-100:],
         lineas_descubiertas=lineas_descubiertas,
         paradas_descubiertas=total_postes,
     )
 
     errores = list(errores_catalogo) + errores_gps
-    postes_pendientes = [
-        parada_info for parada_info in postes
-        if str(parada_info["poste"]) not in postes_gps_completados
-    ]
-
+    pendientes_iter = iter([
+        item for item in postes
+        if str(item["poste"]) not in postes_gps_completados
+    ])
+    cola_refrescos = []
+    refrescos_pendientes_o_activos = set()
+    cursor_refresco = 0
+    nuevas_desde_refresco = 0
     ultimo_checkpoint_gps = time.monotonic()
     resultados_desde_checkpoint = 0
-    cursor_refresco = 0
 
-    postes_por_numero = {
-        str(item["poste"]): item for item in postes
-    }
+    def incorporar_respuesta_gps(resultado_parada, refresco=False):
+        poste_key = str(resultado_parada.get("poste"))
+        if resultado_parada.get("error"):
+            if not refresco:
+                errores.append(resultado_parada["error"])
+                errores_gps.append(resultado_parada["error"])
+                # Una parada fallida se considera procesada para evitar que un
+                # fallo permanente bloquee el final o haga un bucle infinito.
+                postes_gps_completados.add(poste_key)
+            return
+
+        if not refresco:
+            postes_gps_completados.add(poste_key)
+            paradas_por_id[poste_key] = {
+                "poste": resultado_parada["poste"],
+                "nombre": resultado_parada["nombre"],
+            }
+
+        coches_en_respuesta = {
+            str(bus.get("coche") or bus.get("id") or "")
+            for bus in resultado_parada.get("buses", [])
+        }
+        # Si una parada deja de anunciar un coche, elimina solo la posición
+        # que provenía de esa parada; otra parada puede seguir localizándolo.
+        for coche, anterior in list(buses_por_coche.items()):
+            if (
+                str(anterior.get("poste")) == poste_key
+                and coche not in coches_en_respuesta
+            ):
+                buses_por_coche.pop(coche, None)
+        _fusionar_buses_avanza(
+            buses_por_coche, resultado_parada.get("buses", [])
+        )
+
+    def programar_refrescos_activos():
+        nonlocal cursor_refresco, nuevas_desde_refresco
+        fuentes = sorted({
+            str(bus.get("poste"))
+            for bus in buses_por_coche.values()
+            if bus.get("poste") is not None and str(bus.get("poste")).isdigit()
+        }, key=int)
+        nuevas_desde_refresco = 0
+        if not fuentes:
+            return
+
+        cantidad = min(AVANZA_GPS_REFRESCOS_POR_LOTE, len(fuentes))
+        for indice in range(cantidad):
+            poste = fuentes[(cursor_refresco + indice) % len(fuentes)]
+            if poste in refrescos_pendientes_o_activos:
+                continue
+            parada_info = postes_por_numero.get(
+                poste, {"poste": int(poste), "nombre": f"Parada {poste}"}
+            )
+            cola_refrescos.append(parada_info)
+            refrescos_pendientes_o_activos.add(poste)
+        cursor_refresco = (cursor_refresco + cantidad) % len(fuentes)
 
     def publicar_progreso_gps(forzar=False):
         nonlocal ultimo_checkpoint_gps, resultados_desde_checkpoint
-        ahora_checkpoint = time.monotonic()
+        ahora = time.monotonic()
         if (
             not forzar
             and resultados_desde_checkpoint < 5
-            and ahora_checkpoint - ultimo_checkpoint_gps < 2.0
+            and ahora - ultimo_checkpoint_gps < 2.0
         ):
             return
 
@@ -3018,9 +3086,13 @@ def consultar_flota_avanza_urbana():
                 int(bus["coche"]) if str(bus.get("coche", "")).isdigit() else 0,
             ),
         )
-        buses_mostrados = {str(bus["coche"]): dict(bus) for bus in buses_previos}
+        buses_mostrados = {
+            str(bus["coche"]): dict(bus)
+            for bus in buses_previos if bus.get("coche")
+        }
         buses_mostrados.update({
-            str(bus["coche"]): dict(bus) for bus in buses_gps_ordenados
+            str(bus["coche"]): dict(bus)
+            for bus in buses_gps_ordenados if bus.get("coche")
         })
         buses_mostrados_ordenados = sorted(
             buses_mostrados.values(),
@@ -3030,19 +3102,19 @@ def consultar_flota_avanza_urbana():
             ),
         )
         paradas_ordenadas = sorted(
-            {str(item["poste"]): item for item in paradas_consultadas}.values(),
+            paradas_por_id.values(),
             key=lambda item: int(item["poste"]) if str(item["poste"]).isdigit() else str(item["poste"]),
         )
-        indice = min(len(postes_gps_completados), total_postes)
+        progreso_valido = len(paradas_ordenadas)
         _actualizar_estado_avanza(
             fase="consultando_gps",
-            progreso=indice,
+            progreso=progreso_valido,
             total_progreso=total_postes,
-            progreso_general=sentidos_consultados + indice,
+            progreso_general=sentidos_consultados + progreso_valido,
             total_progreso_general=total_operaciones,
             sentidos_consultados=sentidos_consultados,
             total_sentidos=sentidos_consultados,
-            paradas_gps_completadas=indice,
+            paradas_gps_completadas=progreso_valido,
             coches_unicos_detectados=len(buses_mostrados_ordenados),
             buses_parciales=buses_mostrados_ordenados,
             buses_gps_parciales=buses_gps_ordenados,
@@ -3052,29 +3124,40 @@ def consultar_flota_avanza_urbana():
             lineas_descubiertas=lineas_descubiertas,
             paradas_descubiertas=total_postes,
         )
-        ultimo_checkpoint_gps = ahora_checkpoint
+        ultimo_checkpoint_gps = ahora
         resultados_desde_checkpoint = 0
 
-    # No se encolan todas las paradas de golpe: al cerrar cada lote se
-    # reconsultan algunos postes que ya han localizado autobuses.
-    for inicio_lote in range(0, len(postes_pendientes), AVANZA_GPS_PARADAS_POR_LOTE):
-        lote = postes_pendientes[
-            inicio_lote:inicio_lote + AVANZA_GPS_PARADAS_POR_LOTE
-        ]
-        with ThreadPoolExecutor(
-            max_workers=AVANZA_CONCURRENCIA_GPS,
-            thread_name_prefix="avanza-gps",
-        ) as executor:
-            futuros = {
-                executor.submit(_consultar_poste_gps_avanza, parada_info): parada_info
-                for parada_info in lote
-            }
+    def siguiente_tarea():
+        if cola_refrescos:
+            parada_info = cola_refrescos.pop(0)
+            return "refresco", parada_info
+        try:
+            return "nueva", next(pendientes_iter)
+        except StopIteration:
+            return None, None
 
-            for futuro in as_completed(futuros):
+    futuros = {}
+    with ThreadPoolExecutor(
+        max_workers=AVANZA_CONCURRENCIA_GPS,
+        thread_name_prefix="avanza-gps",
+    ) as executor:
+        def rellenar_hilos():
+            while len(futuros) < AVANZA_CONCURRENCIA_GPS:
+                tipo, parada_info = siguiente_tarea()
+                if tipo is None:
+                    return
+                futuro = executor.submit(_consultar_poste_gps_avanza, parada_info)
+                futuros[futuro] = (tipo, parada_info)
+
+        rellenar_hilos()
+        while futuros:
+            terminados, _ = wait(tuple(futuros), return_when=FIRST_COMPLETED)
+            for futuro in terminados:
+                tipo, parada_info = futuros.pop(futuro)
+                poste_key = str(parada_info["poste"])
                 try:
                     resultado_parada = futuro.result()
                 except Exception as exc:
-                    parada_info = futuros[futuro]
                     resultado_parada = {
                         "poste": parada_info["poste"],
                         "nombre": parada_info.get("nombre") or f"Parada {parada_info['poste']}",
@@ -3082,78 +3165,23 @@ def consultar_flota_avanza_urbana():
                         "error": f"poste {parada_info['poste']}: {str(exc)[:160]}",
                     }
 
-                poste_key = str(resultado_parada["poste"])
-                postes_gps_completados.add(poste_key)
-                if resultado_parada.get("error"):
-                    errores.append(resultado_parada["error"])
-                    errores_gps.append(resultado_parada["error"])
-                else:
-                    paradas_consultadas.append({
-                        "poste": resultado_parada["poste"],
-                        "nombre": resultado_parada["nombre"],
-                    })
-
-                _fusionar_buses_avanza(
-                    buses_por_coche, resultado_parada.get("buses", [])
+                incorporar_respuesta_gps(
+                    resultado_parada, refresco=(tipo == "refresco")
                 )
+                if tipo == "refresco":
+                    refrescos_pendientes_o_activos.discard(poste_key)
+                else:
+                    nuevas_desde_refresco += 1
+                    if nuevas_desde_refresco >= 20:
+                        programar_refrescos_activos()
+
                 resultados_desde_checkpoint += 1
                 publicar_progreso_gps()
+            rellenar_hilos()
 
-        # Primera publicación del lote: los coches ya aparecen en el mapa.
-        publicar_progreso_gps(forzar=True)
+    publicar_progreso_gps(forzar=True)
 
-        # Reconsulta unos pocos postes que ya han devuelto coches. Esto actualiza
-        # coordenadas de vehículos conocidos sin esperar al final de toda la red.
-        buses_conocidos = {
-            str(bus["coche"]): dict(bus) for bus in buses_previos
-            if bus.get("coche")
-        }
-        buses_conocidos.update({
-            str(bus["coche"]): dict(bus) for bus in buses_por_coche.values()
-            if bus.get("coche")
-        })
-        fuentes = sorted({
-            str(bus.get("poste"))
-            for bus in buses_conocidos.values()
-            if bus.get("poste") is not None and str(bus.get("poste")).isdigit()
-        }, key=int)
-
-        if fuentes:
-            cantidad_refrescos = min(AVANZA_GPS_REFRESCOS_POR_LOTE, len(fuentes))
-            seleccion = [
-                fuentes[(cursor_refresco + indice) % len(fuentes)]
-                for indice in range(cantidad_refrescos)
-            ]
-            cursor_refresco = (cursor_refresco + cantidad_refrescos) % len(fuentes)
-            paradas_refresco = [
-                postes_por_numero.get(poste, {
-                    "poste": int(poste), "nombre": f"Parada {poste}"
-                })
-                for poste in seleccion
-            ]
-            with ThreadPoolExecutor(
-                max_workers=min(AVANZA_GPS_REFRESCOS_POR_LOTE, len(paradas_refresco)),
-                thread_name_prefix="avanza-gps-refresh",
-            ) as executor:
-                futuros_refresco = [
-                    executor.submit(_consultar_poste_gps_avanza, parada_info)
-                    for parada_info in paradas_refresco
-                ]
-                for futuro in as_completed(futuros_refresco):
-                    try:
-                        resultado_refresco = futuro.result()
-                    except Exception:
-                        continue
-                    if not resultado_refresco.get("error"):
-                        _fusionar_buses_avanza(
-                            buses_por_coche, resultado_refresco.get("buses", [])
-                        )
-
-            # Publica las coordenadas refrescadas sin incrementar el porcentaje:
-            # los refrescos no son nuevas paradas del barrido.
-            publicar_progreso_gps(forzar=True)
-
-    if not paradas_consultadas and errores:
+    if not paradas_por_id and errores:
         raise ValueError(
             "No se ha podido consultar ninguna parada de Avanza. " +
             " | ".join(errores[:5])
@@ -3168,13 +3196,13 @@ def consultar_flota_avanza_urbana():
         )
     elif errores_catalogo:
         aviso_cobertura = (
-            "Cobertura parcial: algunos recorridos no se han podido leer. " +
+            "Cobertura parcial: algunos recorridos no se han podido leer. "
             "Se han deduplicado los coches recibidos, pero pueden faltar vehículos."
         )
     else:
         aviso_cobertura = (
-            "Se han consultado los postes encontrados en todos los recorridos " +
-            "publicados por Avanza y se han agrupado los coches repetidos. " +
+            "Se han consultado los postes encontrados en todos los recorridos "
+            "publicados por Avanza y se han agrupado los coches repetidos. "
             "La fuente puede omitir vehículos que no anuncie en ninguno de esos postes."
         )
 
@@ -3187,7 +3215,7 @@ def consultar_flota_avanza_urbana():
             ),
         ),
         "paradas_consultadas": sorted(
-            {str(item["poste"]): item for item in paradas_consultadas}.values(),
+            paradas_por_id.values(),
             key=lambda item: int(item["poste"]) if str(item["poste"]).isdigit() else str(item["poste"]),
         ),
         "total_paradas": total_postes,
@@ -3206,7 +3234,6 @@ def consultar_flota_avanza_urbana():
     return resultado
 
 
- 
 def _seguir_actualizando_flota_avanza(resultado, timestamp_cache):
     """
     Refresca prioritariamente los postes que están proporcionando autobuses y
