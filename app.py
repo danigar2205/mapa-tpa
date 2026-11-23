@@ -3236,12 +3236,11 @@ def consultar_flota_avanza_urbana():
 
 def _seguir_actualizando_flota_avanza(resultado, timestamp_cache):
     """
-    Refresca prioritariamente los postes que están proporcionando autobuses y
-    reserva algunas consultas para seguir descubriendo vehículos en el resto
-    de la red. El escaneo completo se repetirá al vencer la caché.
+    Refresca paradas activas y explora algunas nuevas en rotación. Reutiliza
+    el mismo pool durante todo el ciclo para reducir arranques de hilos.
     """
     postes_red = list(resultado.get("_postes_red") or [])
-    if not postes_red or not resultado.get("buses"):
+    if not postes_red:
         return
 
     buses_por_coche = {
@@ -3253,53 +3252,57 @@ def _seguir_actualizando_flota_avanza(resultado, timestamp_cache):
     cursor_activos = 0
     cursor_novedades = 0
 
-    while time.time() - timestamp_cache < AVANZA_URBANOS_TTL:
-        restante = AVANZA_URBANOS_TTL - (time.time() - timestamp_cache)
-        if restante <= 0:
-            break
-        time.sleep(min(AVANZA_GPS_SEGUIMIENTO_INTERVALO, restante))
-        if time.time() - timestamp_cache >= AVANZA_URBANOS_TTL:
-            break
+    with ThreadPoolExecutor(
+        max_workers=AVANZA_CONCURRENCIA_GPS,
+        thread_name_prefix="avanza-gps-live",
+    ) as executor:
+        while time.time() - timestamp_cache < AVANZA_URBANOS_TTL:
+            restante = AVANZA_URBANOS_TTL - (time.time() - timestamp_cache)
+            if restante <= 0:
+                break
+            time.sleep(min(AVANZA_GPS_SEGUIMIENTO_INTERVALO, restante))
+            if time.time() - timestamp_cache >= AVANZA_URBANOS_TTL:
+                break
 
-        # Prioridad: volver a preguntar en paradas que han localizado coches.
-        postes_activos = sorted({
-            str(bus.get("poste"))
-            for bus in buses_por_coche.values()
-            if bus.get("poste") is not None and str(bus.get("poste")).isdigit()
-        }, key=int)
-        cantidad_activos = min(AVANZA_GPS_SEGUIMIENTO_LOTE, len(postes_activos))
-        lote_activo = [
-            postes_por_numero[postes_activos[(cursor_activos + indice) % len(postes_activos)]]
-            for indice in range(cantidad_activos)
-        ] if cantidad_activos else []
-        if postes_activos:
-            cursor_activos = (cursor_activos + cantidad_activos) % len(postes_activos)
+            postes_activos = sorted({
+                str(bus.get("poste"))
+                for bus in buses_por_coche.values()
+                if bus.get("poste") is not None and str(bus.get("poste")).isdigit()
+            }, key=int)
+            cantidad_activos = min(AVANZA_GPS_SEGUIMIENTO_LOTE, len(postes_activos))
+            lote_activo = [
+                postes_por_numero[postes_activos[
+                    (cursor_activos + indice) % len(postes_activos)
+                ]]
+                for indice in range(cantidad_activos)
+            ] if cantidad_activos else []
+            if postes_activos:
+                cursor_activos = (cursor_activos + cantidad_activos) % len(postes_activos)
 
-        # Un pequeño lote de exploración evita limitarse para siempre a las
-        # paradas que ya habían anunciado vehículos en el primer barrido.
-        ids_activos = {str(item["poste"]) for item in lote_activo}
-        novedades = []
-        intentos_novedades = 0
-        while (
-            len(novedades) < AVANZA_GPS_SEGUIMIENTO_NOVEDADES
-            and intentos_novedades < len(postes_red)
-        ):
-            item = postes_red[cursor_novedades % len(postes_red)]
-            cursor_novedades = (cursor_novedades + 1) % len(postes_red)
-            intentos_novedades += 1
-            if str(item["poste"]) not in ids_activos:
-                novedades.append(item)
-                ids_activos.add(str(item["poste"]))
+            ids_activos = {str(item["poste"]) for item in lote_activo}
+            novedades = []
+            intentos_novedades = 0
+            limite_novedades = (
+                AVANZA_CONCURRENCIA_GPS
+                if not postes_activos
+                else AVANZA_GPS_SEGUIMIENTO_NOVEDADES
+            )
+            while (
+                len(novedades) < limite_novedades
+                and intentos_novedades < len(postes_red)
+            ):
+                item = postes_red[cursor_novedades % len(postes_red)]
+                cursor_novedades = (cursor_novedades + 1) % len(postes_red)
+                intentos_novedades += 1
+                if str(item["poste"]) not in ids_activos:
+                    novedades.append(item)
+                    ids_activos.add(str(item["poste"]))
 
-        lote = lote_activo + novedades
-        if not lote:
-            break
+            lote = lote_activo + novedades
+            if not lote:
+                break
 
-        consultas_correctas = 0
-        with ThreadPoolExecutor(
-            max_workers=AVANZA_CONCURRENCIA_GPS,
-            thread_name_prefix="avanza-gps-live",
-        ) as executor:
+            consultas_correctas = 0
             futuros = {
                 executor.submit(_consultar_poste_gps_avanza, parada_info): parada_info
                 for parada_info in lote
@@ -3318,44 +3321,46 @@ def _seguir_actualizando_flota_avanza(resultado, timestamp_cache):
                     str(bus.get("coche") or bus.get("id") or "")
                     for bus in consulta.get("buses", [])
                 }
-                # Si un poste ya no anuncia un coche, no conservar eternamente
-                # su antigua posición procedente de esa misma parada.
                 for coche, anterior in list(buses_por_coche.items()):
                     if (
                         str(anterior.get("poste")) == poste_consultado
                         and coche not in coches_en_respuesta
                     ):
                         buses_por_coche.pop(coche, None)
-
                 _fusionar_buses_avanza(
                     buses_por_coche, consulta.get("buses", [])
                 )
 
-        ahora_epoch = time.time()
-        # Evita conservar indefinidamente vehículos cuyas posiciones dejaron
-        # de llegar desde la fuente GPS.
-        for coche, bus in list(buses_por_coche.items()):
-            try:
-                edad_bus = ahora_epoch - float(bus.get("capturado_epoch") or 0)
-            except (TypeError, ValueError):
-                edad_bus = AVANZA_GPS_BUS_ANTIGUEDAD_MAX + 1
-            if edad_bus > AVANZA_GPS_BUS_ANTIGUEDAD_MAX:
-                buses_por_coche.pop(coche, None)
+            ahora_epoch = time.time()
+            for coche, bus in list(buses_por_coche.items()):
+                try:
+                    edad_bus = ahora_epoch - float(bus.get("capturado_epoch") or 0)
+                except (TypeError, ValueError):
+                    edad_bus = AVANZA_GPS_BUS_ANTIGUEDAD_MAX + 1
+                if edad_bus > AVANZA_GPS_BUS_ANTIGUEDAD_MAX:
+                    buses_por_coche.pop(coche, None)
 
-        buses_actualizados = sorted(
-            buses_por_coche.values(),
-            key=lambda bus: (
-                str(bus.get("linea") or ""),
-                int(bus["coche"]) if str(bus.get("coche", "")).isdigit() else 0,
-            ),
-        )
-        heartbeat = ahora_epoch
-        actualizado = datetime.fromtimestamp(
-            ahora_epoch, ZONA_HORARIA
-        ).isoformat()
+            if not consultas_correctas:
+                with AVANZA_URBANOS_LOCK:
+                    AVANZA_URBANOS_STATE.update({
+                        "seguimiento_en_curso": True,
+                        "heartbeat_epoch": ahora_epoch,
+                    })
+                    estado_latido = dict(AVANZA_URBANOS_STATE)
+                _guardar_avanza_estado_compartido(estado=estado_latido)
+                continue
 
-        estado_actualizado = None
-        if consultas_correctas:
+            buses_actualizados = sorted(
+                buses_por_coche.values(),
+                key=lambda bus: (
+                    str(bus.get("linea") or ""),
+                    int(bus["coche"]) if str(bus.get("coche", "")).isdigit() else 0,
+                ),
+            )
+            actualizado = datetime.fromtimestamp(
+                ahora_epoch, ZONA_HORARIA
+            ).isoformat()
+
             resultado_cache = dict(resultado)
             resultado_cache["buses"] = buses_actualizados
             resultado_cache["actualizado"] = actualizado
@@ -3363,7 +3368,6 @@ def _seguir_actualizando_flota_avanza(resultado, timestamp_cache):
 
             with AVANZA_URBANOS_LOCK:
                 AVANZA_URBANOS_CACHE.update({
-                    # El TTL del barrido completo no se renueva con cada refresco.
                     "timestamp": timestamp_cache,
                     "data": resultado_cache,
                 })
@@ -3372,24 +3376,15 @@ def _seguir_actualizando_flota_avanza(resultado, timestamp_cache):
                     "seguimiento_en_curso": True,
                     "actualizado": actualizado,
                     "actualizado_epoch": ahora_epoch,
-                    "heartbeat_epoch": heartbeat,
+                    "heartbeat_epoch": ahora_epoch,
                 })
                 estado_actualizado = dict(AVANZA_URBANOS_STATE)
+
             _guardar_avanza_estado_compartido(
                 estado=estado_actualizado,
                 cache={"timestamp": timestamp_cache, "data": resultado_cache},
                 actualizar_cache=True,
             )
-        else:
-            # Aunque Avanza falle temporalmente, publica un latido para que
-            # otra instancia no inicie un segundo seguimiento en paralelo.
-            with AVANZA_URBANOS_LOCK:
-                AVANZA_URBANOS_STATE.update({
-                    "seguimiento_en_curso": True,
-                    "heartbeat_epoch": heartbeat,
-                })
-                estado_actualizado = dict(AVANZA_URBANOS_STATE)
-            _guardar_avanza_estado_compartido(estado=estado_actualizado)
 
 
 def _trabajador_seguimiento_avanza(resultado, timestamp_cache, descriptor_bloqueo):
@@ -3562,7 +3557,7 @@ def iniciar_barrido_avanza_si_necesario(forzar=False):
                 if isinstance(datos_compartidos.get("state"), dict):
                     AVANZA_URBANOS_STATE.update(datos_compartidos["state"])
 
-            if heartbeat_vivo or not cacheada.get("_postes_red") or not cacheada.get("buses"):
+            if heartbeat_vivo or not cacheada.get("_postes_red"):
                 _liberar_bloqueo_avanza_compartido(descriptor)
                 AVANZA_URBAN_SCAN_LOCK.release()
                 return
