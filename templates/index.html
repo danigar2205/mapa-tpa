@@ -7869,12 +7869,21 @@
     .avanza-bus-popup-head div { display: flex; flex-direction: column; gap: 2px; }
     .avanza-bus-popup-head small { color: #738496; font-size: 8px; font-weight: 800; letter-spacing: .1em; }
     .avanza-bus-popup-head strong { font-size: 14px; }
-    .avanza-bus-popup-destination { margin-top: 11px; font-size: 12px; font-weight: 700; }
-    .avanza-bus-popup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
-    .avanza-bus-popup-grid div { display: flex; flex-direction: column; gap: 3px; padding: 8px; border-radius: 7px; background: #f1f5f9; }
-    .avanza-bus-popup-grid span { color: #6b7d8c; font-size: 9px; }
-    .avanza-bus-popup-grid strong { font-size: 11px; }
-    .avanza-bus-popup-stop { display: block; margin-top: 9px; color: #718294; font-size: 9px; }
+    .avanza-bus-list { margin-top: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,.09); border-radius: 10px; background: rgba(255,255,255,.035); }
+    .avanza-bus-list-top { display: flex; align-items: center; justify-content: space-between; padding: 9px 10px 7px; }
+    .avanza-bus-list-top span { color: #c5d8e6; font-size: 9px; font-weight: 800; letter-spacing: .08em; }
+    .avanza-bus-list-top strong { color: #7dd3fc; font-size: 11px; font-variant-numeric: tabular-nums; }
+    .avanza-bus-list-head, .avanza-bus-list-row { display: grid; grid-template-columns: 58px 46px minmax(0, 1fr); align-items: center; gap: 7px; }
+    .avanza-bus-list-head { padding: 6px 10px; border-top: 1px solid rgba(255,255,255,.07); border-bottom: 1px solid rgba(255,255,255,.07); background: rgba(255,255,255,.035); }
+    .avanza-bus-list-head span { color: #8297a9; font-size: 8px; font-weight: 800; letter-spacing: .06em; }
+    .avanza-bus-list-items { max-height: 170px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(148,163,184,.35) transparent; }
+    .avanza-bus-list-row { min-height: 31px; padding: 5px 10px; border-bottom: 1px solid rgba(255,255,255,.055); }
+    .avanza-bus-list-row:last-child { border-bottom: 0; }
+    .avanza-bus-list-car { color: #f8fafc; font-size: 10px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .avanza-bus-list-line { display: inline-grid; place-items: center; min-width: 28px; padding: 3px 4px; border-radius: 5px; background: var(--avanza-line-color,#176f94); color: #fff; font-size: 9px; font-weight: 900; }
+    .avanza-bus-list-direction { overflow: hidden; color: #d3dfeb; font-size: 9px; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+    .avanza-bus-list-empty { padding: 12px 10px; color: #9fb0c2; font-size: 9px; }
+    body.theme-dark .avanza-urbanos-panel { border-color: #334b5c; background: rgba(10,22,35,.95); }
     body.theme-dark .avanza-urbanos-panel { border-color: #334b5c; background: rgba(10,22,35,.95); }
     @media (max-width: 720px) {
       .avanza-urbanos-panel { top: max(8px, env(safe-area-inset-top)); left: 8px; width: calc(100vw - 16px); max-height: min(45dvh, 430px); padding: 12px; border-radius: 13px; }
@@ -7884,6 +7893,9 @@
       .avanza-panel-stats > div { padding: 8px; }
       .avanza-panel-note { margin-top: 9px; font-size: 9px; }
       .avanza-panel-message { font-size: 9px; }
+      .avanza-bus-list { margin-top: 9px; }
+      .avanza-bus-list-items { max-height: 118px; }
+      .avanza-bus-list-row { min-height: 29px; }
     }
 
   </style>
@@ -8496,6 +8508,18 @@
         <span id="avanza-progress-buses">0 coches</span>
       </div>
     </div>
+    <section class="avanza-bus-list" aria-label="Listado de autobuses localizados">
+      <div class="avanza-bus-list-top">
+        <span>VEHÍCULOS LOCALIZADOS</span>
+        <strong id="avanza-list-count">0</strong>
+      </div>
+      <div class="avanza-bus-list-head" aria-hidden="true">
+        <span>COCHE</span><span>LÍNEA</span><span>SENTIDO</span>
+      </div>
+      <div class="avanza-bus-list-items" id="avanza-bus-list" role="list" aria-live="polite">
+        <div class="avanza-bus-list-empty">Esperando posiciones GPS…</div>
+      </div>
+    </section>
     <p class="avanza-panel-note" id="avanza-coverage-note">Consultando las posiciones publicadas por Avanza…</p>
     <p class="avanza-panel-message" id="avanza-panel-message" role="status" aria-live="polite"></p>
     <button type="button" class="avanza-refresh-button" id="avanza-refresh-button" onclick="actualizarAvanzaUrbanos(true)">
@@ -9789,6 +9813,9 @@
       panel.hidden = false;
       document.getElementById('avanza-bus-count').textContent = '—';
       document.getElementById('avanza-last-update').textContent = '—';
+      document.getElementById('avanza-list-count').textContent = '0';
+      document.getElementById('avanza-bus-list').innerHTML = '<div class="avanza-bus-list-empty">Esperando posiciones GPS…</div>';
+      document.getElementById('avanza-bus-list').dataset.rendered = '';
       document.getElementById('avanza-coverage-note').textContent = 'Preparando el barrido de todas las paradas y líneas de Avanza…';
       document.getElementById('avanza-panel-message').textContent = '';
       document.getElementById('avanza-progress-card').dataset.state = 'loading';
@@ -9847,6 +9874,31 @@
         const buses = Array.isArray(datos.buses) ? datos.buses : [];
         const idsActuales = new Set();
         const posiciones = [];
+        const listaVehiculos = buses
+          .filter(bus => String(bus.coche || bus.id || '').trim())
+          .map(bus => ({
+            coche: String(bus.coche || bus.id || '').trim(),
+            linea: String(bus.linea || '?').trim(),
+            sentido: String(bus.sentido || bus.destino || 'Sentido no indicado').trim()
+          }))
+          .sort((a, b) => a.linea.localeCompare(b.linea, 'es', { numeric: true }) ||
+            a.coche.localeCompare(b.coche, 'es', { numeric: true }));
+        const listadoHTML = listaVehiculos.length
+          ? listaVehiculos.map(bus => {
+              const color = colorLineaAvanza(bus.linea);
+              return `<div class="avanza-bus-list-row" role="listitem">
+                <strong class="avanza-bus-list-car">${escaparHTML(bus.coche)}</strong>
+                <span class="avanza-bus-list-line" style="--avanza-line-color:${color}">${escaparHTML(bus.linea)}</span>
+                <span class="avanza-bus-list-direction" title="${escaparHTML(bus.sentido)}">${escaparHTML(bus.sentido)}</span>
+              </div>`;
+            }).join('')
+          : '<div class="avanza-bus-list-empty">Esperando posiciones GPS…</div>';
+        const contenedorListado = document.getElementById('avanza-bus-list');
+        if (contenedorListado.dataset.rendered !== listadoHTML) {
+          contenedorListado.innerHTML = listadoHTML;
+          contenedorListado.dataset.rendered = listadoHTML;
+        }
+        document.getElementById('avanza-list-count').textContent = String(listaVehiculos.length);
 
         buses.forEach(bus => {
           const coche = String(bus.coche || bus.id || '').trim();
@@ -9871,21 +9923,11 @@
             iconAnchor: [anchoEtiqueta / 2, 21]
           });
 
-          const eta = bus.eta_minutos == null ? 'Sin estimación' :
-            (Number(bus.eta_minutos) <= 0 ? 'Llegando' : Number(bus.eta_minutos) + ' min');
-          const distancia = bus.distancia_km == null ? 'Sin dato' :
-            Number(bus.distancia_km).toLocaleString('es-ES', { maximumFractionDigits: 1 }) + ' km';
           const popup = `<div class="avanza-bus-popup">
             <div class="avanza-bus-popup-head">
               <span class="avanza-bus-popup-line" style="--avanza-line-color:${color}">${escaparHTML(linea)}</span>
               <div><small>AUTOBÚS URBANO</small><strong>Coche ${escaparHTML(coche)}</strong></div>
             </div>
-            <div class="avanza-bus-popup-destination">${escaparHTML(bus.destino || 'Destino no indicado')}</div>
-            <div class="avanza-bus-popup-grid">
-              <div><span>Tiempo</span><strong>${escaparHTML(eta)}</strong></div>
-              <div><span>Distancia</span><strong>${escaparHTML(distancia)}</strong></div>
-            </div>
-            <small class="avanza-bus-popup-stop">Detectado desde: ${escaparHTML(bus.parada || ('Parada ' + bus.poste))}</small>
           </div>`;
 
           if (marcadoresAvanzaUrbanos[id]) {
@@ -9991,7 +10033,7 @@
         mensaje.textContent = enEscaneo
           ? (buses.length
               ? 'Se mantiene el último mapa mientras se actualizan las posiciones.'
-              : 'Se están recorriendo las líneas y paradas; los autobuses aparecerán al terminar el primer barrido.')
+              : 'Se están consultando las paradas; los coches aparecerán aquí conforme lleguen las posiciones GPS.')
           : (datos.fase === 'error'
               ? 'No se ha podido completar el barrido: ' + String(datos.ultimo_error || 'error de conexión')
               : (datos.errores?.length
