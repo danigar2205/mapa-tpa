@@ -2418,6 +2418,24 @@ def consultar_flota_avanza_urbana():
         )
 
     duracion = round(time.monotonic() - inicio, 1)
+    if lineas_descubiertas == 0:
+        aviso_cobertura = (
+            "Cobertura limitada: no se ha podido descubrir el catálogo completo " +
+            "de recorridos y se ha recurrido a los postes configurados o al poste 14. " +
+            "Este resultado no representa toda la flota."
+        )
+    elif errores_catalogo:
+        aviso_cobertura = (
+            "Cobertura parcial: algunos recorridos no se han podido leer. " +
+            "Se han deduplicado los coches recibidos, pero pueden faltar vehículos."
+        )
+    else:
+        aviso_cobertura = (
+            "Se han consultado los postes encontrados en todos los recorridos " +
+            "publicados por Avanza y se han agrupado los coches repetidos. " +
+            "La fuente puede omitir vehículos que no anuncie en ninguno de esos postes."
+        )
+
     resultado = {
         "buses": sorted(
             buses_por_coche.values(),
@@ -2434,11 +2452,7 @@ def consultar_flota_avanza_urbana():
         "actualizado": datetime.now(ZONA_HORARIA).isoformat(),
         "duracion_segundos": duracion,
         "fuente": "GPS de Avanza Zaragoza · barrido de red",
-        "aviso_cobertura": (
-            "Se han consultado los postes encontrados en todos los recorridos " +
-            "publicados por Avanza y se han agrupado los coches repetidos. " +
-            "La fuente puede omitir vehículos que no anuncie en ninguno de esos postes."
-        ),
+        "aviso_cobertura": aviso_cobertura,
         "errores": errores[:20],
     }
     return resultado
