@@ -56,5 +56,93 @@ class AvanzaScanLifecycleTests(unittest.TestCase):
         )
 
 
+
+
+class AvanzaStopResponseTests(unittest.TestCase):
+    def setUp(self):
+        self.completados = set()
+        self.paradas = {}
+        self.fallos = {}
+        self.errores = {}
+
+    def test_failed_stop_is_kept_pending_for_retry(self):
+        resultado = {
+            "poste": 812,
+            "nombre": "Parada 812",
+            "buses": [],
+            "error": "Read timed out",
+        }
+
+        valida = app_module._registrar_resultado_parada_avanza(
+            resultado,
+            self.completados,
+            self.paradas,
+            self.fallos,
+            self.errores,
+        )
+
+        self.assertFalse(valida)
+        self.assertNotIn("812", self.completados)
+        self.assertIn("812", self.fallos)
+        self.assertIn("812", self.errores)
+        self.assertNotIn("812", self.paradas)
+
+    def test_valid_empty_response_counts_as_a_successful_stop(self):
+        resultado = {
+            "poste": 812,
+            "nombre": "Parada 812",
+            "buses": [],
+            "error": None,
+        }
+
+        valida = app_module._registrar_resultado_parada_avanza(
+            resultado,
+            self.completados,
+            self.paradas,
+            self.fallos,
+            self.errores,
+        )
+
+        self.assertTrue(valida)
+        self.assertIn("812", self.completados)
+        self.assertIn("812", self.paradas)
+        self.assertNotIn("812", self.fallos)
+        self.assertNotIn("812", self.errores)
+
+    def test_successful_retry_clears_previous_failure(self):
+        fallo = {
+            "poste": 812,
+            "nombre": "Parada 812",
+            "buses": [],
+            "error": "Read timed out",
+        }
+        app_module._registrar_resultado_parada_avanza(
+            fallo,
+            self.completados,
+            self.paradas,
+            self.fallos,
+            self.errores,
+        )
+
+        recuperada = {
+            "poste": 812,
+            "nombre": "Parada 812",
+            "buses": [],
+            "error": None,
+        }
+        valida = app_module._registrar_resultado_parada_avanza(
+            recuperada,
+            self.completados,
+            self.paradas,
+            self.fallos,
+            self.errores,
+        )
+
+        self.assertTrue(valida)
+        self.assertIn("812", self.completados)
+        self.assertNotIn("812", self.fallos)
+        self.assertNotIn("812", self.errores)
+
+
 if __name__ == "__main__":
     unittest.main()
