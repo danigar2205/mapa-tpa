@@ -9989,9 +9989,18 @@
           const id = coche;
           idsActuales.add(id);
           posiciones.push([lat, lon]);
-          const color = colorLineaAvanza(linea);
           const anchoEtiqueta = Math.max(68, 39 + String(coche).length * 8);
-          const icono = L.divIcon({
+          const sentido = String(bus.sentido || bus.destino || '').trim();
+          const claveIcono = linea + '|' + coche;
+          const clavePopup = claveIcono + '|' + (sentido || 'Dirección no indicada');
+          const marcadorExistente = marcadoresAvanzaUrbanos[id];
+          const metadatosPrevios = metadatosMarcadoresAvanza[id] || {};
+          const necesitaIcono = !marcadorExistente || metadatosPrevios.claveIcono !== claveIcono;
+          const necesitaPopup = !marcadorExistente || metadatosPrevios.clavePopup !== clavePopup;
+          const color = (!necesitaIcono && metadatosPrevios.color)
+            ? metadatosPrevios.color : colorLineaAvanza(linea);
+
+          const crearIcono = () => L.divIcon({
             className: 'avanza-bus-marker',
             html: `<span class="avanza-map-bus" style="--avanza-line-color:${color};--avanza-marker-width:${anchoEtiqueta}px">
               <i class="fa-solid fa-bus-simple" aria-hidden="true"></i>
@@ -10000,9 +10009,7 @@
             iconSize: [anchoEtiqueta, 42],
             iconAnchor: [anchoEtiqueta / 2, 21]
           });
-
-          const sentido = String(bus.sentido || bus.destino || '').trim();
-          const popup = `<div class="avanza-bus-popup">
+          const crearPopup = () => `<div class="avanza-bus-popup">
             <div class="avanza-bus-popup-head">
               <span class="avanza-bus-popup-line" style="--avanza-line-color:${color}">${escaparHTML(linea)}</span>
               <div><small>AUTOBÚS URBANO</small><strong>Coche ${escaparHTML(coche)}</strong></div>
@@ -10013,29 +10020,26 @@
             </div>
           </div>`;
 
-          const claveIcono = linea + '|' + coche;
-          const clavePopup = claveIcono + '|' + (sentido || 'Dirección no indicada');
-          if (marcadoresAvanzaUrbanos[id]) {
-            const marcador = marcadoresAvanzaUrbanos[id];
-            const posicionActual = marcador.getLatLng();
+          if (marcadorExistente) {
+            const posicionActual = marcadorExistente.getLatLng();
             // Evita trabajo de Leaflet cuando la coordenada sigue siendo la misma.
             if (Math.abs(posicionActual.lat - lat) > 0.000001 ||
                 Math.abs(posicionActual.lng - lon) > 0.000001) {
-              marcador.setLatLng([lat, lon]);
+              marcadorExistente.setLatLng([lat, lon]);
             }
-            const metadatos = metadatosMarcadoresAvanza[id] || {};
-            if (metadatos.claveIcono !== claveIcono) {
-              marcador.setIcon(icono);
-            }
-            if (metadatos.clavePopup !== clavePopup) {
-              marcador.setPopupContent(popup);
-            }
-            metadatosMarcadoresAvanza[id] = { claveIcono, clavePopup };
+            if (necesitaIcono) marcadorExistente.setIcon(crearIcono());
+            if (necesitaPopup) marcadorExistente.setPopupContent(crearPopup());
           } else {
-            marcadoresAvanzaUrbanos[id] = L.marker([lat, lon], { icon: icono }).addTo(map);
-            marcadoresAvanzaUrbanos[id].bindPopup(popup);
-            metadatosMarcadoresAvanza[id] = { claveIcono, clavePopup };
+            marcadoresAvanzaUrbanos[id] = L.marker(
+              [lat, lon], { icon: crearIcono() }
+            ).addTo(map);
+            marcadoresAvanzaUrbanos[id].bindPopup(crearPopup());
           }
+          metadatosMarcadoresAvanza[id] = {
+            claveIcono,
+            clavePopup,
+            color
+          };
           if (!map.hasLayer(marcadoresAvanzaUrbanos[id])) {
             marcadoresAvanzaUrbanos[id].addTo(map);
           }
