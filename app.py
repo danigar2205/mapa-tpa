@@ -2919,17 +2919,30 @@ def _consultar_poste_gps_avanza(parada_info):
         "Origin": "https://gps.avanzabus.com",
     }
 
-    # Un único reintento para errores de conexión o respuestas temporales del servidor.
-    # Los timeouts de lectura no se repiten aquí: una segunda espera por cada poste
-    # podría alargar demasiado un barrido completo.
+    # Un único reintento para fallos transitorios. Si vence la primera lectura,
+    # se reintenta una sola vez con un límite menor para no eternizar el barrido.
     for intento in range(2):
         try:
             respuesta = sesion.post(
                 AVANZA_URBANOS_ENDPOINT,
                 data={"poste": str(poste), "coche": "0"},
                 headers=headers,
-                timeout=(AVANZA_GPS_TIMEOUT_CONNECT, AVANZA_GPS_TIMEOUT_READ),
+                timeout=(
+                    AVANZA_GPS_TIMEOUT_CONNECT,
+                    AVANZA_GPS_TIMEOUT_READ if intento == 0
+                    else min(4.0, AVANZA_GPS_TIMEOUT_READ),
+                ),
             )
+        except requests.exceptions.ReadTimeout as exc:
+            if intento == 0:
+                time.sleep(0.4)
+                continue
+            return {
+                "poste": poste,
+                "nombre": nombre_parada,
+                "buses": [],
+                "error": f"poste {poste}: {str(exc)[:160]}",
+            }
         except requests.exceptions.Timeout as exc:
             return {
                 "poste": poste,
