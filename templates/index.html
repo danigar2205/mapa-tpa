@@ -9911,7 +9911,6 @@
         }
         avanzaUrbanosPrimeraCarga = false;
 
-        document.getElementById('avanza-bus-count').textContent = String(buses.length);
         const actualizado = datos.actualizado ? new Date(datos.actualizado) : null;
         document.getElementById('avanza-last-update').textContent =
           !actualizado || Number.isNaN(actualizado.getTime())
@@ -9926,6 +9925,8 @@
         const progresoGeneral = Number(datos.progreso_general || 0);
         const totalProgresoGeneral = Number(datos.total_progreso_general || 0);
         const cochesDetectados = Number(datos.coches_unicos_detectados ?? buses.length);
+        document.getElementById('avanza-bus-count').textContent =
+          String(enEscaneo ? cochesDetectados : buses.length);
         const porcentajeFase = totalProgreso > 0
           ? Math.max(0, Math.min(100, (progreso / totalProgreso) * 100)) : 0;
         // El catálogo ocupa el primer 15% y la descarga GPS el 85% restante.
