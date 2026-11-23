@@ -7251,6 +7251,34 @@
       }
     }
 
+    /* Tablets en vertical: cabecera distribuida en dos filas para que
+       marca y botones mantengan su espacio sin invadirse. */
+    @media (min-width: 721px) and (max-width: 900px) {
+      #pantalla-inicio .home-topbar {
+        display: grid !important;
+        grid-template-columns: minmax(0,1fr) minmax(0,1fr) !important;
+        grid-template-areas: "brand brand" "theme feedback" !important;
+        align-items: center !important;
+        gap: 10px 8px !important;
+        padding: 12px 0 !important;
+      }
+      #pantalla-inicio .home-brand { grid-area: brand !important; min-width: 0 !important; }
+      #pantalla-inicio .home-top-status { display: none !important; }
+      #pantalla-inicio .home-topbar > .theme-toggle {
+        grid-area: theme !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        justify-content: center !important;
+      }
+      #pantalla-inicio .home-topbar > .feedback-open-button {
+        grid-area: feedback !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        justify-content: center !important;
+      }
+    }
+
     /* Tablets: el acceso para recuperar el panel también queda pegado al
        borde izquierdo de la ventana y no sobre la antigua zona del sidebar. */
     @media (min-width: 721px) and (max-width: 1050px) {
