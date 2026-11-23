@@ -1928,6 +1928,11 @@ AVANZA_URBANOS_STATE = {
     "fase": "pendiente",
     "progreso": 0,
     "total_progreso": 0,
+    "progreso_general": 0,
+    "total_progreso_general": 0,
+    "sentidos_consultados": 0,
+    "total_sentidos": 0,
+    "paradas_consultadas": 0,
     "lineas_descubiertas": 0,
     "paradas_descubiertas": 0,
     "ultimo_error": None,
@@ -2089,6 +2094,18 @@ def descubrir_postes_avanza(http):
     sentidos_consultados = 0
     errores = []
     total_sentidos = len(lineas) * 2
+    _actualizar_estado_avanza(
+        fase="descubriendo_paradas",
+        progreso=0,
+        total_progreso=total_sentidos,
+        progreso_general=0,
+        total_progreso_general=total_sentidos,
+        sentidos_consultados=0,
+        total_sentidos=total_sentidos,
+        paradas_consultadas=0,
+        lineas_descubiertas=0,
+        paradas_descubiertas=0,
+    )
 
     for indice, linea in enumerate(lineas):
         for sentido in (-1, -2):
@@ -2154,6 +2171,11 @@ def descubrir_postes_avanza(http):
             fase="descubriendo_paradas",
             progreso=sentidos_consultados,
             total_progreso=total_sentidos,
+            progreso_general=sentidos_consultados,
+            total_progreso_general=total_sentidos,
+            sentidos_consultados=sentidos_consultados,
+            total_sentidos=total_sentidos,
+            paradas_consultadas=0,
             lineas_descubiertas=indice + 1,
             paradas_descubiertas=len(postes_por_id),
         )
@@ -2317,10 +2339,19 @@ def consultar_flota_avanza_urbana():
     if total_postes == 0:
         raise ValueError("No se han encontrado postes operativos de Avanza.")
 
+    # El contador general NO vuelve a cero al cambiar de fase:
+    # suma primero los sentidos consultados y después las paradas GPS.
+    progreso_catalogo = sentidos_consultados
+    total_operaciones = progreso_catalogo + total_postes
     _actualizar_estado_avanza(
         fase="consultando_gps",
         progreso=0,
         total_progreso=total_postes,
+        progreso_general=progreso_catalogo,
+        total_progreso_general=total_operaciones,
+        sentidos_consultados=sentidos_consultados,
+        total_sentidos=sentidos_consultados,
+        paradas_consultadas=0,
         lineas_descubiertas=lineas_descubiertas,
         paradas_descubiertas=total_postes,
     )
@@ -2405,6 +2436,11 @@ def consultar_flota_avanza_urbana():
             fase="consultando_gps",
             progreso=indice,
             total_progreso=total_postes,
+            progreso_general=progreso_catalogo + indice,
+            total_progreso_general=total_operaciones,
+            sentidos_consultados=sentidos_consultados,
+            total_sentidos=sentidos_consultados,
+            paradas_consultadas=indice,
             lineas_descubiertas=lineas_descubiertas,
             paradas_descubiertas=total_postes,
         )
@@ -2471,6 +2507,11 @@ def _trabajador_barrido_avanza():
                 "fase": "completado",
                 "progreso": resultado["total_paradas"],
                 "total_progreso": resultado["total_paradas"],
+                "progreso_general": resultado["sentidos_consultados"] + resultado["total_paradas"],
+                "total_progreso_general": resultado["sentidos_consultados"] + resultado["total_paradas"],
+                "sentidos_consultados": resultado["sentidos_consultados"],
+                "total_sentidos": resultado["sentidos_consultados"],
+                "paradas_consultadas": resultado["total_paradas"],
                 "ultimo_error": None,
                 "fin_escaneo": datetime.now(ZONA_HORARIA).isoformat(),
             })
@@ -2506,6 +2547,13 @@ def iniciar_barrido_avanza_si_necesario(forzar=False):
             "fase": "iniciando",
             "progreso": 0,
             "total_progreso": 0,
+            "progreso_general": 0,
+            "total_progreso_general": 0,
+            "sentidos_consultados": 0,
+            "total_sentidos": 0,
+            "paradas_consultadas": 0,
+            "lineas_descubiertas": 0,
+            "paradas_descubiertas": 0,
             "ultimo_error": None,
             "inicio_escaneo": datetime.now(ZONA_HORARIA).isoformat(),
         })
