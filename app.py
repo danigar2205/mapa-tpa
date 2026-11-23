@@ -2067,14 +2067,17 @@ def _leer_avanza_estado_compartido():
 
 
 def _cache_avanza_sin_catalogo(cache):
-    """No duplica el catálogo de paradas dentro de la caché de vehículos."""
+    """Guarda solo flota y contadores; catálogos y listas largas viven aparte."""
     if not isinstance(cache, dict):
         return cache
     resultado = dict(cache)
     datos = resultado.get("data")
-    if isinstance(datos, dict) and "_postes_red" in datos:
+    if isinstance(datos, dict):
         datos_limpios = dict(datos)
         datos_limpios.pop("_postes_red", None)
+        paradas_consultadas = datos_limpios.pop("paradas_consultadas", None)
+        if isinstance(paradas_consultadas, list):
+            datos_limpios["paradas_consultadas_count"] = len(paradas_consultadas)
         resultado["data"] = datos_limpios
     return resultado
 
@@ -2100,6 +2103,7 @@ def _guardar_avanza_estado_compartido(estado=None, cache=None, actualizar_cache=
                         contenido["cache"] = cache_guardada
                     if catalogo is not None:
                         contenido["catalogo"] = catalogo
+                    contenido["cache"] = _cache_avanza_sin_catalogo(contenido.get("cache"))
                     valores = (
                         (AVANZA_REDIS_STATE_DATA_KEY, contenido.get("state")),
                         (AVANZA_REDIS_CACHE_DATA_KEY, contenido.get("cache")),
@@ -3674,7 +3678,10 @@ def get_avanza_urbanos():
     elif fase_actual == "descubriendo_paradas":
         paradas_con_respuesta = 0
     else:
-        paradas_con_respuesta = len(datos.get("paradas_consultadas") or [])
+        paradas_con_respuesta = int(
+            datos.get("paradas_consultadas_count")
+            or len(datos.get("paradas_consultadas") or [])
+        )
     datos["paradas_consultadas_count"] = paradas_con_respuesta
     datos["paradas_sin_respuesta_count"] = max(
         0, int(datos.get("total_paradas") or 0) - paradas_con_respuesta
