@@ -3062,7 +3062,12 @@ def iniciar_barrido_avanza_si_necesario(forzar=False):
             else float("inf")
         )
 
-        if not forzar and isinstance(cacheada, dict) and edad < AVANZA_URBANOS_TTL:
+        if (
+            not forzar
+            and not reanudar_escaneo
+            and isinstance(cacheada, dict)
+            and edad < AVANZA_URBANOS_TTL
+        ):
             with AVANZA_URBANOS_LOCK:
                 AVANZA_URBANOS_CACHE.update({
                     "timestamp": float(timestamp_cache),
