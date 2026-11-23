@@ -24,7 +24,7 @@ CATALOGO_CONCESIONES: dict[str, dict[str, str]] = {
     "T02": {"descripcion": "Sobrarbe y Ribagorza - Barbastro"},
     "T03": {"descripcion": "Fraga - Huesca por Monzón"},
     "T04": {"descripcion": "Monegros - Huesca y Zaragoza"},
-    "T05": {"descripcion": "Fraga / Castejón - Zaragoza"},
+    "T05": {"descripcion": "Área de Fraga-Zaragoza por el eje del Ebro"},
     "T06": {"descripcion": "Bajo Aragón - Zaragoza"},
     "T07": {"descripcion": "Bajo Aragón y Cuencas Mineras - Teruel"},
     "T08": {"descripcion": "Maestrazgo - Teruel"},
