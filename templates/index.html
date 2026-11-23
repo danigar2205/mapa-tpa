@@ -7639,7 +7639,7 @@
     }
 
 
-    /* Pantalla inicial para elegir entre las dos redes de transporte. */
+    /* Pantalla inicial para elegir entre las redes de transporte. */
     #selector-plataforma {
       position: fixed;
       inset: 0;
@@ -7660,7 +7660,7 @@
     }
     #selector-plataforma[hidden] { display: none !important; }
     #selector-plataforma.is-leaving { opacity: 0; visibility: hidden; pointer-events: none; }
-    .gateway-shell { width: min(1060px, 100%); margin: auto; }
+    .gateway-shell { width: min(1220px, 100%); margin: auto; }
     .gateway-heading { max-width: 740px; margin: 0 auto 34px; text-align: center; }
     .gateway-eyebrow {
       display: inline-flex; align-items: center; gap: 9px;
@@ -7673,7 +7673,7 @@
     }
     .gateway-heading h1 em { color: #2f8174; font-style: normal; }
     .gateway-heading p { margin: 0; color: #5b6c70; font-size: 15px; line-height: 1.6; }
-    .gateway-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+    .gateway-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
     .gateway-card {
       display: flex; flex-direction: column; min-width: 0; min-height: 485px;
       padding: 25px; border: 1px solid #d6ded9; border-radius: 19px;
@@ -7699,6 +7699,18 @@
     .gateway-illustration svg { display: block; width: 100%; height: 100%; }
     .gateway-illustration-tpa { background: linear-gradient(135deg, #f5f5e9, #e8eee4); }
     .gateway-illustration-ctaz { background: linear-gradient(135deg, #edf4f0, #e3efeb); }
+    .gateway-avanza-lockup { display: flex; align-items: center; gap: 10px; color: #263c40; }
+    .gateway-avanza-lockup i { display: grid; place-items: center; width: 58px; height: 58px; border-radius: 15px; background: #e9f2f5; color: #176f94; font-size: 27px; }
+    .gateway-avanza-lockup span { display: flex; flex-direction: column; gap: 3px; }
+    .gateway-avanza-lockup strong { font-size: 19px; font-weight: 900; letter-spacing: -.02em; }
+    .gateway-avanza-lockup small { color: #5b706e; font-size: 10px; line-height: 1.3; }
+    .gateway-illustration-avanza { background: linear-gradient(135deg, #eaf2f6, #e7eff1); }
+    .gateway-action-avanza { background: #176f94; }
+    @media (max-width: 980px) and (min-width: 721px) {
+      .gateway-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .gateway-card-avanza { grid-column: 1 / -1; min-height: 310px; }
+      .gateway-card-avanza .gateway-illustration { height: 130px; margin: 10px 0 14px; }
+    }
     .gateway-card-copy { flex: 1 1 auto; }
     .gateway-card-copy h2 { margin: 0 0 9px; color: #1d343e; font-size: 19px; font-weight: 800; letter-spacing: -.025em; line-height: 1.25; }
     .gateway-card-copy p { margin: 0; color: #5b6d70; font-size: 13px; line-height: 1.65; }
@@ -7743,12 +7755,13 @@
     }
     body.theme-dark .gateway-heading h1,
     body.theme-dark .gateway-card-copy h2,
-    body.theme-dark .gateway-ctaz-lockup strong { color: #edf4ef; }
+    body.theme-dark .gateway-ctaz-lockup strong, body.theme-dark .gateway-avanza-lockup strong { color: #edf4ef; }
     body.theme-dark .gateway-heading p,
     body.theme-dark .gateway-card-copy p,
-    body.theme-dark .gateway-ctaz-lockup small { color: #b1c2bc; }
+    body.theme-dark .gateway-ctaz-lockup small, body.theme-dark .gateway-avanza-lockup small { color: #b1c2bc; }
     body.theme-dark .gateway-card { border-color: #344b47; background: #1c2b2d; box-shadow: 0 15px 45px rgba(0,0,0,.2); }
     body.theme-dark .gateway-card-tag { background: #2b403b; color: #c6d6ce; }
+    body.theme-dark .gateway-avanza-lockup i { background: #273e48; color: #8dd5f1; }
     body.theme-dark .gateway-action-disabled,
     body.theme-dark .gateway-action-disabled:disabled { border-color: #43514b; background: #303b36; color: #aab8af; }
     body.theme-dark .gateway-card-tag-pending { background: #354138; color: #c5d0bd; }
@@ -7784,7 +7797,72 @@
       .gateway-card:hover, .gateway-action:hover { transform: none; }
     }
 
-</style>
+
+    /* Vista GPS independiente de los autobuses urbanos de Avanza */
+    .avanza-urbanos-panel[hidden] { display: none !important; }
+    .avanza-urbanos-panel {
+      position: absolute; z-index: 1200; top: max(15px, env(safe-area-inset-top)); left: 15px;
+      width: min(390px, calc(100vw - 30px)); max-height: calc(100dvh - 30px); overflow: auto;
+      padding: 17px; border: 1px solid rgba(255,255,255,.13); border-radius: 17px;
+      background: rgba(15,23,42,.94); color: #f8fafc; box-shadow: 0 20px 50px rgba(0,0,0,.32);
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    }
+    .avanza-panel-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .avanza-back-button {
+      display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 10px;
+      border: 1px solid rgba(255,255,255,.15); border-radius: 8px; background: rgba(255,255,255,.07);
+      color: #e2e8f0; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer;
+    }
+    .avanza-back-button:hover { background: rgba(255,255,255,.14); }
+    .avanza-live-pill { display: inline-flex; align-items: center; gap: 7px; padding: 6px 9px; border-radius: 20px; background: rgba(34,197,94,.12); color: #86efac; font-size: 9px; font-weight: 800; letter-spacing: .06em; }
+    .avanza-live-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; }
+    .avanza-live-pill[data-state="loading"] { background: rgba(245,158,11,.12); color: #fcd34d; }
+    .avanza-live-pill[data-state="loading"] .avanza-live-dot { background: #f59e0b; }
+    .avanza-live-pill[data-state="error"] { background: rgba(239,68,68,.13); color: #fca5a5; }
+    .avanza-live-pill[data-state="error"] .avanza-live-dot { background: #ef4444; }
+    .avanza-live-pill[data-state="empty"] { background: rgba(148,163,184,.12); color: #cbd5e1; }
+    .avanza-live-pill[data-state="empty"] .avanza-live-dot { background: #94a3b8; }
+    .avanza-panel-heading { margin-top: 17px; }
+    .avanza-panel-eyebrow { color: #7dd3fc; font-size: 9px; font-weight: 800; letter-spacing: .15em; }
+    .avanza-panel-heading h1 { margin-top: 5px; color: #fff; font-size: 22px; font-weight: 800; letter-spacing: -.03em; }
+    .avanza-panel-heading p { margin-top: 4px; color: #9fb0c2; font-size: 11px; }
+    .avanza-panel-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 14px; }
+    .avanza-panel-stats > div { display: flex; flex-direction: column; gap: 4px; padding: 11px; border: 1px solid rgba(255,255,255,.08); border-radius: 10px; background: rgba(255,255,255,.045); }
+    .avanza-panel-stats strong { color: #7dd3fc; font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .avanza-panel-stats span { color: #9fb0c2; font-size: 9px; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
+    .avanza-panel-note { margin-top: 12px; color: #aebdcb; font-size: 10px; line-height: 1.55; }
+    .avanza-panel-message { min-height: 18px; margin-top: 7px; color: #d5e4ef; font-size: 10px; line-height: 1.45; }
+    .avanza-refresh-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; margin-top: 8px; padding: 0 12px; border: 1px solid rgba(125,211,252,.24); border-radius: 8px; background: rgba(14,116,144,.2); color: #bae6fd; font: inherit; font-size: 10px; font-weight: 700; cursor: pointer; }
+    .avanza-refresh-button:hover:not(:disabled) { background: rgba(14,116,144,.32); }
+    .avanza-refresh-button:disabled { opacity: .55; cursor: wait; }
+    .avanza-bus-marker { background: transparent; border: 0; }
+    .avanza-map-bus { display: flex; align-items: center; justify-content: center; gap: 5px; width: 58px; height: 34px; padding: 0 6px; border: 2px solid #fff; border-radius: 10px; background: var(--avanza-line-color,#176f94); color: #fff; box-shadow: 0 4px 12px rgba(15,23,42,.35); }
+    .avanza-map-bus i { font-size: 13px; }
+    .avanza-map-bus strong { max-width: 30px; overflow: hidden; text-overflow: ellipsis; font-size: 10px; font-weight: 900; }
+    .avanza-bus-popup { min-width: 210px; color: #162b3b; }
+    .avanza-bus-popup-head { display: flex; align-items: center; gap: 10px; }
+    .avanza-bus-popup-line { display: grid; place-items: center; min-width: 42px; height: 36px; padding: 0 7px; border-radius: 8px; background: var(--avanza-line-color,#176f94); color: #fff; font-size: 13px; font-weight: 900; }
+    .avanza-bus-popup-head div { display: flex; flex-direction: column; gap: 2px; }
+    .avanza-bus-popup-head small { color: #738496; font-size: 8px; font-weight: 800; letter-spacing: .1em; }
+    .avanza-bus-popup-head strong { font-size: 14px; }
+    .avanza-bus-popup-destination { margin-top: 11px; font-size: 12px; font-weight: 700; }
+    .avanza-bus-popup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+    .avanza-bus-popup-grid div { display: flex; flex-direction: column; gap: 3px; padding: 8px; border-radius: 7px; background: #f1f5f9; }
+    .avanza-bus-popup-grid span { color: #6b7d8c; font-size: 9px; }
+    .avanza-bus-popup-grid strong { font-size: 11px; }
+    .avanza-bus-popup-stop { display: block; margin-top: 9px; color: #718294; font-size: 9px; }
+    body.theme-dark .avanza-urbanos-panel { border-color: #334b5c; background: rgba(10,22,35,.95); }
+    @media (max-width: 720px) {
+      .avanza-urbanos-panel { top: max(8px, env(safe-area-inset-top)); left: 8px; width: calc(100vw - 16px); max-height: min(45dvh, 430px); padding: 12px; border-radius: 13px; }
+      .avanza-panel-heading { margin-top: 12px; }
+      .avanza-panel-heading h1 { font-size: 18px; }
+      .avanza-panel-stats { margin-top: 10px; }
+      .avanza-panel-stats > div { padding: 8px; }
+      .avanza-panel-note { margin-top: 9px; font-size: 9px; }
+      .avanza-panel-message { font-size: 9px; }
+    }
+
+  </style>
 </head>
 <body>
 
@@ -7884,6 +7962,44 @@
           <button type="button" class="gateway-action gateway-action-ctaz gateway-action-disabled" disabled aria-disabled="true" title="Disponible cuando se integren GTFS y GTFS-RT">
             <span>Próximamente · integración pendiente</span>
             <i class="fa-solid fa-lock" aria-hidden="true"></i>
+          </button>
+        </article>
+
+        <article class="gateway-card gateway-card-avanza">
+          <div class="gateway-card-top">
+            <span class="gateway-card-tag">RED URBANA · ZARAGOZA</span>
+            <div class="gateway-avanza-lockup">
+              <i class="fa-solid fa-bus-simple" aria-hidden="true"></i>
+              <span><strong>AVANZA</strong><small>Autobuses urbanos<br>de Zaragoza</small></span>
+            </div>
+          </div>
+
+          <div class="gateway-illustration gateway-illustration-avanza" aria-hidden="true">
+            <svg viewBox="0 0 420 180" role="presentation">
+              <path d="M0 139h420v41H0Z" fill="#dbe7e9"/>
+              <path d="M0 151c72-13 140-13 210 0s140 13 210 0" fill="none" stroke="#a8c0c4" stroke-width="3"/>
+              <path d="M22 35h82m-41-18v36M335 39h62m-31-17v34" stroke="#c2d4d8" stroke-width="3" stroke-linecap="round"/>
+              <g transform="translate(94 49)">
+                <path d="M10 34c0-15 11-26 26-26h162c16 0 28 12 28 28v77H10Z" fill="#f8fbfc" stroke="#6c8791" stroke-width="3"/>
+                <path d="M10 78h216v29H10Z" fill="#176f94"/>
+                <path d="M28 23h49v42H28zm57 0h49v42H85zm57 0h49v42h-49z" fill="#b9dce5"/>
+                <path d="M28 29h49m8 0h49m8 0h49" stroke="#fff" stroke-width="4" opacity=".75"/>
+                <path d="M22 86h18m145 0h31" stroke="#dff4f8" stroke-width="5" stroke-linecap="round"/>
+                <circle cx="58" cy="115" r="17" fill="#263746"/><circle cx="58" cy="115" r="6" fill="#e5edf0"/>
+                <circle cx="181" cy="115" r="17" fill="#263746"/><circle cx="181" cy="115" r="6" fill="#e5edf0"/>
+              </g>
+              <circle cx="320" cy="89" r="7" fill="#176f94"/><circle cx="342" cy="105" r="5" fill="#54a5be"/><circle cx="302" cy="116" r="5" fill="#54a5be"/>
+            </svg>
+          </div>
+
+          <div class="gateway-card-copy">
+            <h2>Avanza · autobuses urbanos de Zaragoza</h2>
+            <p>Consulta en un mapa las posiciones GPS de los autobuses urbanos que Avanza publica en las paradas consultadas.</p>
+          </div>
+
+          <button type="button" class="gateway-action gateway-action-avanza" onclick="abrirAvanzaUrbanos()">
+            <span>Ver autobuses urbanos</span>
+            <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
           </button>
         </article>
       </div>
@@ -8323,6 +8439,32 @@
     <span>Mostrar información</span>
   </button>
 
+  <!-- Panel independiente de la red urbana de Avanza Zaragoza -->
+  <section id="avanza-urbanos-panel" class="avanza-urbanos-panel" hidden aria-label="Autobuses urbanos de Zaragoza">
+    <div class="avanza-panel-top">
+      <button type="button" class="avanza-back-button" onclick="volverASelectorPlataforma()" aria-label="Volver a las redes">
+        <i class="fa-solid fa-arrow-left" aria-hidden="true"></i><span>Redes</span>
+      </button>
+      <span class="avanza-live-pill" id="avanza-live-pill" data-state="loading">
+        <span class="avanza-live-dot"></span><span id="avanza-live-text">CONECTANDO</span>
+      </span>
+    </div>
+    <div class="avanza-panel-heading">
+      <span class="avanza-panel-eyebrow">MOVILIDAD · ZARAGOZA</span>
+      <h1>Autobuses urbanos</h1>
+      <p>Localización GPS de Avanza</p>
+    </div>
+    <div class="avanza-panel-stats">
+      <div><strong id="avanza-bus-count">—</strong><span>vehículos localizados</span></div>
+      <div><strong id="avanza-last-update">—</strong><span>última actualización</span></div>
+    </div>
+    <p class="avanza-panel-note" id="avanza-coverage-note">Consultando las posiciones publicadas por Avanza…</p>
+    <p class="avanza-panel-message" id="avanza-panel-message" role="status" aria-live="polite"></p>
+    <button type="button" class="avanza-refresh-button" id="avanza-refresh-button" onclick="actualizarAvanzaUrbanos(true)">
+      <i class="fa-solid fa-rotate" aria-hidden="true"></i><span>Actualizar ahora</span>
+    </button>
+  </section>
+
   <!-- Mapa -->
   <div id="map"></div>
 
@@ -8403,6 +8545,11 @@
 
     let map = null;
     let marcadoresBuses = {};
+    let avanzaUrbanosActiva = false;
+    let avanzaUrbanosIntervalo = null;
+    let avanzaUrbanosSolicitud = false;
+    let avanzaUrbanosPrimeraCarga = true;
+    const marcadoresAvanzaUrbanos = {};
     let capasParadas = null;
     let paradasVisibles = true;
     let primeraCarga = true;
@@ -9566,6 +9713,189 @@
         selector.hidden = true;
         selector.classList.remove('is-leaving');
       }, 230);
+    }
+
+    function abrirAvanzaUrbanos() {
+      const selector = document.getElementById('selector-plataforma');
+      const inicio = document.getElementById('pantalla-inicio');
+      if (selector) {
+        selector.classList.add('is-leaving');
+        window.setTimeout(() => {
+          selector.hidden = true;
+          selector.classList.remove('is-leaving');
+        }, 230);
+      }
+      if (inicio) inicio.style.display = 'none';
+
+      // Cerrar cualquier ciclo de la red autonómica antes de cambiar de plataforma.
+      if (intervaloTimer) clearInterval(intervaloTimer);
+      if (intervaloLlegadasParada) clearInterval(intervaloLlegadasParada);
+      intervaloLlegadasParada = null;
+      lineaActiva = null;
+      if (Object.keys(marcadoresBuses).length) {
+        Object.values(marcadoresBuses).forEach(marcador => map?.removeLayer(marcador));
+        marcadoresBuses = {};
+      }
+      document.getElementById('header-card').style.display = 'none';
+      document.getElementById('btn-mostrar-panel').hidden = true;
+      document.getElementById('contenedor-filtros-lineas').hidden = true;
+      document.getElementById('lista-filtros-lineas').innerHTML = '';
+
+      if (avanzaUrbanosIntervalo) clearInterval(avanzaUrbanosIntervalo);
+      Object.values(marcadoresAvanzaUrbanos).forEach(marcador => map?.removeLayer(marcador));
+      Object.keys(marcadoresAvanzaUrbanos).forEach(id => delete marcadoresAvanzaUrbanos[id]);
+      avanzaUrbanosActiva = true;
+      avanzaUrbanosPrimeraCarga = true;
+
+      const panel = document.getElementById('avanza-urbanos-panel');
+      panel.hidden = false;
+      document.getElementById('avanza-bus-count').textContent = '—';
+      document.getElementById('avanza-last-update').textContent = '—';
+      document.getElementById('avanza-coverage-note').textContent = 'Consultando las posiciones GPS de Avanza…';
+      document.getElementById('avanza-panel-message').textContent = '';
+
+      initMap();
+      map.setView([41.6488, -0.8891], 13);
+      requestAnimationFrame(() => map?.invalidateSize({ pan: false }));
+      actualizarAvanzaUrbanos();
+      avanzaUrbanosIntervalo = setInterval(actualizarAvanzaUrbanos, 15000);
+    }
+
+    function volverASelectorPlataforma() {
+      avanzaUrbanosActiva = false;
+      if (avanzaUrbanosIntervalo) clearInterval(avanzaUrbanosIntervalo);
+      avanzaUrbanosIntervalo = null;
+      Object.values(marcadoresAvanzaUrbanos).forEach(marcador => map?.removeLayer(marcador));
+      Object.keys(marcadoresAvanzaUrbanos).forEach(id => delete marcadoresAvanzaUrbanos[id]);
+      document.getElementById('avanza-urbanos-panel').hidden = true;
+      document.getElementById('header-card').style.display = 'none';
+      document.getElementById('btn-mostrar-panel').hidden = true;
+      document.getElementById('pantalla-inicio').style.display = 'none';
+      const selector = document.getElementById('selector-plataforma');
+      selector.hidden = false;
+      selector.classList.remove('is-leaving');
+      requestAnimationFrame(() => map?.invalidateSize({ pan: false }));
+    }
+
+    function colorLineaAvanza(linea) {
+      const paleta = ['#176f94', '#b9232b', '#387b63', '#8a5ca7', '#bd7a32', '#4266a6'];
+      const texto = String(linea || '');
+      const hash = Array.from(texto).reduce((total, caracter) => total + caracter.charCodeAt(0), 0);
+      return paleta[hash % paleta.length];
+    }
+
+    async function actualizarAvanzaUrbanos(forzar = false) {
+      if (!avanzaUrbanosActiva || avanzaUrbanosSolicitud) return;
+      avanzaUrbanosSolicitud = true;
+      const boton = document.getElementById('avanza-refresh-button');
+      if (forzar && boton) boton.disabled = true;
+      try {
+        const respuesta = await fetch('/api/avanza/urbanos', { cache: 'no-store' });
+        const datos = await respuesta.json();
+        if (!respuesta.ok) {
+          throw new Error(datos.error || 'No se ha podido consultar el GPS de Avanza.');
+        }
+        if (!avanzaUrbanosActiva) return;
+
+        const buses = Array.isArray(datos.buses) ? datos.buses : [];
+        const idsActuales = new Set();
+        const posiciones = [];
+
+        buses.forEach(bus => {
+          const coche = String(bus.coche || bus.id || '').trim();
+          const linea = String(bus.linea || '?').trim();
+          const lat = Number(bus.lat);
+          const lon = Number(bus.lon);
+          if (!coche || !Number.isFinite(lat) || !Number.isFinite(lon) ||
+              lat < 40 || lat > 43 || lon < -2.5 || lon > 0.5) return;
+
+          const id = coche;
+          idsActuales.add(id);
+          posiciones.push([lat, lon]);
+          const color = colorLineaAvanza(linea);
+          const icono = L.divIcon({
+            className: 'avanza-bus-marker',
+            html: `<span class="avanza-map-bus" style="--avanza-line-color:${color}">
+              <i class="fa-solid fa-bus-simple" aria-hidden="true"></i>
+              <strong>${escaparHTML(linea)}</strong>
+            </span>`,
+            iconSize: [58, 42],
+            iconAnchor: [29, 21]
+          });
+
+          const eta = bus.eta_minutos == null ? 'Sin estimación' :
+            (Number(bus.eta_minutos) <= 0 ? 'Llegando' : Number(bus.eta_minutos) + ' min');
+          const distancia = bus.distancia_km == null ? 'Sin dato' :
+            Number(bus.distancia_km).toLocaleString('es-ES', { maximumFractionDigits: 1 }) + ' km';
+          const popup = `<div class="avanza-bus-popup">
+            <div class="avanza-bus-popup-head">
+              <span class="avanza-bus-popup-line" style="--avanza-line-color:${color}">${escaparHTML(linea)}</span>
+              <div><small>AUTOBÚS URBANO</small><strong>Coche ${escaparHTML(coche)}</strong></div>
+            </div>
+            <div class="avanza-bus-popup-destination">${escaparHTML(bus.destino || 'Destino no indicado')}</div>
+            <div class="avanza-bus-popup-grid">
+              <div><span>Tiempo</span><strong>${escaparHTML(eta)}</strong></div>
+              <div><span>Distancia</span><strong>${escaparHTML(distancia)}</strong></div>
+            </div>
+            <small class="avanza-bus-popup-stop">Detectado desde: ${escaparHTML(bus.parada || ('Parada ' + bus.poste))}</small>
+          </div>`;
+
+          if (marcadoresAvanzaUrbanos[id]) {
+            marcadoresAvanzaUrbanos[id].setLatLng([lat, lon]);
+            marcadoresAvanzaUrbanos[id].setIcon(icono);
+            marcadoresAvanzaUrbanos[id].setPopupContent(popup);
+          } else {
+            marcadoresAvanzaUrbanos[id] = L.marker([lat, lon], { icon: icono }).addTo(map);
+            marcadoresAvanzaUrbanos[id].bindPopup(popup);
+          }
+          if (!map.hasLayer(marcadoresAvanzaUrbanos[id])) {
+            marcadoresAvanzaUrbanos[id].addTo(map);
+          }
+        });
+
+        Object.keys(marcadoresAvanzaUrbanos).forEach(id => {
+          if (!idsActuales.has(id)) {
+            map.removeLayer(marcadoresAvanzaUrbanos[id]);
+            delete marcadoresAvanzaUrbanos[id];
+          }
+        });
+
+        if (avanzaUrbanosPrimeraCarga && posiciones.length) {
+          if (posiciones.length === 1) map.setView(posiciones[0], 15);
+          else map.fitBounds(L.latLngBounds(posiciones).pad(0.16), { maxZoom: 15 });
+        }
+        avanzaUrbanosPrimeraCarga = false;
+
+        document.getElementById('avanza-bus-count').textContent = String(buses.length);
+        const actualizado = datos.actualizado ? new Date(datos.actualizado) : new Date();
+        document.getElementById('avanza-last-update').textContent =
+          Number.isNaN(actualizado.getTime()) ? new Date().toLocaleTimeString('es-ES') :
+          actualizado.toLocaleTimeString('es-ES');
+        const paradas = Array.isArray(datos.paradas_consultadas) ? datos.paradas_consultadas : [];
+        const nombresParadas = paradas.map(item => item.nombre || ('Parada ' + item.poste));
+        document.getElementById('avanza-coverage-note').textContent =
+          paradas.length + (paradas.length === 1 ? ' parada consultada: ' : ' paradas consultadas: ') +
+          (nombresParadas.join(' · ') || 'sin detalle') +
+          '. La fuente publica los próximos vehículos de cada parada, no toda la flota de la ciudad.';
+        const mensaje = document.getElementById('avanza-panel-message');
+        mensaje.textContent = datos.errores?.length
+          ? 'Algunas paradas no han respondido; se muestran los datos recibidos.'
+          : (buses.length ? 'Selecciona un autobús en el mapa para ver sus datos.' :
+             'No hay autobuses próximos publicados en las paradas consultadas.');
+        const pill = document.getElementById('avanza-live-pill');
+        pill.dataset.state = buses.length ? 'online' : 'empty';
+        document.getElementById('avanza-live-text').textContent = buses.length ? 'EN DIRECTO' : 'SIN VEHÍCULOS';
+      } catch (error) {
+        if (!avanzaUrbanosActiva) return;
+        const pill = document.getElementById('avanza-live-pill');
+        pill.dataset.state = 'error';
+        document.getElementById('avanza-live-text').textContent = 'SIN CONEXIÓN';
+        document.getElementById('avanza-panel-message').textContent =
+          error?.message || 'No se ha podido actualizar la información de Avanza.';
+      } finally {
+        avanzaUrbanosSolicitud = false;
+        if (boton) boton.disabled = false;
+      }
     }
 
     function iniciarMapa(linea) {
