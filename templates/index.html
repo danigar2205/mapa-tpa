@@ -3944,6 +3944,7 @@
       letter-spacing: .02em;
     }
     .concession-logo-frame.is-broken::after { display: block; }
+    .concession-logo-frame.is-broken .concession-logo { display: none !important; }
     .concession-logo {
       display: block !important;
       width: 100% !important;
@@ -3958,8 +3959,10 @@
       background: #263a45 !important;
     }
     .concession-logo-frame.logo-dark-frame::after { color: #fff; }
-    .concession-logo-pair { gap: 3px !important; padding: 5px 3px !important; }
-    .concession-logo-pair .concession-logo { width: calc(50% - 2px) !important; }
+    .concession-logo-pair { flex-direction: column !important; gap: 2px !important; padding: 4px 5px !important; }
+    .concession-logo-pair .concession-logo { width: 100% !important; }
+    .concession-logo-pair .concession-logo:first-child { height: 14px !important; }
+    .concession-logo-pair .concession-logo:last-child { height: 22px !important; }
     .concession-copy {
       display: flex !important;
       flex-direction: column !important;
