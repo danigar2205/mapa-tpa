@@ -2842,6 +2842,63 @@ def consultar_flota_avanza_urbana():
         if str(parada_info["poste"]) not in postes_gps_completados
     ]
 
+    ultimo_checkpoint_gps = time.monotonic()
+    resultados_desde_checkpoint = 0
+
+    def publicar_progreso_gps(forzar=False):
+        nonlocal ultimo_checkpoint_gps, resultados_desde_checkpoint
+        ahora_checkpoint = time.monotonic()
+        if (
+            not forzar
+            and resultados_desde_checkpoint < 5
+            and ahora_checkpoint - ultimo_checkpoint_gps < 2.0
+        ):
+            return
+
+        buses_gps_ordenados = sorted(
+            (dict(bus) for bus in buses_por_coche.values()),
+            key=lambda bus: (
+                str(bus.get("linea") or ""),
+                int(bus["coche"]) if str(bus.get("coche", "")).isdigit() else 0,
+            ),
+        )
+        buses_mostrados = {str(bus["coche"]): dict(bus) for bus in buses_previos}
+        buses_mostrados.update({
+            str(bus["coche"]): dict(bus) for bus in buses_gps_ordenados
+        })
+        buses_mostrados_ordenados = sorted(
+            buses_mostrados.values(),
+            key=lambda bus: (
+                str(bus.get("linea") or ""),
+                int(bus["coche"]) if str(bus.get("coche", "")).isdigit() else 0,
+            ),
+        )
+        paradas_ordenadas = sorted(
+            {str(item["poste"]): item for item in paradas_consultadas}.values(),
+            key=lambda item: int(item["poste"]) if str(item["poste"]).isdigit() else str(item["poste"]),
+        )
+        indice = min(len(postes_gps_completados), total_postes)
+        _actualizar_estado_avanza(
+            fase="consultando_gps",
+            progreso=indice,
+            total_progreso=total_postes,
+            progreso_general=sentidos_consultados + indice,
+            total_progreso_general=total_operaciones,
+            sentidos_consultados=sentidos_consultados,
+            total_sentidos=sentidos_consultados,
+            paradas_gps_completadas=indice,
+            coches_unicos_detectados=len(buses_mostrados_ordenados),
+            buses_parciales=buses_mostrados_ordenados,
+            buses_gps_parciales=buses_gps_ordenados,
+            postes_gps_completados=sorted(postes_gps_completados),
+            paradas_gps_consultadas=paradas_ordenadas,
+            errores_gps_parciales=errores_gps[-100:],
+            lineas_descubiertas=lineas_descubiertas,
+            paradas_descubiertas=total_postes,
+        )
+        ultimo_checkpoint_gps = ahora_checkpoint
+        resultados_desde_checkpoint = 0
+
     with ThreadPoolExecutor(
         max_workers=AVANZA_CONCURRENCIA_GPS,
         thread_name_prefix="avanza-gps",
@@ -2885,47 +2942,13 @@ def consultar_flota_avanza_urbana():
                 ):
                     buses_por_coche[clave] = bus
 
-            buses_gps_ordenados = sorted(
-                (dict(bus) for bus in buses_por_coche.values()),
-                key=lambda bus: (
-                    str(bus.get("linea") or ""),
-                    int(bus["coche"]) if str(bus.get("coche", "")).isdigit() else 0,
-                ),
-            )
-            buses_mostrados = {str(bus["coche"]): dict(bus) for bus in buses_previos}
-            buses_mostrados.update({
-                str(bus["coche"]): dict(bus) for bus in buses_gps_ordenados
-            })
-            buses_mostrados_ordenados = sorted(
-                buses_mostrados.values(),
-                key=lambda bus: (
-                    str(bus.get("linea") or ""),
-                    int(bus["coche"]) if str(bus.get("coche", "")).isdigit() else 0,
-                ),
-            )
-            paradas_ordenadas = sorted(
-                {str(item["poste"]): item for item in paradas_consultadas}.values(),
-                key=lambda item: int(item["poste"]) if str(item["poste"]).isdigit() else str(item["poste"]),
-            )
-            indice = min(len(postes_gps_completados), total_postes)
-            _actualizar_estado_avanza(
-                fase="consultando_gps",
-                progreso=indice,
-                total_progreso=total_postes,
-                progreso_general=sentidos_consultados + indice,
-                total_progreso_general=total_operaciones,
-                sentidos_consultados=sentidos_consultados,
-                total_sentidos=sentidos_consultados,
-                paradas_gps_completadas=indice,
-                coches_unicos_detectados=len(buses_mostrados_ordenados),
-                buses_parciales=buses_mostrados_ordenados,
-                buses_gps_parciales=buses_gps_ordenados,
-                postes_gps_completados=sorted(postes_gps_completados),
-                paradas_gps_consultadas=paradas_ordenadas,
-                errores_gps_parciales=errores_gps[-100:],
-                lineas_descubiertas=lineas_descubiertas,
-                paradas_descubiertas=total_postes,
-            )
+            # Evita escribir cientos de veces el estado completo en Redis:
+            # guarda cada cinco respuestas o, como máximo, cada dos segundos.
+            resultados_desde_checkpoint += 1
+            publicar_progreso_gps()
+
+    # Publica también el último lote, aunque no llegue al tamaño del bloque.
+    publicar_progreso_gps(forzar=True)
 
     if not paradas_consultadas and errores:
         raise ValueError(
