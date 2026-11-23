@@ -4824,6 +4824,319 @@
       .mapa-tpa-loader-track::after { animation-duration: 2.5s !important; }
     }
 
+
+    /* Selector de apariencia claro / oscuro */
+    .theme-toggle {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 8px !important;
+      min-height: 40px !important;
+      padding: 0 12px !important;
+      border: 1px solid #9eacb5 !important;
+      border-radius: 4px !important;
+      background: #ffffff !important;
+      color: #172b3a !important;
+      font-size: 11px !important;
+      font-weight: 750 !important;
+      line-height: 1.2 !important;
+      white-space: nowrap !important;
+      box-shadow: none !important;
+      cursor: pointer !important;
+      -webkit-appearance: none !important;
+      appearance: none !important;
+    }
+    .theme-toggle i { color: #174e72 !important; font-size: 13px !important; }
+    .theme-toggle:hover { border-color: #174e72 !important; background: #f1f5f7 !important; }
+    .sidebar-brand-actions {
+      display: flex !important;
+      align-items: center !important;
+      flex-wrap: wrap !important;
+      gap: 7px !important;
+      margin-left: auto !important;
+    }
+    .theme-toggle-compact { min-height: 36px !important; padding: 0 9px !important; font-size: 10px !important; }
+
+    body.theme-dark {
+      --tpa-ink: #edf4f8 !important;
+      --tpa-ink-2: #c6d3dc !important;
+      --tpa-muted: #9fb2bf !important;
+      --tpa-paper: #0d1925 !important;
+      --tpa-white: #152635 !important;
+      --tpa-line: #344958 !important;
+      --tpa-accent: #df5961 !important;
+      --tpa-accent-dark: #b9333e !important;
+      --tpa-blue: #397da2 !important;
+      --tpa-green: #48a77c !important;
+      background: #0d1925 !important;
+      color: #edf4f8 !important;
+      color-scheme: dark;
+    }
+    body.theme-dark html,
+    body.theme-dark #pantalla-inicio,
+    body.theme-dark .home-shell {
+      background: #0d1925 !important;
+      color: #edf4f8 !important;
+    }
+    body.theme-dark #pantalla-inicio {
+      background:
+        radial-gradient(ellipse at 8% 8%, rgba(47, 105, 139, .16), transparent 35%),
+        linear-gradient(145deg, #0d1925 0%, #101f2d 58%, #0b1520 100%) !important;
+    }
+    body.theme-dark .home-topbar,
+    body.theme-dark .home-stat-row,
+    body.theme-dark .home-footer {
+      border-color: #344958 !important;
+    }
+    body.theme-dark .home-brand,
+    body.theme-dark .home-brand-copy strong,
+    body.theme-dark .home-intro h1,
+    body.theme-dark .home-stat strong,
+    body.theme-dark .home-network-heading h2,
+    body.theme-dark .network-count strong,
+    body.theme-dark .home-footer strong {
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .home-brand-copy small,
+    body.theme-dark .home-top-status,
+    body.theme-dark .home-stat span,
+    body.theme-dark .home-intro-foot,
+    body.theme-dark .home-network-heading p,
+    body.theme-dark .network-count,
+    body.theme-dark .network-count small,
+    body.theme-dark .home-footer {
+      color: #a9bac6 !important;
+    }
+    body.theme-dark .home-network { border-left-color: #344958 !important; }
+    body.theme-dark .home-live-note {
+      border-color: #385364 !important;
+      background: #152938 !important;
+    }
+    body.theme-dark .home-live-copy strong { color: #edf4f8 !important; }
+    body.theme-dark .home-live-copy small { color: #c2d0d9 !important; }
+    body.theme-dark .home-live-mark { background: #1d3b37 !important; color: #83d2ad !important; }
+    body.theme-dark .feedback-open-button,
+    body.theme-dark .concession-search,
+    body.theme-dark .concession-search-empty {
+      border-color: #435967 !important;
+      background: #172b3a !important;
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .feedback-open-button > span,
+    body.theme-dark .concession-search input,
+    body.theme-dark .concession-search input::placeholder,
+    body.theme-dark .concession-search > span,
+    body.theme-dark .concession-search-empty {
+      color: #edf4f8 !important;
+      -webkit-text-fill-color: #edf4f8 !important;
+    }
+    body.theme-dark .concession-search > i,
+    body.theme-dark .concession-search:focus-within { color: #8fc5e2 !important; }
+    body.theme-dark .concession-search input::placeholder { opacity: .72 !important; }
+    body.theme-dark .btn-menu,
+    body.theme-dark .btn-menu.btn-deshabilitado,
+    body.theme-dark .btn-menu.btn-deshabilitado:disabled {
+      border-color: #405462 !important;
+      background: #172b3a !important;
+      color: #e5eef3 !important;
+    }
+    body.theme-dark .btn-menu:hover:not(:disabled) {
+      border-color: #6c9bb5 !important;
+      background: #20394b !important;
+    }
+    body.theme-dark .btn-title,
+    body.theme-dark .btn-menu.btn-deshabilitado .btn-title {
+      border-color: #526977 !important;
+      background: #263e4d !important;
+      color: #e8f0f5 !important;
+    }
+    body.theme-dark .btn-subtitle,
+    body.theme-dark .btn-menu.is-available .btn-subtitle,
+    body.theme-dark .btn-menu.btn-deshabilitado .btn-subtitle {
+      color: #e4edf2 !important;
+    }
+    body.theme-dark .btn-subtitle small,
+    body.theme-dark .btn-menu.is-available .btn-subtitle small,
+    body.theme-dark .btn-menu.btn-deshabilitado .btn-subtitle small {
+      color: #a9c4d3 !important;
+    }
+    body.theme-dark .btn-menu.is-available,
+    body.theme-dark .btn-menu.is-available:not(.btn-deshabilitado) {
+      border-color: #4a7d99 !important;
+      border-left-color: #d64a55 !important;
+      background: #1b3547 !important;
+    }
+    body.theme-dark .btn-menu.is-available .btn-title {
+      border-color: #4b89a9 !important;
+      background: #286181 !important;
+      color: #ffffff !important;
+    }
+    body.theme-dark .concession-arrow { color: #9bc9e0 !important; }
+    body.theme-dark .catalog-legend { color: #c2d0d9 !important; }
+    body.theme-dark .legend-pending { background: #9eacb5 !important; }
+
+    /* El panel del mapa utiliza la misma preferencia de apariencia. */
+    body.theme-dark .header-card {
+      border-color: #405563 !important;
+      background: #122331 !important;
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .sidebar-brand,
+    body.theme-dark .fleet-section,
+    body.theme-dark .header-card .info-grid,
+    body.theme-dark .header-card .footer-actions {
+      border-color: #344958 !important;
+    }
+    body.theme-dark .sidebar-brand-lockup strong,
+    body.theme-dark .badge-text h1,
+    body.theme-dark .fleet-section-heading h2,
+    body.theme-dark .tools-section-heading,
+    body.theme-dark .favorites-panel-heading {
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .sidebar-brand-lockup small,
+    body.theme-dark .badge-text p,
+    body.theme-dark .fleet-state,
+    body.theme-dark .fleet-filter-summary,
+    body.theme-dark .favorites-note {
+      color: #aec0cb !important;
+    }
+    body.theme-dark .sidebar-back-button,
+    body.theme-dark .panel-toggle-button,
+    body.theme-dark .tool-button,
+    body.theme-dark .header-card .footer-actions .btn-action,
+    body.theme-dark .header-card .line-filter-toggle,
+    body.theme-dark .header-card .line-filter-action,
+    body.theme-dark .header-card #buscador-paradas,
+    body.theme-dark .header-card #buscador-filtros-lineas {
+      border-color: #4a6070 !important;
+      background: #1a3040 !important;
+      color: #edf4f8 !important;
+      -webkit-text-fill-color: #edf4f8 !important;
+    }
+    body.theme-dark .header-card .line-filter-title,
+    body.theme-dark .header-card .line-filter-summary,
+    body.theme-dark .header-card .line-filter-toggle > i {
+      color: #e1ebf1 !important;
+    }
+    body.theme-dark .header-card #panel-filtros-lineas {
+      border-color: #435a69 !important;
+      background: #142a39 !important;
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .header-card #lista-filtros-lineas .line-filter,
+    body.theme-dark .header-card #lista-filtros-lineas .line-filter:visited {
+      border-color: #496171 !important;
+      background: #1b3343 !important;
+      color: #edf4f8 !important;
+      -webkit-text-fill-color: #edf4f8 !important;
+    }
+    body.theme-dark .header-card #lista-filtros-lineas .line-filter.active,
+    body.theme-dark .header-card #lista-filtros-lineas .line-filter[aria-pressed="true"] {
+      border-color: #6392ad !important;
+      background: #274b62 !important;
+      color: #ffffff !important;
+      -webkit-text-fill-color: #ffffff !important;
+    }
+    body.theme-dark .header-card .info-grid { background: #122331 !important; }
+    body.theme-dark .header-card .info-label { color: #b9c9d2 !important; }
+    body.theme-dark .header-card .info-value,
+    body.theme-dark .header-card #bus-info,
+    body.theme-dark .header-card #last-updated { color: #a7d7f0 !important; }
+    body.theme-dark .header-card .fleet-empty {
+      border-color: #526775 !important;
+      background: #1a3040 !important;
+      color: #e5eef3 !important;
+    }
+    body.theme-dark .header-card .fleet-vehicle-card {
+      border-color: #435968 !important;
+      border-left-color: #4e93b6 !important;
+      background: #192f3e !important;
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .header-card .fleet-vehicle-number,
+    body.theme-dark .header-card .fleet-destination,
+    body.theme-dark .header-card .fleet-next-stop,
+    body.theme-dark .header-card .fleet-next-stop > span,
+    body.theme-dark .header-card .fleet-next-stop strong {
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .header-card .fleet-destination-label { color: #b6c8d2 !important; }
+    body.theme-dark .header-card .fleet-vehicle-number strong {
+      border-color: #4e6878 !important;
+      background: #29485a !important;
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .header-card .fleet-vehicle-plate,
+    body.theme-dark .header-card .fleet-metric {
+      border-color: #4b6271 !important;
+      background: #203949 !important;
+      color: #e7f0f5 !important;
+    }
+    body.theme-dark .header-card .fleet-next-stop { border-top-color: #455d6c !important; }
+    body.theme-dark .header-card .fleet-route-group {
+      border-color: #405968 !important;
+      background: #172d3c !important;
+    }
+    body.theme-dark .header-card .fleet-route-group-toggle {
+      background: #203b4d !important;
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .header-card .fleet-route-group-copy strong,
+    body.theme-dark .header-card .fleet-route-tag { color: #edf4f8 !important; }
+    body.theme-dark .header-card .fleet-route-group-copy small { color: #b4c5cf !important; }
+    body.theme-dark .header-card .fleet-route-tag {
+      border-color: #526b7b !important;
+      background: #294456 !important;
+    }
+    body.theme-dark .header-card .search-results,
+    body.theme-dark .header-card .favorites-panel {
+      border-color: #455c6a !important;
+      background: #162c3b !important;
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .header-card .search-result,
+    body.theme-dark .header-card .favorite-row {
+      border-color: #405766 !important;
+      background: #162c3b !important;
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .header-card .search-result-name,
+    body.theme-dark .header-card .favorite-go,
+    body.theme-dark .header-card .favorite-action { color: #edf4f8 !important; }
+    body.theme-dark .header-card .search-result-meta { color: #b8c9d2 !important; }
+    body.theme-dark .header-card .panel-show-button {
+      border-color: #4a6070 !important;
+      background: #1a3040 !important;
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .header-card .info-item + .info-item { border-left-color: #344958 !important; }
+    body.theme-dark .header-card .btn-action:hover,
+    body.theme-dark .header-card .line-filter-action:hover,
+    body.theme-dark .header-card .tool-button:hover {
+      border-color: #6b9ab4 !important;
+      background: #25475d !important;
+      color: #ffffff !important;
+      -webkit-text-fill-color: #ffffff !important;
+    }
+    body.theme-dark .header-card .footer-actions .btn-layer.active {
+      border-color: #397da2 !important;
+      background: #286181 !important;
+      color: #ffffff !important;
+    }
+    body.theme-dark .theme-toggle {
+      border-color: #526979 !important;
+      background: #1c3445 !important;
+      color: #edf4f8 !important;
+    }
+    body.theme-dark .theme-toggle i { color: #ffd36e !important; }
+
+    @media (max-width: 720px) {
+      .sidebar-brand-actions { margin-left: 0 !important; }
+      .home-topbar { row-gap: 8px !important; }
+      .home-topbar .theme-toggle { min-height: 36px !important; padding: 0 9px !important; font-size: 10px !important; }
+    }
+
 </style>
 </head>
 <body>
@@ -4855,6 +5168,9 @@
           <span>SEGUIMIENTO GPS</span>
           <strong>T05</strong>
         </div>
+        <button type="button" class="theme-toggle" data-theme-toggle aria-pressed="false" aria-label="Activar modo oscuro" title="Activar modo oscuro">
+          <i class="fa-solid fa-moon" aria-hidden="true"></i><span data-theme-label>Modo oscuro</span>
+        </button>
         <button type="button" class="feedback-open-button" id="btn-abrir-buzon">
           <i class="fa-regular fa-message" aria-hidden="true"></i>
           <span>Atención y sugerencias</span>
@@ -4883,7 +5199,7 @@
             <span class="home-live-mark"><i class="fa-solid fa-satellite-dish" aria-hidden="true"></i></span>
             <span class="home-live-copy">
               <strong>Seguimiento en tiempo real</strong>
-              <small>Disponible actualmente en la concesión T05 · Zaragoza–Fraga</small>
+              <small>Disponible actualmente en la concesión T05 · Fraga-Zaragoza por el eje del Ebro</small>
             </span>
           </div>
           <p class="home-intro-foot">Una herramienta independiente para consultar la red de autobuses de Aragón.</p>
@@ -4909,7 +5225,7 @@
           <div class="lista-botones" aria-label="Listado de concesiones">
             <button class="btn-menu" data-concesion="T05">
               <span class="btn-title">T05</span>
-              <span class="btn-subtitle">Fraga / Castejón - Zaragoza</span>
+              <span class="btn-subtitle">Área de Fraga-Zaragoza por el eje del Ebro</span>
               <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-arrow-right"></i></span>
             </button>
             <button class="btn-menu btn-deshabilitado" disabled data-concesion="T01">
@@ -5082,9 +5398,14 @@
         <img class="sidebar-brand-mark" src="{{ url_for('static', filename='mapa-tpa-mark.svg') }}" alt="" aria-hidden="true">
         <span><strong>MAPA TPA</strong><small>TRANSPORTE · ARAGÓN</small></span>
       </div>
+      <div class="sidebar-brand-actions">
+        <button type="button" class="theme-toggle theme-toggle-compact" data-theme-toggle aria-pressed="false" aria-label="Activar modo oscuro" title="Activar modo oscuro">
+          <i class="fa-solid fa-moon" aria-hidden="true"></i><span data-theme-label>Modo oscuro</span>
+        </button>
       <button type="button" class="sidebar-back-button" onclick="volverAlMenu()" aria-label="Volver al catálogo">
         <i class="fa-solid fa-arrow-left" aria-hidden="true"></i><span>Concesiones</span>
       </button>
+      </div>
     </div>
     <div class="header-title">
       <div class="line-badge">
@@ -5180,9 +5501,6 @@
     </div>
 
     <div class="footer-actions">
-      <button class="btn-action btn-layer active" id="btn-paradas" onclick="alternarParadas()" aria-pressed="true">
-        <i class="fa-solid fa-location-dot"></i> Paradas
-      </button>
       <button class="btn-action" onclick="centrarEnBus()">
         <i class="fa-solid fa-crosshairs"></i> Encuadrar
       </button>
@@ -5202,6 +5520,38 @@
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
+
+    // Preferencia de apariencia persistente (claro por defecto).
+    (() => {
+      const claveTema = 'mapa-tpa-tema-v1';
+      const botonesTema = () => Array.from(document.querySelectorAll('[data-theme-toggle]'));
+      const aplicarTema = (oscuro, guardar = false) => {
+        document.body.classList.toggle('theme-dark', oscuro);
+        botonesTema().forEach(boton => {
+          const icono = boton.querySelector('i');
+          const etiqueta = boton.querySelector('[data-theme-label]');
+          boton.setAttribute('aria-pressed', String(oscuro));
+          boton.setAttribute('aria-label', oscuro ? 'Activar modo claro' : 'Activar modo oscuro');
+          boton.title = oscuro ? 'Activar modo claro' : 'Activar modo oscuro';
+          icono?.classList.toggle('fa-moon', !oscuro);
+          icono?.classList.toggle('fa-sun', oscuro);
+          if (etiqueta) etiqueta.textContent = oscuro ? 'Modo claro' : 'Modo oscuro';
+        });
+        if (guardar) {
+          try { localStorage.setItem(claveTema, oscuro ? 'dark' : 'light'); } catch (_) {}
+        }
+      };
+      let modoGuardado = 'light';
+      try { modoGuardado = localStorage.getItem(claveTema) || 'light'; } catch (_) {}
+      aplicarTema(modoGuardado === 'dark');
+      document.addEventListener('click', evento => {
+        const boton = evento.target.closest('[data-theme-toggle]');
+        if (!boton) return;
+        aplicarTema(!document.body.classList.contains('theme-dark'), true);
+      });
+    })();
+
+
 
     // Mostrar una breve transición de entrada mientras termina de cargar la página.
     (() => {
