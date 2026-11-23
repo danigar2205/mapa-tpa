@@ -2892,7 +2892,7 @@ def consultar_flota_avanza_urbana():
 def _trabajador_barrido_avanza(descriptor_bloqueo=None):
     try:
         resultado = consultar_flota_avanza_urbana()
-        timestamp_cache = time.monotonic()
+        timestamp_cache = time.time()
         with AVANZA_URBANOS_LOCK:
             AVANZA_URBANOS_CACHE.update({
                 "timestamp": timestamp_cache,
@@ -2963,7 +2963,7 @@ def iniciar_barrido_avanza_si_necesario(forzar=False):
         )
         timestamp_cache = cache_compartida.get("timestamp") or 0.0
         edad = (
-            time.monotonic() - float(timestamp_cache)
+            time.time() - float(timestamp_cache)
             if isinstance(timestamp_cache, (int, float)) and timestamp_cache > 0
             else float("inf")
         )
