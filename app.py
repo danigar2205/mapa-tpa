@@ -1911,10 +1911,12 @@ AVANZA_SCAN_VERSION = 2
 AVANZA_CATALOGO_POSTES_TTL = 21600
 AVANZA_PAUSA_RECORRIDOS = 0.0
 AVANZA_PAUSA_POSTES = 0.0
-AVANZA_CONCURRENCIA_GPS = 8
+# La consulta de recorridos va separada para reservar capacidad al GPS de paradas.
+AVANZA_CONCURRENCIA_RECORRIDOS = 12
+AVANZA_CONCURRENCIA_GPS = 24
 AVANZA_GPS_TIMEOUT_CONNECT = 3.0
 AVANZA_GPS_TIMEOUT_READ = 4.0
-AVANZA_GPS_REFRESCOS_POR_LOTE = 2
+AVANZA_GPS_REFRESCOS_POR_LOTE = 1
 AVANZA_GPS_SEGUIMIENTO_LOTE = 14
 AVANZA_GPS_SEGUIMIENTO_NOVEDADES = 4
 AVANZA_GPS_SEGUIMIENTO_INTERVALO = 6.0
@@ -1927,7 +1929,8 @@ except (TypeError, ValueError):
 try:
     AVANZA_PAUSA_RECORRIDOS = max(0.0, float(os.environ.get("AVANZA_PAUSA_RECORRIDOS", AVANZA_PAUSA_RECORRIDOS)))
     AVANZA_PAUSA_POSTES = max(0.0, float(os.environ.get("AVANZA_PAUSA_POSTES", AVANZA_PAUSA_POSTES)))
-    AVANZA_CONCURRENCIA_GPS = min(10, max(1, int(os.environ.get("AVANZA_CONCURRENCIA_GPS", AVANZA_CONCURRENCIA_GPS))))
+    AVANZA_CONCURRENCIA_RECORRIDOS = min(16, max(1, int(os.environ.get("AVANZA_CONCURRENCIA_RECORRIDOS", AVANZA_CONCURRENCIA_RECORRIDOS))))
+    AVANZA_CONCURRENCIA_GPS = min(32, max(16, int(os.environ.get("AVANZA_CONCURRENCIA_GPS", AVANZA_CONCURRENCIA_GPS))))
 except (TypeError, ValueError):
     pass
 try:
@@ -2688,7 +2691,7 @@ def descubrir_postes_avanza(http):
         recorridos_desde_checkpoint = 0
 
     with ThreadPoolExecutor(
-        max_workers=AVANZA_CONCURRENCIA_GPS,
+        max_workers=AVANZA_CONCURRENCIA_RECORRIDOS,
         thread_name_prefix="avanza-recorridos",
     ) as executor:
         futuros = {
@@ -3168,7 +3171,7 @@ def consultar_flota_avanza_urbana():
         ahora = time.monotonic()
         if (
             not forzar
-            and resultados_desde_checkpoint < 5
+            and resultados_desde_checkpoint < 20
             and ahora - ultimo_checkpoint_gps < 2.0
         ):
             return
@@ -3266,7 +3269,7 @@ def consultar_flota_avanza_urbana():
                     refrescos_pendientes_o_activos.discard(poste_key)
                 else:
                     nuevas_desde_refresco += 1
-                    if nuevas_desde_refresco >= 20:
+                    if nuevas_desde_refresco >= 50:
                         programar_refrescos_activos()
 
                 resultados_desde_checkpoint += 1
