@@ -4601,7 +4601,64 @@
       img.sidebar-brand-mark { width: 32px !important; height: 32px !important; }
     }
 
-  </style>
+  
+    /* AJUSTE DE CONTRASTE DEL PANEL Y CONTROLES INFERIORES */
+    .header-card .info-grid {
+      background: #ffffff !important;
+    }
+    .header-card .info-label {
+      color: #334b5a !important;
+      opacity: 1 !important;
+      text-shadow: none !important;
+    }
+    .header-card .info-value,
+    .header-card #bus-info,
+    .header-card #last-updated {
+      color: #174e72 !important;
+      opacity: 1 !important;
+      text-shadow: none !important;
+      font-variant-numeric: tabular-nums;
+    }
+    .header-card .footer-actions {
+      position: static !important;
+      inset: auto !important;
+      bottom: auto !important;
+      z-index: auto !important;
+      margin: 14px 0 0 !important;
+      padding: 12px 0 0 !important;
+      border: 0 !important;
+      border-top: 1px solid #cbd5dc !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
+    .header-card .footer-actions .btn-action {
+      -webkit-appearance: none !important;
+      appearance: none !important;
+      border: 1px solid #9eacb5 !important;
+      border-radius: 4px !important;
+      background: #ffffff !important;
+      color: #172b3a !important;
+      box-shadow: none !important;
+      text-shadow: none !important;
+    }
+    .header-card .footer-actions .btn-action:hover {
+      background: #f2f6f8 !important;
+      color: #172b3a !important;
+    }
+    .header-card .footer-actions .btn-layer.active {
+      border-color: #174e72 !important;
+      background: #174e72 !important;
+      color: #ffffff !important;
+    }
+    .header-card .footer-actions .btn-action:focus-visible {
+      outline: 2px solid #174e72 !important;
+      outline-offset: 2px !important;
+    }
+
+</style>
 </head>
 <body>
 
@@ -4880,7 +4937,7 @@
       </div>
       <div class="info-item">
         <span class="info-label">Última actualización</span>
-        <span class="info-value" id="last-updated" style="color: #e2e8f0;">--:--:--</span>
+        <span class="info-value" id="last-updated">--:--:--</span>
       </div>
     </div>
 
