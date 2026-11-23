@@ -2153,19 +2153,75 @@ def _cache_avanza_sin_catalogo(cache):
 
 def _guardar_avanza_estado_compartido(estado=None, cache=None, actualizar_cache=False, catalogo=None):
     """
-    En Redis actualiza solo la clave que ha cambiado; el estado, la flota y el
-    catálogo se almacenan por separado para evitar serializar toda la red cada seis segundos.
+    Actualiza solo el fichero o clave que ha cambiado. La flota y el catálogo
+    ya no se vuelven a serializar en cada latido del seguimiento.
     """
-    global AVANZA_REDIS_MIGRATED
+    global AVANZA_REDIS_MIGRATED, AVANZA_SHARED_FILES_MIGRATED
     with AVANZA_SHARED_WRITE_LOCK:
-        cache_guardada = _cache_avanza_sin_catalogo(cache) if actualizar_cache else None
+        cache_guardada = (
+            _cache_avanza_sin_catalogo(cache) if actualizar_cache else None
+        )
         if estado is not None:
             estado = dict(estado)
+
         if AVANZA_REDIS_CLIENT is not None:
             try:
                 pipeline = AVANZA_REDIS_CLIENT.pipeline(transaction=False)
                 if not AVANZA_REDIS_MIGRATED:
-                    global AVANZA_SHARED_FILES_MIGRATED
+                    contenido = _leer_avanza_estado_compartido()
+                    if estado is not None:
+                        contenido["state"] = estado
+                    if actualizar_cache:
+                        contenido["cache"] = cache_guardada
+                    if catalogo is not None:
+                        contenido["catalogo"] = catalogo
+                    contenido["cache"] = _cache_avanza_sin_catalogo(
+                        contenido.get("cache")
+                    )
+
+                    valores = (
+                        (AVANZA_REDIS_STATE_DATA_KEY, contenido.get("state")),
+                        (AVANZA_REDIS_CACHE_DATA_KEY, contenido.get("cache")),
+                        (AVANZA_REDIS_CATALOG_DATA_KEY, contenido.get("catalogo")),
+                    )
+                    for clave, valor in valores:
+                        if valor is None:
+                            pipeline.delete(clave)
+                        else:
+                            pipeline.set(
+                                clave,
+                                json.dumps(valor, ensure_ascii=False, separators=(",", ":")),
+                                ex=172800,
+                            )
+                    pipeline.delete(AVANZA_REDIS_STATE_KEY)
+                    pipeline.execute()
+                    AVANZA_REDIS_MIGRATED = True
+                else:
+                    if estado is not None:
+                        pipeline.set(
+                            AVANZA_REDIS_STATE_DATA_KEY,
+                            json.dumps(estado, ensure_ascii=False, separators=(",", ":")),
+                            ex=172800,
+                        )
+                    if actualizar_cache:
+                        pipeline.set(
+                            AVANZA_REDIS_CACHE_DATA_KEY,
+                            json.dumps(cache_guardada, ensure_ascii=False, separators=(",", ":")),
+                            ex=172800,
+                        )
+                    if catalogo is not None:
+                        pipeline.set(
+                            AVANZA_REDIS_CATALOG_DATA_KEY,
+                            json.dumps(catalogo, ensure_ascii=False, separators=(",", ":")),
+                            ex=172800,
+                        )
+                    pipeline.execute()
+                _renovar_bloqueo_avanza_redis()
+                return
+            except Exception as exc:
+                print(f"[AVANZA URBANOS] No se pudo guardar el estado Redis: {exc}")
+                return
+
         if not AVANZA_SHARED_FILES_MIGRATED:
             contenido = _leer_avanza_estado_compartido()
             if estado is not None:
@@ -2174,15 +2230,17 @@ def _guardar_avanza_estado_compartido(estado=None, cache=None, actualizar_cache=
                 contenido["cache"] = cache_guardada
             if catalogo is not None:
                 contenido["catalogo"] = catalogo
-            for clave, ruta in (
+            contenido["cache"] = _cache_avanza_sin_catalogo(
+                contenido.get("cache")
+            )
+            valores = (
                 ("state", AVANZA_SHARED_STATE_DATA_PATH),
                 ("cache", AVANZA_SHARED_CACHE_DATA_PATH),
                 ("catalogo", AVANZA_SHARED_CATALOG_DATA_PATH),
-            ):
+            )
+            for clave, ruta in valores:
                 valor = contenido.get(clave)
                 if valor is not None:
-                    if clave == "cache":
-                        valor = _cache_avanza_sin_catalogo(valor)
                     _escribir_json_avanza_atomico(ruta, valor)
             try:
                 os.remove(AVANZA_SHARED_STATE_PATH)
