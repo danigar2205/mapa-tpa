@@ -2782,12 +2782,10 @@ def _trabajador_barrido_avanza(descriptor_bloqueo=None):
         )
     finally:
         _liberar_bloqueo_avanza_compartido(descriptor_bloqueo)
-        # Mantiene compatibilidad con el bloqueo local anterior si estaba tomado.
-        if AVANZA_URBAN_SCAN_LOCK.locked():
-            try:
-                AVANZA_URBAN_SCAN_LOCK.release()
-            except RuntimeError:
-                pass
+        try:
+            AVANZA_URBAN_SCAN_LOCK.release()
+        except RuntimeError:
+            pass
 
 
 def iniciar_barrido_avanza_si_necesario(forzar=False):
@@ -2795,8 +2793,12 @@ def iniciar_barrido_avanza_si_necesario(forzar=False):
     Inicia un único barrido en toda la instancia Render. El bloqueo de fichero
     evita que otro worker Gunicorn comience desde cero al recibir el siguiente poll.
     """
+    # Primero evita dos inicios simultáneos dentro del mismo worker.
+    if not AVANZA_URBAN_SCAN_LOCK.acquire(blocking=False):
+        return
     descriptor = _adquirir_bloqueo_avanza_compartido()
     if descriptor is None:
+        AVANZA_URBAN_SCAN_LOCK.release()
         return
 
     try:
@@ -2819,6 +2821,7 @@ def iniciar_barrido_avanza_si_necesario(forzar=False):
                 if isinstance(datos_compartidos.get("state"), dict):
                     AVANZA_URBANOS_STATE.update(datos_compartidos["state"])
             _liberar_bloqueo_avanza_compartido(descriptor)
+            AVANZA_URBAN_SCAN_LOCK.release()
             return
 
         with AVANZA_URBANOS_LOCK:
@@ -2852,6 +2855,10 @@ def iniciar_barrido_avanza_si_necesario(forzar=False):
         hilo.start()
     except Exception:
         _liberar_bloqueo_avanza_compartido(descriptor)
+        try:
+            AVANZA_URBAN_SCAN_LOCK.release()
+        except RuntimeError:
+            pass
         raise
 
 
