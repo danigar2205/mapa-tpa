@@ -9842,6 +9842,8 @@
         }
         if (!avanzaUrbanosActiva) return;
 
+        const enEscaneo = Boolean(datos.escaneo_en_curso);
+        const fase = String(datos.fase || '');
         const buses = Array.isArray(datos.buses) ? datos.buses : [];
         const idsActuales = new Set();
         const posiciones = [];
@@ -9898,12 +9900,16 @@
           }
         });
 
-        Object.keys(marcadoresAvanzaUrbanos).forEach(id => {
-          if (!idsActuales.has(id)) {
-            map.removeLayer(marcadoresAvanzaUrbanos[id]);
-            delete marcadoresAvanzaUrbanos[id];
-          }
-        });
+        // Mientras se está descargando, las posiciones llegan por tandas:
+        // no borres los marcadores anteriores hasta recibir el barrido completo.
+        if (!enEscaneo) {
+          Object.keys(marcadoresAvanzaUrbanos).forEach(id => {
+            if (!idsActuales.has(id)) {
+              map.removeLayer(marcadoresAvanzaUrbanos[id]);
+              delete marcadoresAvanzaUrbanos[id];
+            }
+          });
+        }
 
         if (avanzaUrbanosPrimeraCarga && posiciones.length) {
           if (posiciones.length === 1) map.setView(posiciones[0], 15);
@@ -9918,8 +9924,6 @@
         const paradas = Array.isArray(datos.paradas_consultadas) ? datos.paradas_consultadas : [];
         const totalParadas = Number(datos.total_paradas || datos.paradas_descubiertas || 0);
         const lineas = Number(datos.lineas_descubiertas || 0);
-        const enEscaneo = Boolean(datos.escaneo_en_curso);
-        const fase = String(datos.fase || '');
         const progreso = Number(datos.progreso || 0);
         const totalProgreso = Number(datos.total_progreso || 0);
         const progresoGeneral = Number(datos.progreso_general || 0);
