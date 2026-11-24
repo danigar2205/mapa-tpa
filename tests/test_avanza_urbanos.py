@@ -190,6 +190,24 @@ class AvanzaAccessTests(unittest.TestCase):
         with self.client.session_transaction() as sesion:
             self.assertTrue(sesion.get("avanza_autorizado"))
 
+    def test_login_accepts_initial_credentials_even_if_render_values_were_overridden(self):
+        usuario_anterior = app_module.AVANZA_LOGIN_USER
+        password_anterior = app_module.AVANZA_LOGIN_PASSWORD
+        try:
+            app_module.AVANZA_LOGIN_USER = "usuario-antiguo-de-render"
+            app_module.AVANZA_LOGIN_PASSWORD = "clave-antigua-de-render"
+            respuesta = self.client.post(
+                "/api/avanza/login",
+                json={"usuario": "user", "password": "busero"},
+            )
+            self.assertEqual(respuesta.status_code, 200)
+            self.assertTrue(respuesta.get_json()["ok"])
+            with self.client.session_transaction() as sesion:
+                self.assertTrue(sesion.get("avanza_autorizado"))
+        finally:
+            app_module.AVANZA_LOGIN_USER = usuario_anterior
+            app_module.AVANZA_LOGIN_PASSWORD = password_anterior
+
     def test_logout_clears_access_session(self):
         self.client.post(
             "/api/avanza/login",
