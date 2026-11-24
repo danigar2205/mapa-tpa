@@ -2937,7 +2937,7 @@ class AvanzaLlegadasHTMLParser(HTMLParser):
 
     def _cerrar_bloque(self):
         cabecera = " ".join(self.bloque.get("cabecera") or [])
-        partes = re.sub(r"\\s+", " ", cabecera).strip().split()
+        partes = re.sub(r"\s+", " ", cabecera).strip().split()
         if not partes:
             return
         linea = partes[0]
@@ -2947,10 +2947,10 @@ class AvanzaLlegadasHTMLParser(HTMLParser):
 
         for fila in self.bloque.get("filas") or []:
             texto = re.sub(r"\\s+", " ", " ".join(fila.get("texto") or [])).strip()
-            coincidencia_texto = re.match(r"^(\\d+)", texto)
-            coincidencia_eta = re.search(r"\\[\\s*(-?\\d+)\\s*min", texto, flags=re.I)
+            coincidencia_texto = re.match(r"^(\d+)", texto)
+            coincidencia_eta = re.search(r"\[\s*(-?\d+)\s*min", texto, flags=re.I)
             coincidencia_href = re.search(
-                r"/fParadas/\\d+/(\\d+)(?:[/?#].*)?$",
+                r"/fParadas/\d+/(\d+)(?:[/?#].*)?$",
                 str(fila.get("href") or "").strip(),
             )
             coche_texto = coincidencia_texto.group(1) if coincidencia_texto else None
