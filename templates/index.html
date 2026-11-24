@@ -7944,6 +7944,100 @@
       .avanza-bus-list-row { min-height: 29px; }
     }
 
+      /* Acceso discreto a la flota urbana desde el pie de la portada. */
+    .home-avanza-access-button {
+      display: inline-flex; align-items: center; gap: 7px; min-height: 30px;
+      padding: 0 11px; border: 1px solid rgba(125,211,252,.28); border-radius: 8px;
+      background: rgba(14,165,233,.08); color: #bae6fd; font: inherit;
+      font-size: 10px; font-weight: 800; cursor: pointer;
+    }
+    .home-avanza-access-button:hover { background: rgba(14,165,233,.16); }
+    /* Avanza se presenta como una lista, sin mapa ni marcadores. */
+    body.avanza-mode { background: #0f172a !important; }
+    body.avanza-mode #map { display: none !important; }
+    body.avanza-mode #pantalla-inicio { display: none !important; }
+    .avanza-urbanos-panel:not([hidden]) {
+      position: fixed; z-index: 10040; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: min(1000px, calc(100vw - 32px));
+      max-height: calc(100dvh - 32px); overflow: auto;
+      padding: clamp(17px, 2.8vw, 30px);
+      border: 1px solid rgba(255,255,255,.13); border-radius: 19px;
+      background: rgba(15,23,42,.98); color: #f8fafc;
+      box-shadow: 0 24px 70px rgba(0,0,0,.42);
+    }
+    .avanza-panel-heading { margin-top: 20px; }
+    .avanza-panel-stats { margin-top: 17px; }
+    .avanza-bus-list { margin-top: 18px; }
+    .avanza-bus-list-head, .avanza-bus-list-row {
+      grid-template-columns: 110px 78px minmax(0, 1fr);
+    }
+    .avanza-bus-list-items {
+      max-height: min(58dvh, 580px);
+      overflow-y: auto;
+    }
+    .avanza-bus-list-row { min-height: 42px; }
+    .avanza-bus-list-car, .avanza-bus-list-direction { font-size: 12px; }
+    .avanza-bus-list-line { min-width: 36px; padding: 4px 7px; font-size: 11px; }
+    .avanza-bus-list-empty { padding: 25px 14px; font-size: 12px; }
+    .avanza-login-modal[hidden] { display: none !important; }
+    .avanza-login-modal {
+      position: fixed; inset: 0; z-index: 10060; display: flex;
+      align-items: center; justify-content: center; padding: 16px;
+      background: rgba(3,10,22,.72); backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    .avanza-login-card {
+      width: min(100%, 390px); padding: 25px;
+      border: 1px solid rgba(125,211,252,.22); border-radius: 18px;
+      background: linear-gradient(145deg,#17283f,#0e1a2b); color: #f8fafc;
+      box-shadow: 0 26px 80px rgba(0,0,0,.45);
+    }
+    .avanza-login-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+    .avanza-login-icon {
+      display: grid; place-items: center; width: 42px; height: 42px;
+      border: 1px solid rgba(125,211,252,.26); border-radius: 12px;
+      background: rgba(14,165,233,.13); color: #7dd3fc;
+    }
+    .avanza-login-close {
+      width: 34px; height: 34px; border: 1px solid rgba(255,255,255,.12);
+      border-radius: 9px; background: rgba(255,255,255,.06);
+      color: #dce8f2; font-size: 23px; cursor: pointer;
+    }
+    .avanza-login-card h2 { margin-top: 8px; font-size: 23px; font-weight: 800; }
+    .avanza-login-card > p { margin: 7px 0 20px; color: #aabbd0; font-size: 12px; line-height: 1.5; }
+    .avanza-login-card form { display: flex; flex-direction: column; gap: 9px; }
+    .avanza-login-card label { margin-top: 5px; color: #c9d7e6; font-size: 11px; font-weight: 700; }
+    .avanza-login-card input {
+      width: 100%; min-height: 43px; padding: 0 12px;
+      border: 1px solid rgba(174,199,226,.23); border-radius: 9px;
+      background: rgba(3,12,25,.65); color: #fff; font: inherit; font-size: 14px;
+    }
+    .avanza-login-status { min-height: 17px; margin: 2px 0; color: #fca5a5; font-size: 11px; }
+    .avanza-login-submit {
+      min-height: 43px; border: 0; border-radius: 9px;
+      background: linear-gradient(100deg,#0e9bd0,#2563b9); color: #fff;
+      font: inherit; font-size: 12px; font-weight: 800; cursor: pointer;
+    }
+    .avanza-login-submit:disabled { opacity: .6; cursor: wait; }
+    @media (max-width: 700px) {
+      .avanza-urbanos-panel:not([hidden]) {
+        top: 0; left: 0; transform: none;
+        width: 100%; max-height: 100dvh; height: 100dvh;
+        padding: max(14px, env(safe-area-inset-top)) 13px max(14px, env(safe-area-inset-bottom));
+        border: 0; border-radius: 0;
+      }
+      .avanza-panel-heading { margin-top: 15px; }
+      .avanza-bus-list-head, .avanza-bus-list-row {
+        grid-template-columns: 75px 55px minmax(0, 1fr); gap: 7px;
+      }
+      .avanza-bus-list-head span { font-size: 8px; }
+      .avanza-bus-list-car, .avanza-bus-list-direction { font-size: 10px; }
+      .avanza-bus-list-row { min-height: 39px; padding: 6px 8px; }
+      .avanza-login-card { padding: 21px; }
+      .home-avanza-access-button { min-height: 32px; }
+    }
+
   </style>
 </head>
 <body>
@@ -7960,7 +8054,7 @@
 
 
   <!-- Selector inicial de red de transporte -->
-  <section id="selector-plataforma" aria-labelledby="gateway-title">
+  <section id="selector-plataforma" aria-labelledby="gateway-title" hidden>
     <div class="gateway-shell">
       <header class="gateway-heading">
         <span class="gateway-eyebrow"><span class="gateway-eyebrow-dot"></span> MOVILIDAD · ARAGÓN</span>
@@ -8327,8 +8421,31 @@
       <footer class="home-footer">
         <span><strong>MAPA TPA</strong> <span class="footer-separator">/</span> Aragón</span>
         <span>Mapa de concesiones del transporte público autonómico</span>
+        <button type="button" class="home-avanza-access-button" onclick="mostrarLoginAvanza()">
+          <i class="fa-solid fa-lock" aria-hidden="true"></i><span>Acceder</span>
+        </button>
       </footer>
     </div>
+  </div>
+
+  <div class="avanza-login-modal" id="modal-login-avanza" hidden>
+    <section class="avanza-login-card" role="dialog" aria-modal="true" aria-labelledby="avanza-login-title">
+      <div class="avanza-login-top">
+        <span class="avanza-login-icon"><i class="fa-solid fa-lock" aria-hidden="true"></i></span>
+        <button type="button" class="avanza-login-close" onclick="cerrarLoginAvanza()" aria-label="Cerrar">×</button>
+      </div>
+      <span class="avanza-panel-eyebrow">ACCESO RESTRINGIDO</span>
+      <h2 id="avanza-login-title">Autobuses urbanos</h2>
+      <p>Introduce tus credenciales para consultar el listado de Avanza.</p>
+      <form id="form-login-avanza" onsubmit="iniciarSesionAvanza(event)">
+        <label for="avanza-login-user">Usuario</label>
+        <input id="avanza-login-user" name="usuario" type="text" autocomplete="username" required maxlength="80">
+        <label for="avanza-login-password">Contraseña</label>
+        <input id="avanza-login-password" name="password" type="password" autocomplete="current-password" required maxlength="160">
+        <p class="avanza-login-status" id="avanza-login-status" role="status" aria-live="polite"></p>
+        <button type="submit" class="avanza-login-submit" id="avanza-login-submit">Acceder</button>
+      </form>
+    </section>
   </div>
 
   <div class="feedback-modal" id="modal-buzon" hidden>
@@ -8532,11 +8649,11 @@
     <span>Mostrar información</span>
   </button>
 
-  <!-- Panel independiente de la red urbana de Avanza Zaragoza -->
+  <!-- Listado privado de autobuses urbanos de Avanza -->
   <section id="avanza-urbanos-panel" class="avanza-urbanos-panel" hidden aria-label="Autobuses urbanos de Zaragoza">
     <div class="avanza-panel-top">
-      <button type="button" class="avanza-back-button" onclick="volverASelectorPlataforma()" aria-label="Volver a las redes">
-        <i class="fa-solid fa-arrow-left" aria-hidden="true"></i><span>Redes</span>
+      <button type="button" class="avanza-back-button" onclick="cerrarAvanzaUrbanos()" aria-label="Cerrar sesión y volver al inicio">
+        <i class="fa-solid fa-arrow-left" aria-hidden="true"></i><span>Salir</span>
       </button>
       <span class="avanza-live-pill" id="avanza-live-pill" data-state="loading">
         <span class="avanza-live-dot"></span><span id="avanza-live-text">CONECTANDO</span>
@@ -8545,25 +8662,11 @@
     <div class="avanza-panel-heading">
       <span class="avanza-panel-eyebrow">MOVILIDAD · ZARAGOZA</span>
       <h1>Autobuses urbanos</h1>
-      <p>Seguimiento GPS de la red urbana de Avanza</p>
+      <p>Vehículos localizados por el GPS de Avanza</p>
     </div>
     <div class="avanza-panel-stats">
-      <div><strong id="avanza-bus-count">—</strong><span id="avanza-bus-count-label">coches detectados</span></div>
+      <div><strong id="avanza-bus-count">0</strong><span>autobuses localizados</span></div>
       <div><strong id="avanza-last-update">—</strong><span>última actualización</span></div>
-    </div>
-    <div class="avanza-progress-card" id="avanza-progress-card" data-state="loading">
-      <div class="avanza-progress-top">
-        <span id="avanza-progress-title">Preparando descarga</span>
-        <strong id="avanza-progress-percent">0%</strong>
-      </div>
-      <div class="avanza-progress-track" id="avanza-progressbar" role="progressbar"
-        aria-label="Progreso de descarga de posiciones" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-        <span class="avanza-progress-fill" id="avanza-progress-fill"></span>
-      </div>
-      <div class="avanza-progress-bottom">
-        <span id="avanza-progress-detail">Esperando respuesta de Avanza…</span>
-        <span id="avanza-progress-buses">0 coches</span>
-      </div>
     </div>
     <section class="avanza-bus-list" aria-label="Listado de autobuses localizados">
       <div class="avanza-bus-list-top">
@@ -8571,17 +8674,12 @@
         <strong id="avanza-list-count">0</strong>
       </div>
       <div class="avanza-bus-list-head" aria-hidden="true">
-        <span>COCHE</span><span>LÍNEA</span><span>SENTIDO</span>
+        <span>COCHE</span><span>LÍNEA</span><span>DESTINO</span>
       </div>
       <div class="avanza-bus-list-items" id="avanza-bus-list" role="list" aria-live="polite">
-        <div class="avanza-bus-list-empty">Esperando posiciones GPS…</div>
+        <div class="avanza-bus-list-empty">Buscando autobuses…</div>
       </div>
     </section>
-    <p class="avanza-panel-note" id="avanza-coverage-note">El recuento incluye los coches que el GPS publica en los postes consultados; no representa el tamaño total de la flota.</p>
-    <p class="avanza-panel-message" id="avanza-panel-message" role="status" aria-live="polite"></p>
-    <button type="button" class="avanza-refresh-button" id="avanza-refresh-button" onclick="actualizarAvanzaUrbanos(true)">
-      <i class="fa-solid fa-rotate" aria-hidden="true"></i><span>Actualizar ahora</span>
-    </button>
   </section>
 
   <!-- Mapa -->
@@ -9970,7 +10068,7 @@
           .map(bus => ({
             coche: String(bus.coche || bus.id || '').trim(),
             linea: String(bus.linea || '?').trim(),
-            sentido: String(bus.sentido || bus.destino || 'Sentido no indicado').trim()
+            destino: String(bus.destino || bus.sentido || 'Destino no indicado').trim()
           }))
           .sort((a, b) => a.linea.localeCompare(b.linea, 'es', { numeric: true }) ||
             a.coche.localeCompare(b.coche, 'es', { numeric: true }));
@@ -9980,7 +10078,7 @@
               return `<div class="avanza-bus-list-row" role="listitem">
                 <strong class="avanza-bus-list-car">${escaparHTML(bus.coche)}</strong>
                 <span class="avanza-bus-list-line" style="--avanza-line-color:${color}">${escaparHTML(bus.linea)}</span>
-                <span class="avanza-bus-list-direction" title="${escaparHTML(bus.sentido)}">${escaparHTML(bus.sentido)}</span>
+                <span class="avanza-bus-list-direction" title="${escaparHTML(bus.destino)}">${escaparHTML(bus.destino)}</span>
               </div>`;
             }).join('')
           : '<div class="avanza-bus-list-empty">Esperando posiciones GPS…</div>';
