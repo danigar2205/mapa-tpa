@@ -10,7 +10,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed, wait, FIRST_COM
 # Desactivar extensión C de Protobuf para compatibilidad con Python 3.11+
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, session as flask_session
+import hmac
 from email.message import EmailMessage
 import requests
 import urllib3
@@ -35,6 +36,25 @@ from urllib3.poolmanager import PoolManager
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
+# Acceso básico al listado privado de Avanza. En Render se pueden sustituir
+# estos valores mediante variables de entorno sin cambiar el código.
+AVANZA_LOGIN_USER = os.environ.get("AVANZA_LOGIN_USER", "user")
+AVANZA_LOGIN_PASSWORD = os.environ.get("AVANZA_LOGIN_PASSWORD", "busero")
+# Define FLASK_SECRET_KEY en producción para firmar las sesiones con un secreto
+# propio y estable entre reinicios y trabajadores.
+app.secret_key = os.environ.get(
+    "FLASK_SECRET_KEY",
+    "mapa-tpa-avanza-session-key-configura-un-secreto-propio",
+)
+app.config.update({
+    "SESSION_COOKIE_HTTPONLY": True,
+    "SESSION_COOKIE_SAMESITE": "Lax",
+    "SESSION_COOKIE_SECURE": (
+        os.environ.get("SESSION_COOKIE_SECURE", "1" if os.environ.get("RENDER") else "0")
+        .strip().lower() in {"1", "true", "yes", "si"}
+    ),
+})
+app.permanent_session_lifetime = timedelta(hours=12)
 ZONA_HORARIA = ZoneInfo('Europe/Madrid')
 
 # Datos estáticos desacoplados por concesión. Los ficheros T05 actuales
@@ -4025,9 +4045,36 @@ def iniciar_barrido_avanza_si_necesario(forzar=False):
         raise
 
 
+@app.route('/api/avanza/login', methods=['POST'])
+def login_avanza():
+    """Valida las credenciales sin exponerlas al navegador ni a las respuestas."""
+    datos = request.get_json(silent=True) or request.form
+    usuario = str(datos.get("usuario") or "")
+    password = str(datos.get("password") or "")
+    usuario_correcto = hmac.compare_digest(usuario, AVANZA_LOGIN_USER)
+    password_correcta = hmac.compare_digest(password, AVANZA_LOGIN_PASSWORD)
+    if not (usuario_correcto and password_correcta):
+        return jsonify({"ok": False, "error": "Usuario o contraseña incorrectos."}), 401
+
+    flask_session.clear()
+    flask_session["avanza_autorizado"] = True
+    flask_session.permanent = True
+    return jsonify({"ok": True})
+
+
+@app.route('/api/avanza/logout', methods=['POST'])
+def logout_avanza():
+    """Cierra la sesión de acceso al panel urbano."""
+    flask_session.pop("avanza_autorizado", None)
+    return jsonify({"ok": True})
+
+
 @app.route('/api/avanza/urbanos')
 def get_avanza_urbanos():
     """Devuelve el último barrido único y su progreso, sin bloquear la petición."""
+    if not flask_session.get("avanza_autorizado"):
+        return jsonify({"error": "Inicia sesión para consultar los autobuses urbanos."}), 401
+
     iniciar_barrido_avanza_si_necesario(
         forzar=request.args.get("forzar") == "1"
     )
