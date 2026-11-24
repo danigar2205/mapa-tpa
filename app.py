@@ -1901,6 +1901,7 @@ def get_buses(linea):
 AVANZA_URBANOS_ENDPOINT = (
     "https://gps.avanzabus.com/index.php/zaragoza/fRefrescaEmpresaExternos"
 )
+AVANZA_HTTP_USER_AGENT = "MapaTPA/1.1 (+https://github.com/danigar2205/mapa-tpa)"
 AVANZA_LINEAS_URL = "https://zaragoza.avanzagrupo.com/lineas-y-horarios/"
 AVANZA_AJAX_URL = "https://zaragoza.avanzagrupo.com/wp-admin/admin-ajax.php"
 
@@ -1965,6 +1966,9 @@ AVANZA_URBANOS_STATE = {
     "sentidos_consultados": 0,
     "total_sentidos": 0,
     "paradas_gps_completadas": 0,
+    "paradas_gps_intentadas": 0,
+    "paradas_gps_con_error": 0,
+    "ultimo_error_gps": None,
     "coches_unicos_detectados": 0,
     "buses_parciales": [],
     "lineas_descubiertas": 0,
@@ -2921,9 +2925,9 @@ def _sesion_gps_avanza():
     if sesion is None:
         sesion = requests.Session()
         sesion.headers.update({
-            "User-Agent": "Mozilla/5.0 (compatible; MapaTPA/1.0)",
-            "Accept": "application/json, text/javascript, */*; q=0.01",
-            "X-Requested-With": "XMLHttpRequest",
+            "User-Agent": AVANZA_HTTP_USER_AGENT,
+            "Accept": "*/*",
+            "Content-Type": "application/x-www-form-urlencoded",
         })
         AVANZA_GPS_THREAD_LOCAL.sesion = sesion
     return sesion
@@ -2934,10 +2938,9 @@ def _consultar_poste_gps_avanza(parada_info):
     poste = parada_info["poste"]
     nombre_parada = parada_info.get("nombre") or f"Parada {poste}"
     sesion = _sesion_gps_avanza()
-    headers = {
-        "Referer": f"https://gps.avanzabus.com/zaragoza/fParadas/{poste}",
-        "Origin": "https://gps.avanzabus.com",
-    }
+    # El endpoint acepta el formulario POST directamente; no necesita cabeceras
+    # de navegación ni simular una petición AJAX de navegador.
+    headers = {}
 
     # Un único reintento para fallos transitorios. Si vence la primera lectura,
     # se reintenta una sola vez con un límite menor para no eternizar el barrido.
@@ -3120,8 +3123,8 @@ def consultar_flota_avanza_urbana():
     inicio = time.monotonic()
     http = requests.Session()
     http.headers.update({
-        "User-Agent": "Mozilla/5.0 (compatible; MapaTPA/1.0)",
-        "Accept": "application/json, text/javascript, */*; q=0.01",
+        "User-Agent": AVANZA_HTTP_USER_AGENT,
+        "Accept": "*/*",
     })
 
     postes, lineas_descubiertas, sentidos_consultados, errores_catalogo = (
