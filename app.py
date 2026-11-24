@@ -2634,6 +2634,24 @@ def obtener_nonce_y_lineas_avanza(http):
     return nonce, lineas
 
 
+class AvanzaBarridoInterrumpido(Exception):
+    """El barrido actual se detuvo para ceder el turno a una recarga limpia."""
+
+
+def _avanza_reinicio_pendiente():
+    """Consulta la señal compartida de reinicio, también entre workers de Render."""
+    try:
+        contenido = _leer_avanza_estado_compartido(incluir_catalogo=False)
+        estado = contenido.get("state") or {}
+        if isinstance(estado, dict) and estado.get("nuevo_barrido_solicitado"):
+            return True
+    except Exception as exc:
+        print(f"[AVANZA URBANOS] No se pudo comprobar el reinicio pendiente: {exc}")
+
+    with AVANZA_URBANOS_LOCK:
+        return bool(AVANZA_URBANOS_STATE.get("nuevo_barrido_solicitado"))
+
+
 def descubrir_postes_avanza(http):
     """
     Descubre los postes de los recorridos Avanza y reanuda desde el último
@@ -2787,6 +2805,13 @@ def descubrir_postes_avanza(http):
         }
 
         for futuro in as_completed(futuros):
+            if _avanza_reinicio_pendiente():
+                for pendiente in futuros:
+                    if not pendiente.done():
+                        pendiente.cancel()
+                raise AvanzaBarridoInterrumpido(
+                    "Se ha interrumpido el descubrimiento para iniciar un barrido limpio."
+                )
             try:
                 resultado = futuro.result()
             except Exception as exc:
@@ -3446,6 +3471,7 @@ def consultar_flota_avanza_urbana():
     ultimo_error_gps = None
     consultas_primera_pasada = 0
     circuito_abierto = False
+    reinicio_solicitado = False
     with AVANZA_URBANOS_LOCK:
         buses_previos = [
             dict(bus) for bus in (AVANZA_URBANOS_STATE.get("buses_parciales") or [])
@@ -3616,6 +3642,12 @@ def consultar_flota_avanza_urbana():
         rellenar_hilos()
         while futuros:
             terminados, _ = wait(tuple(futuros), return_when=FIRST_COMPLETED)
+            if _avanza_reinicio_pendiente():
+                reinicio_solicitado = True
+                cancelar_peticiones_gps.set()
+                for futura_pendiente in futuros:
+                    futura_pendiente.cancel()
+                break
             for futuro in terminados:
                 parada_info = futuros.pop(futuro)
                 poste_key = str(parada_info["poste"])
@@ -3645,9 +3677,14 @@ def consultar_flota_avanza_urbana():
                         futura_pendiente.cancel()
                     publicar_progreso_gps(forzar=True)
                     break
-            if circuito_abierto:
+            if circuito_abierto or reinicio_solicitado:
                 break
             rellenar_hilos()
+
+    if reinicio_solicitado:
+        raise AvanzaBarridoInterrumpido(
+            "El barrido anterior ha cedido el turno para iniciar uno nuevo."
+        )
 
     if circuito_abierto:
         muestra_error = ultimo_error_gps or "sin detalle de error"
@@ -3660,6 +3697,10 @@ def consultar_flota_avanza_urbana():
     # Reintenta las paradas que fallaron, después de completar la primera pasada.
     # Así una parada lenta o una respuesta transitoria no se pierde definitivamente.
     for ronda_reintento in range(1, AVANZA_GPS_REINTENTOS_FINALES + 1):
+        if _avanza_reinicio_pendiente():
+            raise AvanzaBarridoInterrumpido(
+                "El barrido anterior ha cedido el turno antes de reintentar paradas."
+            )
         if not fallos_por_poste:
             break
         time.sleep(min(6.0, 1.5 * ronda_reintento))
@@ -3691,6 +3732,12 @@ def consultar_flota_avanza_urbana():
                     tuple(futuros_reintento),
                     return_when=FIRST_COMPLETED,
                 )
+                if _avanza_reinicio_pendiente():
+                    for futura_pendiente in futuros_reintento:
+                        futura_pendiente.cancel()
+                    raise AvanzaBarridoInterrumpido(
+                        "El barrido anterior ha cedido el turno durante los reintentos."
+                    )
                 for futuro in terminados:
                     parada_info = futuros_reintento.pop(futuro)
                     try:
@@ -4017,6 +4064,24 @@ def _trabajador_barrido_avanza(descriptor_bloqueo=None):
             })
             estado_seguimiento_final = dict(AVANZA_URBANOS_STATE)
         _guardar_avanza_estado_compartido(estado=estado_seguimiento_final)
+    except AvanzaBarridoInterrumpido as exc:
+        print(f"[AVANZA URBANOS] {exc}")
+        estado_compartido = _leer_avanza_estado_compartido(incluir_catalogo=False).get("state") or {}
+        with AVANZA_URBANOS_LOCK:
+            AVANZA_URBANOS_STATE.update({
+                "escaneo_en_curso": False,
+                "seguimiento_en_curso": False,
+                "fase": "iniciando",
+                "nuevo_barrido_solicitado": True,
+                "nuevo_barrido_solicitado_epoch": (
+                    estado_compartido.get("nuevo_barrido_solicitado_epoch") or time.time()
+                ),
+                "heartbeat_epoch": time.time(),
+                "buses_parciales": [],
+                "coches_unicos_detectados": 0,
+            })
+            estado_interrumpido = dict(AVANZA_URBANOS_STATE)
+        _guardar_avanza_estado_compartido(estado=estado_interrumpido)
     except Exception as exc:
         print(f"[AVANZA URBANOS] Error en el barrido de flota: {exc}")
         _actualizar_estado_avanza(
@@ -4326,8 +4391,10 @@ def get_avanza_urbanos():
     datos.update(estado)
     reinicio_pendiente = bool(estado.get("nuevo_barrido_solicitado"))
     if reinicio_pendiente:
+        solicitud_epoch = float(estado.get("nuevo_barrido_solicitado_epoch") or time.time())
         datos.update({
             "reinicio_pendiente": True,
+            "reinicio_espera_segundos": max(0, int(time.time() - solicitud_epoch)),
             "escaneo_en_curso": True,
             "seguimiento_en_curso": False,
             "fase": "iniciando",
