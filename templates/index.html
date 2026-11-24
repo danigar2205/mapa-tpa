@@ -10052,7 +10052,7 @@
           : `<div class="avanza-bus-list-empty">${datos.fase === 'error'
               ? escaparHTML(datos.ultimo_error || datos.error || 'No se ha podido consultar el GPS de Avanza.')
               : (datos.reinicio_pendiente
-                ? 'Reiniciando el seguimiento; el listado anterior se ha vaciado y se iniciará un barrido limpio…'
+                ? 'Interrumpiendo las consultas anteriores para liberar el GPS… ' + String(Number(datos.reinicio_espera_segundos) || 0) + ' s'
                 : (enEscaneo ? 'Localizando autobuses; aparecerán aquí conforme lleguen los datos GPS…'
                   : 'No se han localizado autobuses en este barrido.'))}</div>`;
 
