@@ -388,6 +388,25 @@ class AvanzaArrivalParsingTests(unittest.TestCase):
         self.assertIsNone(buses[0]["lon"])
         self.assertEqual(buses[0]["parada"], "Paseo Independencia")
 
+    def test_keeps_arrival_when_machine_marker_has_invalid_coordinates(self):
+        maquinas = {
+            "0": {
+                "icon": "bus.png",
+                "title": "039 4650",
+                "coordenadas": {"0": {"LAT": 0, "LON": 0}},
+            }
+        }
+        buses = app_module.buses_de_respuesta_gps_avanza(
+            {"tablatiempos": self.HTML, "maquinas": maquinas},
+            poste=812,
+            nombre_parada="Paseo Independencia",
+        )
+
+        autobus = next(bus for bus in buses if bus["coche"] == "4650")
+        self.assertIsNone(autobus["lat"])
+        self.assertIsNone(autobus["lon"])
+        self.assertEqual(autobus["linea"], "39")
+
     def test_merges_optional_position_from_machine_marker(self):
         maquinas = {
             "0": {
