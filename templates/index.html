@@ -7893,6 +7893,8 @@
     .avanza-panel-stats > div { display: flex; flex-direction: column; gap: 4px; padding: 11px; border: 1px solid rgba(255,255,255,.08); border-radius: 10px; background: rgba(255,255,255,.045); }
     .avanza-panel-stats strong { color: #7dd3fc; font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; }
     .avanza-panel-stats span { color: #9fb0c2; font-size: 9px; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
+    .avanza-lines-summary { margin-top: 9px; color: #a8b8c8; font-size: 10px; line-height: 1.5; overflow-wrap: anywhere; }
+    .avanza-lines-summary strong { color: #e2e8f0; font-weight: 800; }
     .avanza-bus-list { margin-top: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,.09); border-radius: 10px; background: rgba(255,255,255,.035); }
     .avanza-bus-list-top { display: flex; align-items: center; justify-content: space-between; padding: 9px 10px 7px; }
     .avanza-bus-list-top span { color: #c5d8e6; font-size: 9px; font-weight: 800; letter-spacing: .08em; }
@@ -8588,6 +8590,7 @@
       <div><strong id="avanza-bus-count">0</strong><span>autobuses localizados</span></div>
       <div><strong id="avanza-last-update">—</strong><span>última actualización</span></div>
     </div>
+    <p class="avanza-lines-summary" id="avanza-lines-summary">Líneas con autobuses detectados: —</p>
     <section class="avanza-bus-list" aria-label="Listado de autobuses localizados">
       <div class="avanza-bus-list-top">
         <span>VEHÍCULOS LOCALIZADOS</span>
@@ -10023,6 +10026,19 @@
             a.linea.localeCompare(b.linea, 'es', { numeric: true }) ||
             a.coche.localeCompare(b.coche, 'es', { numeric: true })
           );
+
+        const lineasDetectadas = Array.isArray(datos.lineas_detectadas)
+          ? datos.lineas_detectadas.map(linea => String(linea).trim()).filter(Boolean)
+          : [...new Set(listaVehiculos.map(bus => bus.linea))].sort((a, b) =>
+              a.localeCompare(b, 'es', { numeric: true })
+            );
+        const resumenLineas = document.getElementById('avanza-lines-summary');
+        if (resumenLineas) {
+          resumenLineas.innerHTML = lineasDetectadas.length
+            ? '<strong>Líneas con autobuses detectados (' + lineasDetectadas.length + '):</strong> ' +
+              escaparHTML(lineasDetectadas.join(' · '))
+            : 'Todavía no se han detectado autobuses por línea.';
+        }
 
         const listadoHTML = listaVehiculos.length
           ? listaVehiculos.map(bus => {
