@@ -4152,6 +4152,8 @@ def get_avanza_urbanos():
             "lineas_descubiertas": 0,
             "paradas_descubiertas": 0,
             "total_paradas": 0,
+            "paradas_consultadas": [],
+            "paradas_gps_consultadas": [],
             "paradas_consultadas_count": 0,
             "paradas_sin_respuesta_count": 0,
             "ultimo_error": None,
