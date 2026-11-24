@@ -1907,7 +1907,7 @@ AVANZA_AJAX_URL = "https://zaragoza.avanzagrupo.com/wp-admin/admin-ajax.php"
 AVANZA_URBANOS_TTL = 360
 # Incrementar cuando cambie el significado de los datos de un barrido.
 # La caché anterior se considera histórica y no se mezcla con el siguiente ciclo.
-AVANZA_SCAN_VERSION = 6
+AVANZA_SCAN_VERSION = 7
 AVANZA_CATALOGO_POSTES_TTL = 21600
 AVANZA_PAUSA_RECORRIDOS = 0.0
 AVANZA_PAUSA_POSTES = 0.0
@@ -3480,6 +3480,9 @@ def _seguir_actualizando_flota_avanza(resultado, timestamp_cache):
             if restante <= 0:
                 break
             time.sleep(min(AVANZA_GPS_SEGUIMIENTO_INTERVALO, restante))
+            estado_compartido = _leer_avanza_estado_compartido(incluir_catalogo=False).get("state") or {}
+            if estado_compartido.get("nuevo_barrido_solicitado"):
+                break
             if time.time() - timestamp_cache >= AVANZA_URBANOS_TTL:
                 break
 
@@ -3730,6 +3733,45 @@ def _buses_parciales_del_mismo_escaneo(estado_previo, reanudar_escaneo):
     ]
 
 
+def _solicitar_nuevo_barrido_avanza_si_ocupado(forzar=False):
+    """
+    Si el panel se abre mientras solo sigue vivo el refresco de la flota anterior,
+    solicita que ese refresco termine y que la siguiente consulta inicie un barrido nuevo.
+    No interrumpe una exploración GPS que ya está en marcha y es reciente.
+    """
+    if not forzar:
+        return
+
+    contenido = _leer_avanza_estado_compartido(incluir_catalogo=False)
+    estado = contenido.get("state") or {}
+    if not isinstance(estado, dict):
+        return
+
+    try:
+        edad_heartbeat = time.time() - float(estado.get("heartbeat_epoch") or 0)
+    except (TypeError, ValueError):
+        edad_heartbeat = float("inf")
+
+    trabajo_reciente = edad_heartbeat <= max(
+        60.0,
+        AVANZA_GPS_TIMEOUT_READ * 8.0,
+        AVANZA_GPS_SEGUIMIENTO_INTERVALO * 4.0,
+    )
+    if estado.get("escaneo_en_curso") and trabajo_reciente:
+        # Hay un barrido real en curso; reutilizarlo evita duplicar 927 consultas.
+        return
+
+    if estado.get("seguimiento_en_curso") or not trabajo_reciente:
+        estado["nuevo_barrido_solicitado"] = True
+        estado["nuevo_barrido_solicitado_epoch"] = time.time()
+        with AVANZA_URBANOS_LOCK:
+            AVANZA_URBANOS_STATE.update({
+                "nuevo_barrido_solicitado": True,
+                "nuevo_barrido_solicitado_epoch": estado["nuevo_barrido_solicitado_epoch"],
+            })
+        _guardar_avanza_estado_compartido(estado=estado)
+
+
 def iniciar_barrido_avanza_si_necesario(forzar=False):
     """
     Inicia un único barrido global. Redis coordina todas las instancias cuando
@@ -3738,10 +3780,12 @@ def iniciar_barrido_avanza_si_necesario(forzar=False):
     global AVANZA_REDIS_ACTIVE_LOCK_TOKEN
     # Primero evita dos inicios simultáneos dentro del mismo worker.
     if not AVANZA_URBAN_SCAN_LOCK.acquire(blocking=False):
+        _solicitar_nuevo_barrido_avanza_si_ocupado(forzar)
         return
     descriptor = _adquirir_bloqueo_avanza_compartido()
     if descriptor is None:
         AVANZA_URBAN_SCAN_LOCK.release()
+        _solicitar_nuevo_barrido_avanza_si_ocupado(forzar)
         return
     if isinstance(descriptor, dict) and descriptor.get("tipo") == "redis":
         AVANZA_REDIS_ACTIVE_LOCK_TOKEN = descriptor.get("token")
@@ -3757,8 +3801,10 @@ def iniciar_barrido_avanza_si_necesario(forzar=False):
             if postes_red:
                 cacheada = dict(cacheada)
                 cacheada["_postes_red"] = list(postes_red)
+        solicitud_nuevo_barrido = bool(estado_previo.get("nuevo_barrido_solicitado"))
         reanudar_escaneo = bool(
             not forzar
+            and not solicitud_nuevo_barrido
             and estado_previo.get("escaneo_en_curso")
             and estado_previo.get("scan_id")
             and str(estado_previo.get("scan_version") or "") == str(AVANZA_SCAN_VERSION)
@@ -3777,6 +3823,7 @@ def iniciar_barrido_avanza_si_necesario(forzar=False):
 
         if (
             not forzar
+            and not solicitud_nuevo_barrido
             and not reanudar_escaneo
             and _cache_avanza_es_compatible(cacheada)
             and edad < AVANZA_URBANOS_TTL
@@ -3853,6 +3900,8 @@ def iniciar_barrido_avanza_si_necesario(forzar=False):
                 "paradas_gps_consultadas": list(estado_previo.get("paradas_gps_consultadas") or []) if reanudar_escaneo else [],
                 "errores_gps_parciales": list(estado_previo.get("errores_gps_parciales") or []) if reanudar_escaneo else [],
                 "ultimo_error": None,
+                "nuevo_barrido_solicitado": False,
+                "nuevo_barrido_solicitado_epoch": None,
                 # Una entrada nueva no debe heredar ninguna hora del barrido anterior.
                 "actualizado": estado_previo.get("actualizado") if reanudar_escaneo else None,
                 "actualizado_epoch": estado_previo.get("actualizado_epoch") if reanudar_escaneo else None,
@@ -3924,6 +3973,15 @@ def get_avanza_urbanos():
     actualizado_cache = datos.get("actualizado")
     epoch_cache = datos.get("actualizado_epoch")
     datos.update(estado)
+    if estado.get("nuevo_barrido_solicitado") and not estado.get("escaneo_en_curso"):
+        datos["escaneo_en_curso"] = True
+        datos["fase"] = "iniciando"
+        datos["inicio_escaneo"] = datetime.fromtimestamp(
+            float(estado.get("nuevo_barrido_solicitado_epoch") or time.time()),
+            ZONA_HORARIA,
+        ).isoformat()
+        datos["buses"] = []
+        datos["coches_unicos_detectados"] = 0
     if not datos.get("actualizado"):
         datos["actualizado"] = actualizado_cache or datos.get("fin_escaneo") or datos.get("inicio_escaneo")
     if not datos.get("actualizado_epoch"):
@@ -3946,7 +4004,7 @@ def get_avanza_urbanos():
         edad_cache = float("inf")
     max_antiguedad_visible = min(90.0, float(AVANZA_URBANOS_TTL))
     if (
-        not estado.get("escaneo_en_curso")
+        not datos.get("escaneo_en_curso")
         and timestamp_cache
         and edad_cache > max_antiguedad_visible
     ):
