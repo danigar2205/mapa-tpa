@@ -2946,7 +2946,7 @@ class AvanzaLlegadasHTMLParser(HTMLParser):
             return
 
         for fila in self.bloque.get("filas") or []:
-            texto = re.sub(r"\\s+", " ", " ".join(fila.get("texto") or [])).strip()
+            texto = re.sub(r"\s+", " ", " ".join(fila.get("texto") or [])).strip()
             coincidencia_texto = re.match(r"^(\d+)", texto)
             coincidencia_eta = re.search(r"\[\s*(-?\d+)\s*min", texto, flags=re.I)
             coincidencia_href = re.search(
@@ -3281,12 +3281,14 @@ def _consultar_poste_gps_avanza(parada_info, cancelar=None):
                 "error": f"poste {poste}: respuesta GPS no válida",
             }
 
-        if not isinstance(datos, dict) or "maquinas" not in datos:
+        if not isinstance(datos, dict) or not (
+            "maquinas" in datos or "tablatiempos" in datos
+        ):
             return {
                 "poste": poste,
                 "nombre": nombre_parada,
                 "buses": [],
-                "error": f"poste {poste}: respuesta sin máquinas GPS",
+                "error": f"poste {poste}: respuesta sin llegadas ni máquinas GPS",
             }
 
         buses = buses_de_respuesta_gps_avanza(datos, poste, nombre_parada)
