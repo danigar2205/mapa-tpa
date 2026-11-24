@@ -1891,7 +1891,15 @@ class OptimizacionesAvanzaTests(unittest.TestCase):
                 return_value=(datos, estado, time.time()),
             ),
         ):
-            respuesta = app.test_client().get("/api/avanza/urbanos")
+            cliente = app.test_client()
+            cliente.post(
+                "/api/avanza/login",
+                json={
+                    "usuario": app_module.AVANZA_LOGIN_USER,
+                    "password": app_module.AVANZA_LOGIN_PASSWORD,
+                },
+            )
+            respuesta = cliente.get("/api/avanza/urbanos")
 
         self.assertEqual(respuesta.status_code, 200)
         payload = respuesta.get_json()
@@ -1921,7 +1929,15 @@ class OptimizacionesAvanzaTests(unittest.TestCase):
                 return_value=(datos, estado, 100.0),
             ),
         ):
-            respuesta = app.test_client().get("/api/avanza/urbanos")
+            cliente = app.test_client()
+            cliente.post(
+                "/api/avanza/login",
+                json={
+                    "usuario": app_module.AVANZA_LOGIN_USER,
+                    "password": app_module.AVANZA_LOGIN_PASSWORD,
+                },
+            )
+            respuesta = cliente.get("/api/avanza/urbanos")
 
         payload = respuesta.get_json()
         self.assertEqual(payload["paradas_consultadas_count"], 2)
