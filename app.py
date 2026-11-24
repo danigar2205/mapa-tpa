@@ -4161,9 +4161,9 @@ def get_avanza_urbanos():
         })
     else:
         datos["reinicio_pendiente"] = False
-    if not datos.get("actualizado"):
+    if not reinicio_pendiente and not datos.get("actualizado"):
         datos["actualizado"] = actualizado_cache or datos.get("fin_escaneo") or datos.get("inicio_escaneo")
-    if not datos.get("actualizado_epoch"):
+    if not reinicio_pendiente and not datos.get("actualizado_epoch"):
         datos["actualizado_epoch"] = epoch_cache
     if not reinicio_pendiente and (estado.get("escaneo_en_curso") or estado.get("fase") == "error"):
         # Durante un barrido nuevo o fallido solo se exponen los coches de ese
