@@ -1932,6 +1932,9 @@ AVANZA_URBANOS_TTL = 360
 # Incrementar cuando cambie el significado de los datos de un barrido.
 # La caché anterior se considera histórica y no se mezcla con el siguiente ciclo.
 AVANZA_SCAN_VERSION = 10
+# Incrementar cuando cambie la forma de descubrir recorridos/paradas de Avanza.
+# La caché antigua puede omitir líneas aunque el GPS se haya actualizado.
+AVANZA_CATALOGO_VERSION = 2
 AVANZA_CATALOGO_POSTES_TTL = 21600
 AVANZA_PAUSA_RECORRIDOS = 0.0
 AVANZA_PAUSA_POSTES = 0.0
@@ -1974,6 +1977,7 @@ AVANZA_URBANOS_CACHE = {"timestamp": 0.0, "data": None}
 AVANZA_URBANOS_LOCK = threading.Lock()
 AVANZA_URBAN_SCAN_LOCK = threading.Lock()
 AVANZA_CATALOGO_POSTES_CACHE = {
+    "version": 0,
     "timestamp": 0.0,
     "postes": [],
     "lineas": 0,
@@ -2638,7 +2642,11 @@ def descubrir_postes_avanza(http):
     ahora = time.monotonic()
     with AVANZA_URBANOS_LOCK:
         cacheada = AVANZA_CATALOGO_POSTES_CACHE
-        if cacheada["postes"] and ahora - cacheada["timestamp"] < AVANZA_CATALOGO_POSTES_TTL:
+        if (
+            cacheada["postes"]
+            and cacheada.get("version") == AVANZA_CATALOGO_VERSION
+            and ahora - cacheada["timestamp"] < AVANZA_CATALOGO_POSTES_TTL
+        ):
             return (
                 list(cacheada["postes"]),
                 cacheada["lineas"],
@@ -2659,6 +2667,7 @@ def descubrir_postes_avanza(http):
     if (
         isinstance(postes_compartidos, list)
         and postes_compartidos
+        and catalogo_compartido.get("version") == AVANZA_CATALOGO_VERSION
         and edad_catalogo < AVANZA_CATALOGO_POSTES_TTL
     ):
         lineas_cacheadas = int(catalogo_compartido.get("lineas") or 0)
@@ -2666,6 +2675,7 @@ def descubrir_postes_avanza(http):
         errores_cacheados = list(catalogo_compartido.get("errores") or [])
         with AVANZA_URBANOS_LOCK:
             AVANZA_CATALOGO_POSTES_CACHE.update({
+                "version": AVANZA_CATALOGO_VERSION,
                 "timestamp": time.monotonic() - edad_catalogo,
                 "postes": list(postes_compartidos),
                 "lineas": lineas_cacheadas,
@@ -2821,6 +2831,7 @@ def descubrir_postes_avanza(http):
     ]
     with AVANZA_URBANOS_LOCK:
         AVANZA_CATALOGO_POSTES_CACHE.update({
+            "version": AVANZA_CATALOGO_VERSION,
             "timestamp": time.monotonic(),
             "postes": lista_postes,
             "lineas": len(lineas),
@@ -2828,6 +2839,7 @@ def descubrir_postes_avanza(http):
             "errores": errores[:20],
         })
     _guardar_avanza_estado_compartido(catalogo={
+        "version": AVANZA_CATALOGO_VERSION,
         "actualizado_epoch": time.time(),
         "postes": lista_postes,
         "lineas": len(lineas),
@@ -3397,6 +3409,7 @@ def consultar_flota_avanza_urbana():
 
     # El catálogo se comparte en una clave separada y no se repite con cada flota.
     _guardar_avanza_estado_compartido(catalogo={
+        "version": AVANZA_CATALOGO_VERSION,
         "actualizado_epoch": time.time(),
         "postes": postes,
         "lineas": lineas_descubiertas,
