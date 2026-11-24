@@ -2644,7 +2644,7 @@ def descubrir_postes_avanza(http):
         cacheada = AVANZA_CATALOGO_POSTES_CACHE
         if (
             cacheada["postes"]
-            and cacheada.get("version") == AVANZA_CATALOGO_VERSION
+            and _catalogo_avanza_es_compatible(cacheada)
             and ahora - cacheada["timestamp"] < AVANZA_CATALOGO_POSTES_TTL
         ):
             return (
@@ -2667,7 +2667,7 @@ def descubrir_postes_avanza(http):
     if (
         isinstance(postes_compartidos, list)
         and postes_compartidos
-        and catalogo_compartido.get("version") == AVANZA_CATALOGO_VERSION
+        and _catalogo_avanza_es_compatible(catalogo_compartido)
         and edad_catalogo < AVANZA_CATALOGO_POSTES_TTL
     ):
         lineas_cacheadas = int(catalogo_compartido.get("lineas") or 0)
@@ -4030,6 +4030,14 @@ def _trabajador_barrido_avanza(descriptor_bloqueo=None):
             AVANZA_URBAN_SCAN_LOCK.release()
         except RuntimeError:
             pass
+
+
+def _catalogo_avanza_es_compatible(catalogo):
+    """Evita reutilizar listas de paradas descubiertas con un parser anterior."""
+    return (
+        isinstance(catalogo, dict)
+        and catalogo.get("version") == AVANZA_CATALOGO_VERSION
+    )
 
 
 def _cache_avanza_es_compatible(cache):
