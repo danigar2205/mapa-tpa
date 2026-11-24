@@ -4390,6 +4390,11 @@ def get_avanza_urbanos():
     datos["paradas_sin_respuesta_count"] = max(
         0, int(datos.get("total_paradas") or 0) - paradas_con_respuesta
     ) if fase_actual == "completado" else 0
+    datos["lineas_detectadas"] = sorted({
+        normalizar_linea_avanza(bus.get("linea"))
+        for bus in (datos.get("buses") or [])
+        if isinstance(bus, dict) and bus.get("linea")
+    }, key=lambda linea: (not linea.isdigit(), int(linea) if linea.isdigit() else linea))
 
     # Son estructuras internas para reanudar el escaneo, no datos que necesite el mapa.
     for clave_interna in (
