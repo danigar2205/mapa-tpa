@@ -1901,25 +1901,25 @@ def get_buses(linea):
 AVANZA_URBANOS_ENDPOINT = (
     "https://gps.avanzabus.com/index.php/zaragoza/fRefrescaEmpresaExternos"
 )
-AVANZA_HTTP_USER_AGENT = "Mozilla/5.0 (compatible; MapaTPA/1.0)"
+AVANZA_HTTP_USER_AGENT = "MapaTPA/1.1 (+https://github.com/danigar2205/mapa-tpa)"
 AVANZA_LINEAS_URL = "https://zaragoza.avanzagrupo.com/lineas-y-horarios/"
 AVANZA_AJAX_URL = "https://zaragoza.avanzagrupo.com/wp-admin/admin-ajax.php"
 
 AVANZA_URBANOS_TTL = 360
 # Incrementar cuando cambie el significado de los datos de un barrido.
 # La caché anterior se considera histórica y no se mezcla con el siguiente ciclo.
-AVANZA_SCAN_VERSION = 8
+AVANZA_SCAN_VERSION = 9
 AVANZA_CATALOGO_POSTES_TTL = 21600
 AVANZA_PAUSA_RECORRIDOS = 0.0
 AVANZA_PAUSA_POSTES = 0.0
 # La consulta de recorridos va separada para reservar capacidad al GPS de paradas.
 AVANZA_CONCURRENCIA_RECORRIDOS = 12
-# 24 peticiones simultáneas provocaron demasiados timeouts en el GPS de Avanza.
-AVANZA_CONCURRENCIA_GPS = 16
+# El GPS se consulta poste a poste. Evitamos acumular conexiones abiertas cuando la fuente tarda.
+AVANZA_CONCURRENCIA_GPS = 4
 AVANZA_GPS_TIMEOUT_CONNECT = 4.0
 AVANZA_GPS_TIMEOUT_READ = 8.0
 # Limita el ritmo para no disparar cientos de peticiones en ráfaga al GPS.
-AVANZA_GPS_PETICIONES_POR_SEGUNDO = 3.0
+AVANZA_GPS_PETICIONES_POR_SEGUNDO = 2.0
 AVANZA_GPS_REINTENTOS_FINALES = 2
 AVANZA_GPS_REFRESCOS_POR_LOTE = 1
 AVANZA_GPS_SEGUIMIENTO_LOTE = 14
@@ -1935,8 +1935,8 @@ try:
     AVANZA_PAUSA_RECORRIDOS = max(0.0, float(os.environ.get("AVANZA_PAUSA_RECORRIDOS", AVANZA_PAUSA_RECORRIDOS)))
     AVANZA_PAUSA_POSTES = max(0.0, float(os.environ.get("AVANZA_PAUSA_POSTES", AVANZA_PAUSA_POSTES)))
     AVANZA_CONCURRENCIA_RECORRIDOS = min(16, max(1, int(os.environ.get("AVANZA_CONCURRENCIA_RECORRIDOS", AVANZA_CONCURRENCIA_RECORRIDOS))))
-    AVANZA_CONCURRENCIA_GPS = min(16, max(8, int(os.environ.get("AVANZA_CONCURRENCIA_GPS", AVANZA_CONCURRENCIA_GPS))))
-    AVANZA_GPS_PETICIONES_POR_SEGUNDO = min(3.0, max(1.0, float(os.environ.get("AVANZA_GPS_PETICIONES_POR_SEGUNDO", AVANZA_GPS_PETICIONES_POR_SEGUNDO))))
+    AVANZA_CONCURRENCIA_GPS = min(4, max(1, int(os.environ.get("AVANZA_CONCURRENCIA_GPS", AVANZA_CONCURRENCIA_GPS))))
+    AVANZA_GPS_PETICIONES_POR_SEGUNDO = min(2.0, max(1.0, float(os.environ.get("AVANZA_GPS_PETICIONES_POR_SEGUNDO", AVANZA_GPS_PETICIONES_POR_SEGUNDO))))
     AVANZA_GPS_REINTENTOS_FINALES = min(3, max(1, int(os.environ.get("AVANZA_GPS_REINTENTOS_FINALES", AVANZA_GPS_REINTENTOS_FINALES))))
 except (TypeError, ValueError):
     pass
@@ -2926,8 +2926,8 @@ def _sesion_gps_avanza():
         sesion = requests.Session()
         sesion.headers.update({
             "User-Agent": AVANZA_HTTP_USER_AGENT,
-            "Accept": "application/json, text/javascript, */*; q=0.01",
-            "X-Requested-With": "XMLHttpRequest",
+            "Accept": "*/*",
+            "Content-Type": "application/x-www-form-urlencoded",
         })
         AVANZA_GPS_THREAD_LOCAL.sesion = sesion
     return sesion
@@ -2938,10 +2938,7 @@ def _consultar_poste_gps_avanza(parada_info, cancelar=None):
     poste = parada_info["poste"]
     nombre_parada = parada_info.get("nombre") or f"Parada {poste}"
     sesion = _sesion_gps_avanza()
-    headers = {
-        "Referer": f"https://gps.avanzabus.com/zaragoza/fParadas/{poste}",
-        "Origin": "https://gps.avanzabus.com",
-    }
+    headers = {}
 
     # Un único reintento para fallos transitorios. Si vence la primera lectura,
     # se reintenta una sola vez con un límite menor para no eternizar el barrido.
@@ -3150,7 +3147,7 @@ def consultar_flota_avanza_urbana():
     http = requests.Session()
     http.headers.update({
         "User-Agent": AVANZA_HTTP_USER_AGENT,
-        "Accept": "application/json, text/javascript, */*; q=0.01",
+        "Accept": "*/*",
     })
 
     postes, lineas_descubiertas, sentidos_consultados, errores_catalogo = (
