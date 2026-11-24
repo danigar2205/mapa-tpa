@@ -3101,6 +3101,8 @@ def extraer_bus_avanza(maquina, poste, nombre_parada=None):
     # ese coche. En el panel de flota se debe conservar el vehículo y dejar sus
     # coordenadas vacías, nunca descartarlo por completo.
     validas = validar_coordenadas(punto.get("LAT"), punto.get("LON"))
+    if validas is not None and validas[0] == 0 and validas[1] == 0:
+        validas = None
     lat, lon = validas if validas is not None else (None, None)
 
     titulo = str(maquina.get("title") or "").strip()
