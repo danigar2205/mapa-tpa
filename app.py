@@ -3115,6 +3115,19 @@ def _registrar_resultado_parada_avanza(
     return True
 
 
+def _avanza_resultado_permite_reintento(resultado):
+    """Solo reintenta fallos transitorios; un 403/404 o un JSON incompatible no cambia por repetir."""
+    if not isinstance(resultado, dict) or not resultado.get("error"):
+        return False
+    error = str(resultado.get("error") or "").lower()
+    coincidencia = re.search(r"\bhttp\s+(\d{3})\b", error)
+    if coincidencia:
+        return int(coincidencia.group(1)) in {408, 425, 429, 500, 502, 503, 504}
+    if "respuesta gps no válida" in error or "respuesta sin máquinas gps" in error:
+        return False
+    return True
+
+
 def consultar_flota_avanza_urbana():
     """
     Escanea las paradas con un pool continuo. Cada resultado libera un hilo que
@@ -3166,6 +3179,10 @@ def consultar_flota_avanza_urbana():
     buses_por_coche = {
         str(bus["coche"]): dict(bus) for bus in buses_gps_parciales
     }
+    intentos_gps = len(postes_gps_completados)
+    ultimo_error_gps = None
+    consultas_primera_pasada = 0
+    circuito_abierto = False
     with AVANZA_URBANOS_LOCK:
         buses_previos = [
             dict(bus) for bus in (AVANZA_URBANOS_STATE.get("buses_parciales") or [])
@@ -3188,6 +3205,9 @@ def consultar_flota_avanza_urbana():
         sentidos_consultados=sentidos_consultados,
         total_sentidos=sentidos_consultados,
         paradas_gps_completadas=len(paradas_por_id),
+        paradas_gps_intentadas=intentos_gps,
+        paradas_gps_con_error=0,
+        ultimo_error_gps=None,
         coches_unicos_detectados=len(buses_previos),
         buses_parciales=buses_previos,
         buses_gps_parciales=list(buses_por_coche.values()),
@@ -3211,8 +3231,12 @@ def consultar_flota_avanza_urbana():
     resultados_desde_checkpoint = 0
 
     def incorporar_respuesta_gps(resultado_parada, refresco=False):
+        nonlocal intentos_gps, ultimo_error_gps
         poste_key = str(resultado_parada.get("poste"))
         if not refresco:
+            intentos_gps += 1
+            if resultado_parada.get("error"):
+                ultimo_error_gps = str(resultado_parada.get("error"))[:220]
             respuesta_valida = _registrar_resultado_parada_avanza(
                 resultado_parada,
                 postes_gps_completados,
@@ -3278,15 +3302,20 @@ def consultar_flota_avanza_urbana():
             key=lambda item: int(item["poste"]) if str(item["poste"]).isdigit() else str(item["poste"]),
         )
         progreso_valido = len(paradas_ordenadas)
+        progreso_intentos = min(intentos_gps, total_postes)
         _actualizar_estado_avanza(
             fase="consultando_gps",
-            progreso=progreso_valido,
+            progreso=progreso_intentos,
             total_progreso=total_postes,
-            progreso_general=sentidos_consultados + progreso_valido,
+            progreso_general=sentidos_consultados + progreso_intentos,
             total_progreso_general=total_operaciones,
             sentidos_consultados=sentidos_consultados,
             total_sentidos=sentidos_consultados,
             paradas_gps_completadas=progreso_valido,
+            paradas_gps_intentadas=intentos_gps,
+            paradas_gps_con_error=len(fallos_por_poste),
+            ultimo_error_gps=ultimo_error_gps,
+            heartbeat_epoch=time.time(),
             coches_unicos_detectados=len(buses_mostrados_ordenados),
             buses_parciales=buses_mostrados_ordenados,
             buses_gps_parciales=buses_gps_ordenados,
@@ -3335,10 +3364,29 @@ def consultar_flota_avanza_urbana():
                     }
 
                 incorporar_respuesta_gps(resultado_parada, refresco=False)
+                consultas_primera_pasada += 1
 
                 resultados_desde_checkpoint += 1
                 publicar_progreso_gps()
+
+                # Si las primeras 24 consultas no consiguen ni una respuesta JSON
+                # válida, el problema es de acceso/formato de la fuente, no de cobertura.
+                # No seguimos enviando cientos de peticiones y reintentos idénticos.
+                if consultas_primera_pasada >= 24 and not paradas_por_id:
+                    circuito_abierto = True
+                    publicar_progreso_gps(forzar=True)
+                    break
+            if circuito_abierto:
+                break
             rellenar_hilos()
+
+    if circuito_abierto:
+        muestra_error = ultimo_error_gps or "sin detalle de error"
+        raise ValueError(
+            "Avanza GPS no ha dado ninguna respuesta válida en las primeras "
+            f"{consultas_primera_pasada} consultas. Se detiene el barrido para evitar "
+            f"una espera indefinida. Último error: {muestra_error}"
+        )
 
     # Reintenta las paradas que fallaron, después de completar la primera pasada.
     # Así una parada lenta o una respuesta transitoria no se pierde definitivamente.
@@ -3352,7 +3400,10 @@ def consultar_flota_avanza_urbana():
                 fallos_por_poste,
                 key=lambda valor: int(valor) if str(valor).isdigit() else str(valor),
             )
-            if poste in postes_por_numero
+            if (
+                poste in postes_por_numero
+                and _avanza_resultado_permite_reintento(fallos_por_poste.get(poste))
+            )
         ]
         if not paradas_reintento:
             break
@@ -3890,6 +3941,9 @@ def iniciar_barrido_avanza_si_necesario(forzar=False):
                 "sentidos_consultados": int(estado_previo.get("sentidos_consultados") or 0) if reanudar_escaneo else 0,
                 "total_sentidos": int(estado_previo.get("total_sentidos") or 0) if reanudar_escaneo else 0,
                 "paradas_gps_completadas": int(estado_previo.get("paradas_gps_completadas") or 0) if reanudar_escaneo else 0,
+                "paradas_gps_intentadas": int(estado_previo.get("paradas_gps_intentadas") or 0) if reanudar_escaneo else 0,
+                "paradas_gps_con_error": int(estado_previo.get("paradas_gps_con_error") or 0) if reanudar_escaneo else 0,
+                "ultimo_error_gps": estado_previo.get("ultimo_error_gps") if reanudar_escaneo else None,
                 "coches_unicos_detectados": len(buses_previos),
                 "buses_parciales": buses_previos,
                 "scan_version": AVANZA_SCAN_VERSION,
