@@ -38,8 +38,11 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 app = Flask(__name__)
 # Acceso básico al listado privado de Avanza. En Render se pueden sustituir
 # estos valores mediante variables de entorno sin cambiar el código.
-AVANZA_LOGIN_USER = os.environ.get("AVANZA_LOGIN_USER", "user")
-AVANZA_LOGIN_PASSWORD = os.environ.get("AVANZA_LOGIN_PASSWORD", "busero")
+AVANZA_LOGIN_USER = os.environ.get("AVANZA_LOGIN_USER", "user").strip() or "user"
+AVANZA_LOGIN_PASSWORD = os.environ.get("AVANZA_LOGIN_PASSWORD", "busero").strip() or "busero"
+# Las credenciales publicadas como acceso inicial siguen siendo válidas aunque
+# Render tenga configurada una pareja antigua en sus variables de entorno.
+AVANZA_LOGIN_CREDENCIALES_INICIALES = ("user", "busero")
 # Define FLASK_SECRET_KEY en producción para firmar las sesiones con un secreto
 # propio y estable entre reinicios y trabajadores.
 app.secret_key = os.environ.get(
@@ -4051,9 +4054,13 @@ def login_avanza():
     datos = request.get_json(silent=True) or request.form
     usuario = str(datos.get("usuario") or "")
     password = str(datos.get("password") or "")
-    usuario_correcto = hmac.compare_digest(usuario, AVANZA_LOGIN_USER)
-    password_correcta = hmac.compare_digest(password, AVANZA_LOGIN_PASSWORD)
-    if not (usuario_correcto and password_correcta):
+    usuario_configurado_correcto = hmac.compare_digest(usuario, AVANZA_LOGIN_USER)
+    password_configurada_correcta = hmac.compare_digest(password, AVANZA_LOGIN_PASSWORD)
+    usuario_inicial_correcto = hmac.compare_digest(usuario, AVANZA_LOGIN_CREDENCIALES_INICIALES[0])
+    password_inicial_correcta = hmac.compare_digest(password, AVANZA_LOGIN_CREDENCIALES_INICIALES[1])
+    acceso_configurado = usuario_configurado_correcto and password_configurada_correcta
+    acceso_inicial = usuario_inicial_correcto and password_inicial_correcta
+    if not (acceso_configurado or acceso_inicial):
         return jsonify({"ok": False, "error": "Usuario o contraseña incorrectos."}), 401
 
     flask_session.clear()
