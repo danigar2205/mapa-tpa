@@ -8667,6 +8667,7 @@
     let avanzaUrbanosActiva = false;
     let avanzaUrbanosIntervalo = null;
     let avanzaUrbanosSolicitud = false;
+    let avanzaUrbanosSolicitudVersion = 0;
     let avanzaUrbanosPrimeraCarga = true;
     let avanzaUrbanosScanId = null;
     const marcadoresAvanzaUrbanos = {};
@@ -9837,6 +9838,9 @@
     }
 
     function abrirAvanzaUrbanos() {
+      // Cada entrada invalida las respuestas pendientes de una sesión anterior.
+      avanzaUrbanosSolicitudVersion += 1;
+      avanzaUrbanosSolicitud = false;
       const selector = document.getElementById('selector-plataforma');
       const inicio = document.getElementById('pantalla-inicio');
       if (selector) {
@@ -9890,11 +9894,14 @@
       initMap();
       map.setView([41.6488, -0.8891], 13);
       requestAnimationFrame(() => map?.invalidateSize({ pan: false }));
-      actualizarAvanzaUrbanos();
+      // Al entrar siempre solicita un barrido nuevo y no reutiliza la flota anterior.
+      actualizarAvanzaUrbanos(true);
       avanzaUrbanosIntervalo = setInterval(actualizarAvanzaUrbanos, 3000);
     }
 
     function volverASelectorPlataforma() {
+      avanzaUrbanosSolicitudVersion += 1;
+      avanzaUrbanosSolicitud = false;
       avanzaUrbanosActiva = false;
       if (avanzaUrbanosIntervalo) clearInterval(avanzaUrbanosIntervalo);
       avanzaUrbanosIntervalo = null;
@@ -9921,11 +9928,13 @@
     async function actualizarAvanzaUrbanos(forzar = false) {
       if (!avanzaUrbanosActiva || avanzaUrbanosSolicitud) return;
       avanzaUrbanosSolicitud = true;
+      const solicitudVersion = avanzaUrbanosSolicitudVersion;
       const boton = document.getElementById('avanza-refresh-button');
       if (forzar && boton) boton.disabled = true;
       try {
         const respuesta = await fetch('/api/avanza/urbanos' + (forzar ? '?forzar=1' : ''), { cache: 'no-store' });
         const datos = await respuesta.json();
+        if (solicitudVersion !== avanzaUrbanosSolicitudVersion) return;
         if (!respuesta.ok || (datos.error && !datos.escaneo_en_curso)) {
           throw new Error(datos.error || 'No se ha podido consultar el GPS de Avanza.');
         }
@@ -10067,7 +10076,9 @@
         }
         avanzaUrbanosPrimeraCarga = false;
 
-        const marcaTiempoActualizacion = datos.actualizado || datos.fin_escaneo || datos.inicio_escaneo || null;
+        const marcaTiempoActualizacion = enEscaneo
+          ? (datos.inicio_escaneo || datos.actualizado || null)
+          : (datos.actualizado || datos.fin_escaneo || datos.inicio_escaneo || null);
         const actualizado = marcaTiempoActualizacion ? new Date(marcaTiempoActualizacion) : null;
         document.getElementById('avanza-last-update').textContent =
           !actualizado || Number.isNaN(actualizado.getTime())
@@ -10173,15 +10184,17 @@
                   ? 'SEGUIMIENTO GPS ACTIVO'
                   : (buses.length ? 'BARRIDO FINALIZADO' : 'SIN VEHÍCULOS')));
       } catch (error) {
-        if (!avanzaUrbanosActiva) return;
+        if (!avanzaUrbanosActiva || solicitudVersion !== avanzaUrbanosSolicitudVersion) return;
         const pill = document.getElementById('avanza-live-pill');
         pill.dataset.state = 'error';
         document.getElementById('avanza-live-text').textContent = 'SIN CONEXIÓN';
         document.getElementById('avanza-panel-message').textContent =
           error?.message || 'No se ha podido actualizar la información de Avanza.';
       } finally {
-        avanzaUrbanosSolicitud = false;
-        if (boton) boton.disabled = false;
+        if (solicitudVersion === avanzaUrbanosSolicitudVersion) {
+          avanzaUrbanosSolicitud = false;
+          if (boton) boton.disabled = false;
+        }
       }
     }
 
