@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 import app as app_module
 
@@ -220,6 +221,128 @@ class AvanzaAccessTests(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 200)
         with self.client.session_transaction() as sesion:
             self.assertFalse(sesion.get("avanza_autorizado"))
+
+
+class AvanzaResetTests(unittest.TestCase):
+    def setUp(self):
+        self.client = app_module.app.test_client()
+
+    def test_pending_reset_is_preserved_while_same_scan_writes_checkpoints(self):
+        estado_nuevo = {
+            "scan_id": "scan-actual",
+            "nuevo_barrido_solicitado": False,
+        }
+        estado_compartido = {
+            "scan_id": "scan-actual",
+            "nuevo_barrido_solicitado": True,
+            "nuevo_barrido_solicitado_epoch": 12345.0,
+        }
+
+        resultado = app_module._preservar_solicitud_nuevo_barrido(
+            estado_nuevo,
+            estado_compartido,
+        )
+
+        self.assertTrue(resultado["nuevo_barrido_solicitado"])
+        self.assertEqual(resultado["nuevo_barrido_solicitado_epoch"], 12345.0)
+
+    def test_new_scan_id_does_not_inherit_previous_reset_request(self):
+        estado_nuevo = {
+            "scan_id": "scan-nuevo",
+            "nuevo_barrido_solicitado": False,
+        }
+        estado_compartido = {
+            "scan_id": "scan-anterior",
+            "nuevo_barrido_solicitado": True,
+            "nuevo_barrido_solicitado_epoch": 12345.0,
+        }
+
+        resultado = app_module._preservar_solicitud_nuevo_barrido(
+            estado_nuevo,
+            estado_compartido,
+        )
+
+        self.assertFalse(resultado["nuevo_barrido_solicitado"])
+
+    def test_forced_reload_queues_clean_scan_even_if_scan_is_active(self):
+        estado_anterior = {
+            "scan_id": "scan-activo",
+            "escaneo_en_curso": True,
+            "fase": "consultando_gps",
+            "heartbeat_epoch": 9999999999.0,
+            "buses_parciales": [{"coche": "257", "linea": "1"}],
+        }
+        estado_global_anterior = dict(app_module.AVANZA_URBANOS_STATE)
+        try:
+            with patch.object(
+                app_module,
+                "_leer_avanza_estado_compartido",
+                return_value={"state": dict(estado_anterior)},
+            ), patch.object(
+                app_module,
+                "_guardar_avanza_estado_compartido",
+            ) as guardar:
+                app_module._solicitar_nuevo_barrido_avanza_si_ocupado(forzar=True)
+
+            estado_guardado = guardar.call_args.kwargs["estado"]
+            self.assertTrue(estado_guardado["nuevo_barrido_solicitado"])
+            self.assertEqual(estado_guardado["scan_id"], "scan-activo")
+        finally:
+            app_module.AVANZA_URBANOS_STATE.clear()
+            app_module.AVANZA_URBANOS_STATE.update(estado_global_anterior)
+
+    def test_pending_reset_response_hides_old_buses_and_zeros_counters(self):
+        autobus_antiguo = {
+            "coche": "257",
+            "id": "257",
+            "linea": "1",
+            "destino": "Plaza Aragón",
+        }
+        estado = {
+            "scan_id": "scan-antiguo",
+            "nuevo_barrido_solicitado": True,
+            "nuevo_barrido_solicitado_epoch": 1795530000.0,
+            "escaneo_en_curso": True,
+            "fase": "consultando_gps",
+            "progreso": 150,
+            "total_progreso": 900,
+            "buses_parciales": [autobus_antiguo],
+            "paradas_gps_consultadas": [{"poste": 14}],
+        }
+        datos_anteriores = {
+            "buses": [autobus_antiguo],
+            "coches_unicos_detectados": 1,
+            "actualizado": "2026-11-24T14:00:00+01:00",
+            "actualizado_epoch": 1795525200.0,
+            "total_paradas": 900,
+            "paradas_consultadas": [{"poste": 14}],
+            "paradas_consultadas_count": 1,
+        }
+
+        acceso = self.client.post(
+            "/api/avanza/login",
+            json={"usuario": "user", "password": "busero"},
+        )
+        self.assertEqual(acceso.status_code, 200)
+
+        with patch.object(app_module, "iniciar_barrido_avanza_si_necesario"), patch.object(
+            app_module,
+            "_sincronizar_avanza_estado_compartido",
+            return_value=(datos_anteriores, estado, 1795525200.0),
+        ):
+            respuesta = self.client.get("/api/avanza/urbanos?forzar=1")
+
+        self.assertEqual(respuesta.status_code, 200)
+        datos = respuesta.get_json()
+        self.assertTrue(datos["reinicio_pendiente"])
+        self.assertEqual(datos["fase"], "iniciando")
+        self.assertEqual(datos["buses"], [])
+        self.assertEqual(datos["coches_unicos_detectados"], 0)
+        self.assertEqual(datos["total_paradas"], 0)
+        self.assertEqual(datos["paradas_consultadas_count"], 0)
+        self.assertIsNone(datos["actualizado"])
+
+
 
 
 if __name__ == "__main__":
