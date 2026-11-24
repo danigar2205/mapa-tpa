@@ -2190,6 +2190,35 @@ def _cache_avanza_sin_catalogo(cache):
     return resultado
 
 
+def _preservar_solicitud_nuevo_barrido(estado, estado_compartido):
+    """
+    Evita que un worker antiguo borre una solicitud de reinicio publicada
+    mientras ese mismo scan_id sigue escribiendo checkpoints.
+    """
+    resultado = dict(estado) if isinstance(estado, dict) else {}
+    if not isinstance(estado_compartido, dict):
+        return resultado
+    if not estado_compartido.get("nuevo_barrido_solicitado"):
+        return resultado
+
+    scan_id_actual = str(resultado.get("scan_id") or "")
+    scan_id_compartido = str(estado_compartido.get("scan_id") or "")
+    if not scan_id_actual or scan_id_actual != scan_id_compartido:
+        return resultado
+
+    resultado["nuevo_barrido_solicitado"] = True
+    try:
+        resultado["nuevo_barrido_solicitado_epoch"] = max(
+            float(resultado.get("nuevo_barrido_solicitado_epoch") or 0),
+            float(estado_compartido.get("nuevo_barrido_solicitado_epoch") or 0),
+        )
+    except (TypeError, ValueError):
+        resultado["nuevo_barrido_solicitado_epoch"] = (
+            estado_compartido.get("nuevo_barrido_solicitado_epoch")
+        )
+    return resultado
+
+
 def _guardar_avanza_estado_compartido(estado=None, cache=None, actualizar_cache=False, catalogo=None):
     """
     Actualiza solo el fichero o clave que ha cambiado. La flota y el catálogo
@@ -2202,6 +2231,15 @@ def _guardar_avanza_estado_compartido(estado=None, cache=None, actualizar_cache=
         )
         if estado is not None:
             estado = dict(estado)
+            try:
+                estado_compartido_actual = (
+                    _leer_avanza_estado_compartido(incluir_catalogo=False).get("state") or {}
+                )
+                estado = _preservar_solicitud_nuevo_barrido(
+                    estado, estado_compartido_actual
+                )
+            except Exception as exc:
+                print(f"[AVANZA URBANOS] No se pudo comprobar el reinicio pendiente: {exc}")
 
         if AVANZA_REDIS_CLIENT is not None:
             try:
@@ -3828,9 +3866,9 @@ def _buses_parciales_del_mismo_escaneo(estado_previo, reanudar_escaneo):
 
 def _solicitar_nuevo_barrido_avanza_si_ocupado(forzar=False):
     """
-    Si el panel se abre mientras solo sigue vivo el refresco de la flota anterior,
-    solicita que ese refresco termine y que la siguiente consulta inicie un barrido nuevo.
-    No interrumpe una exploración GPS que ya está en marcha y es reciente.
+    En una recarga, solicita un barrido limpio incluso si otro sigue activo.
+    El listado anterior se oculta inmediatamente y el siguiente barrido arranca
+    en cuanto el proceso que mantiene el bloqueo haya terminado.
     """
     if not forzar:
         return
@@ -3840,29 +3878,15 @@ def _solicitar_nuevo_barrido_avanza_si_ocupado(forzar=False):
     if not isinstance(estado, dict):
         return
 
-    try:
-        edad_heartbeat = time.time() - float(estado.get("heartbeat_epoch") or 0)
-    except (TypeError, ValueError):
-        edad_heartbeat = float("inf")
-
-    trabajo_reciente = edad_heartbeat <= max(
-        60.0,
-        AVANZA_GPS_TIMEOUT_READ * 8.0,
-        AVANZA_GPS_SEGUIMIENTO_INTERVALO * 4.0,
-    )
-    if estado.get("escaneo_en_curso") and trabajo_reciente:
-        # Hay un barrido real en curso; reutilizarlo evita duplicar 927 consultas.
-        return
-
-    if estado.get("seguimiento_en_curso") or not trabajo_reciente:
-        estado["nuevo_barrido_solicitado"] = True
-        estado["nuevo_barrido_solicitado_epoch"] = time.time()
-        with AVANZA_URBANOS_LOCK:
-            AVANZA_URBANOS_STATE.update({
-                "nuevo_barrido_solicitado": True,
-                "nuevo_barrido_solicitado_epoch": estado["nuevo_barrido_solicitado_epoch"],
-            })
-        _guardar_avanza_estado_compartido(estado=estado)
+    solicitud_epoch = time.time()
+    estado["nuevo_barrido_solicitado"] = True
+    estado["nuevo_barrido_solicitado_epoch"] = solicitud_epoch
+    with AVANZA_URBANOS_LOCK:
+        AVANZA_URBANOS_STATE.update({
+            "nuevo_barrido_solicitado": True,
+            "nuevo_barrido_solicitado_epoch": solicitud_epoch,
+        })
+    _guardar_avanza_estado_compartido(estado=estado)
 
 
 def iniciar_barrido_avanza_si_necesario(forzar=False):
@@ -4100,20 +4124,46 @@ def get_avanza_urbanos():
     actualizado_cache = datos.get("actualizado")
     epoch_cache = datos.get("actualizado_epoch")
     datos.update(estado)
-    if estado.get("nuevo_barrido_solicitado") and not estado.get("escaneo_en_curso"):
-        datos["escaneo_en_curso"] = True
-        datos["fase"] = "iniciando"
-        datos["inicio_escaneo"] = datetime.fromtimestamp(
-            float(estado.get("nuevo_barrido_solicitado_epoch") or time.time()),
-            ZONA_HORARIA,
-        ).isoformat()
-        datos["buses"] = []
-        datos["coches_unicos_detectados"] = 0
+    reinicio_pendiente = bool(estado.get("nuevo_barrido_solicitado"))
+    if reinicio_pendiente:
+        datos.update({
+            "reinicio_pendiente": True,
+            "escaneo_en_curso": True,
+            "seguimiento_en_curso": False,
+            "fase": "iniciando",
+            "inicio_escaneo": datetime.fromtimestamp(
+                float(estado.get("nuevo_barrido_solicitado_epoch") or time.time()),
+                ZONA_HORARIA,
+            ).isoformat(),
+            "fin_escaneo": None,
+            "buses": [],
+            "coches_unicos_detectados": 0,
+            "actualizado": None,
+            "actualizado_epoch": None,
+            "progreso": 0,
+            "total_progreso": 0,
+            "progreso_general": 0,
+            "total_progreso_general": 0,
+            "sentidos_consultados": 0,
+            "total_sentidos": 0,
+            "paradas_gps_completadas": 0,
+            "paradas_gps_intentadas": 0,
+            "paradas_gps_con_error": 0,
+            "lineas_descubiertas": 0,
+            "paradas_descubiertas": 0,
+            "total_paradas": 0,
+            "paradas_consultadas_count": 0,
+            "paradas_sin_respuesta_count": 0,
+            "ultimo_error": None,
+            "ultimo_error_gps": None,
+        })
+    else:
+        datos["reinicio_pendiente"] = False
     if not datos.get("actualizado"):
         datos["actualizado"] = actualizado_cache or datos.get("fin_escaneo") or datos.get("inicio_escaneo")
     if not datos.get("actualizado_epoch"):
         datos["actualizado_epoch"] = epoch_cache
-    if estado.get("escaneo_en_curso") or estado.get("fase") == "error":
+    if not reinicio_pendiente and (estado.get("escaneo_en_curso") or estado.get("fase") == "error"):
         # Durante un barrido nuevo o fallido solo se exponen los coches de ese
         # mismo scan_id. No se recupera como fallback la última flota completada.
         datos["buses"] = list(estado.get("buses_parciales") or [])
@@ -4141,10 +4191,10 @@ def get_avanza_urbanos():
         datos["actualizado_epoch"] = None
         datos["error"] = "La carga GPS anterior ha caducado. Esperando un barrido nuevo."
 
-    if estado.get("ultimo_error") and not datos.get("buses"):
+    if not reinicio_pendiente and estado.get("ultimo_error") and not datos.get("buses"):
         datos["error"] = estado["ultimo_error"]
 
-    fase_actual = str(estado.get("fase") or datos.get("fase") or "")
+    fase_actual = str(datos.get("fase") if reinicio_pendiente else (estado.get("fase") or datos.get("fase") or ""))
     if fase_actual == "consultando_gps":
         paradas_con_respuesta = len(estado.get("paradas_gps_consultadas") or [])
         datos["total_paradas"] = int(
