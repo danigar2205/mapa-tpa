@@ -345,5 +345,73 @@ class AvanzaResetTests(unittest.TestCase):
 
 
 
+
+class AvanzaArrivalParsingTests(unittest.TestCase):
+    HTML = (
+        '<li><strong>039 <i class="fa fa-long-arrow-right"></i>VADORREY</strong>'
+        '<ul><li><a href="/index.php/zaragoza/fParadas/812/4650">4650 [3 mins]</a></li></ul></li>'
+        '<li><strong>CI1 <i class="fa fa-long-arrow-right"></i>PLAZA ESPAÑA</strong>'
+        '<ul><li><a href="/index.php/zaragoza/fParadas/813/4701">4701 [5 mins]</a></li></ul></li>'
+    )
+
+    def test_extracts_line_destination_vehicle_and_eta_from_arrival_table(self):
+        llegadas = app_module.extraer_llegadas_tablatiempos_avanza(self.HTML)
+
+        self.assertEqual(
+            llegadas,
+            [
+                {
+                    "coche": "4650",
+                    "linea": "039",
+                    "destino": "VADORREY",
+                    "eta_minutos": 3,
+                },
+                {
+                    "coche": "4701",
+                    "linea": "CI1",
+                    "destino": "PLAZA ESPAÑA",
+                    "eta_minutos": 5,
+                },
+            ],
+        )
+
+    def test_keeps_arrival_even_without_machine_coordinates(self):
+        buses = app_module.buses_de_respuesta_gps_avanza(
+            {"tablatiempos": self.HTML, "maquinas": {}},
+            poste=812,
+            nombre_parada="Paseo Independencia",
+        )
+
+        self.assertEqual([bus["coche"] for bus in buses], ["4650", "4701"])
+        self.assertEqual([bus["linea"] for bus in buses], ["39", "CI1"])
+        self.assertIsNone(buses[0]["lat"])
+        self.assertIsNone(buses[0]["lon"])
+        self.assertEqual(buses[0]["parada"], "Paseo Independencia")
+
+    def test_merges_optional_position_from_machine_marker(self):
+        maquinas = {
+            "0": {
+                "icon": "bus.png",
+                "title": "039 4650",
+                "coordenadas": {"0": {"LAT": 41.65, "LON": -0.88}},
+                "info": (
+                    "<table><tr><td>a</td><td>b</td><td>c</td><td>d</td>"
+                    "<td>4650</td><td>039 -> VADORREY</td>"
+                    "<td>3 min</td><td>0.5 km</td></tr></table>"
+                ),
+            }
+        }
+        buses = app_module.buses_de_respuesta_gps_avanza(
+            {"tablatiempos": self.HTML, "maquinas": maquinas},
+            poste=812,
+            nombre_parada="Paseo Independencia",
+        )
+        autobus = next(bus for bus in buses if bus["coche"] == "4650")
+        self.assertEqual(autobus["linea"], "39")
+        self.assertAlmostEqual(autobus["lat"], 41.65)
+        self.assertAlmostEqual(autobus["lon"], -0.88)
+
+
+
 if __name__ == "__main__":
     unittest.main()
