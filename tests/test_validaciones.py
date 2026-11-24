@@ -1,4 +1,5 @@
 import math
+import time
 import app as app_module
 import inspect
 import unittest
@@ -1887,7 +1888,7 @@ class OptimizacionesAvanzaTests(unittest.TestCase):
             patch.object(
                 app_module,
                 "_sincronizar_avanza_estado_compartido",
-                return_value=(datos, estado, 100.0),
+                return_value=(datos, estado, time.time()),
             ),
         ):
             respuesta = app.test_client().get("/api/avanza/urbanos")
