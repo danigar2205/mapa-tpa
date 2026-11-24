@@ -413,5 +413,25 @@ class AvanzaArrivalParsingTests(unittest.TestCase):
 
 
 
+
+class AvanzaCatalogueVersionTests(unittest.TestCase):
+    def test_old_route_catalogue_is_invalidated(self):
+        self.assertFalse(
+            app_module._catalogo_avanza_es_compatible({
+                "version": app_module.AVANZA_CATALOGO_VERSION - 1,
+                "postes": [{"poste": 14}],
+            })
+        )
+
+    def test_current_route_catalogue_can_be_reused(self):
+        self.assertTrue(
+            app_module._catalogo_avanza_es_compatible({
+                "version": app_module.AVANZA_CATALOGO_VERSION,
+                "postes": [{"poste": 14}],
+            })
+        )
+
+
+
 if __name__ == "__main__":
     unittest.main()
