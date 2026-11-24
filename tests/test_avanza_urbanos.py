@@ -109,6 +109,24 @@ class AvanzaStopResponseTests(unittest.TestCase):
         self.assertNotIn("812", self.fallos)
         self.assertNotIn("812", self.errores)
 
+    def test_http_403_is_not_retried(self):
+        resultado = {
+            "poste": 812,
+            "nombre": "Parada 812",
+            "buses": [],
+            "error": "poste 812: HTTP 403",
+        }
+        self.assertFalse(app_module._avanza_resultado_permite_reintento(resultado))
+
+    def test_read_timeout_is_retryable(self):
+        resultado = {
+            "poste": 812,
+            "nombre": "Parada 812",
+            "buses": [],
+            "error": "poste 812: Read timed out",
+        }
+        self.assertTrue(app_module._avanza_resultado_permite_reintento(resultado))
+
     def test_successful_retry_clears_previous_failure(self):
         fallo = {
             "poste": 812,
