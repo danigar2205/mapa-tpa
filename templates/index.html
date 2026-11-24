@@ -7864,57 +7864,6 @@
     .avanza-panel-stats > div { display: flex; flex-direction: column; gap: 4px; padding: 11px; border: 1px solid rgba(255,255,255,.08); border-radius: 10px; background: rgba(255,255,255,.045); }
     .avanza-panel-stats strong { color: #7dd3fc; font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; }
     .avanza-panel-stats span { color: #9fb0c2; font-size: 9px; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
-    .avanza-progress-card {
-      margin-top: 12px; padding: 12px; border: 1px solid rgba(125,211,252,.18);
-      border-radius: 11px; background: rgba(14,116,144,.09);
-    }
-    .avanza-progress-top, .avanza-progress-bottom {
-      display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    }
-    .avanza-progress-top span { color: #c5d8e6; font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
-    .avanza-progress-top strong { color: #7dd3fc; font-size: 19px; font-weight: 900; font-variant-numeric: tabular-nums; }
-    .avanza-progress-track {
-      width: 100%; height: 9px; margin-top: 8px; overflow: hidden;
-      border-radius: 99px; background: rgba(148,163,184,.2);
-    }
-    .avanza-progress-fill {
-      display: block; width: 0%; height: 100%; border-radius: inherit;
-      background: linear-gradient(90deg,#0ea5e9,#38bdf8,#7dd3fc);
-      box-shadow: 0 0 12px rgba(56,189,248,.28);
-      transition: width .35s ease;
-    }
-    .avanza-progress-bottom { margin-top: 7px; }
-    .avanza-progress-bottom span { color: #9fb0c2; font-size: 9px; line-height: 1.4; }
-    .avanza-progress-bottom span:last-child { text-align: right; white-space: nowrap; }
-    .avanza-progress-card[data-state="error"] .avanza-progress-fill { background: #ef4444; }
-    .avanza-progress-card[data-state="complete"] .avanza-progress-fill { background: linear-gradient(90deg,#16a34a,#4ade80); }
-    .avanza-panel-note { margin-top: 10px; color: #aebdcb; font-size: 10px; line-height: 1.55; }
-    .avanza-panel-message { min-height: 18px; margin-top: 7px; color: #d5e4ef; font-size: 10px; line-height: 1.45; }
-    .avanza-refresh-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; margin-top: 8px; padding: 0 12px; border: 1px solid rgba(125,211,252,.24); border-radius: 8px; background: rgba(14,116,144,.2); color: #bae6fd; font: inherit; font-size: 10px; font-weight: 700; cursor: pointer; }
-    .avanza-refresh-button:hover:not(:disabled) { background: rgba(14,116,144,.32); }
-    .avanza-refresh-button:disabled { opacity: .55; cursor: wait; }
-    .avanza-bus-marker { background: transparent; border: 0; }
-    .avanza-map-bus { display: flex; align-items: center; justify-content: center; gap: 5px; width: var(--avanza-marker-width,68px); min-width: var(--avanza-marker-width,68px); height: 34px; padding: 0 7px; border: 2px solid #fff; border-radius: 10px; background: var(--avanza-line-color,#176f94); color: #fff; box-shadow: 0 4px 12px rgba(15,23,42,.35); white-space: nowrap; }
-    .avanza-map-bus i { font-size: 13px; }
-    .avanza-map-bus strong { flex: 0 0 auto; max-width: none; overflow: visible; text-overflow: clip; white-space: nowrap; font-size: 10px; font-weight: 900; }
-    .avanza-bus-popup { min-width: 210px; color: #162b3b; }
-    .avanza-bus-popup-head { display: flex; align-items: center; gap: 10px; }
-    .avanza-bus-popup-line { display: grid; place-items: center; min-width: 42px; height: 36px; padding: 0 7px; border-radius: 8px; background: var(--avanza-line-color,#176f94); color: #fff; font-size: 13px; font-weight: 900; }
-    .avanza-bus-popup-head div { display: flex; flex-direction: column; gap: 2px; }
-    .avanza-bus-popup-head small { color: #738496; font-size: 8px; font-weight: 800; letter-spacing: .1em; }
-    .avanza-bus-popup-head strong { font-size: 14px; }
-    .avanza-bus-popup-direction {
-      display: flex; flex-direction: column; gap: 4px;
-      margin-top: 11px; padding: 9px 10px; border-radius: 8px;
-      background: #f1f5f9; color: #243746;
-    }
-    .avanza-bus-popup-direction small {
-      color: #718294; font-size: 8px; font-weight: 800; letter-spacing: .1em;
-    }
-    .avanza-bus-popup-direction strong {
-      color: #263746; font-size: 12px; font-weight: 800; line-height: 1.4;
-      overflow-wrap: anywhere;
-    }
     .avanza-bus-list { margin-top: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,.09); border-radius: 10px; background: rgba(255,255,255,.035); }
     .avanza-bus-list-top { display: flex; align-items: center; justify-content: space-between; padding: 9px 10px 7px; }
     .avanza-bus-list-top span { color: #c5d8e6; font-size: 9px; font-weight: 800; letter-spacing: .08em; }
