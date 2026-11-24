@@ -9987,7 +9987,7 @@
 
     function normalizarBusquedaAvanza(valor) {
       return String(valor || '')
-        .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim();
     }
 
@@ -9998,8 +9998,8 @@
 
       const consultaOriginal = String(campo.value || '').trim();
       const consulta = normalizarBusquedaAvanza(consultaOriginal);
-      const buscarPorSerie = /\\bSERIE(S)?\\b/.test(consulta);
-      const terminos = consulta.split(/\\s+/).filter(Boolean).filter(palabra =>
+      const buscarPorSerie = /\bSERIE(S)?\b/.test(consulta);
+      const terminos = consulta.split(/\s+/).filter(Boolean).filter(palabra =>
         !['SERIE', 'SERIES', 'BUS', 'AUTOBUS', 'AUTOBUSES', 'COCHE', 'COCHES', 'NUMERO', 'NUM', 'DE', 'DEL', 'EL', 'N'].includes(palabra)
       );
 
@@ -10010,7 +10010,7 @@
         return terminos.every(termino => {
           if (!buscarPorSerie) return texto.includes(termino);
           const codigoSerie = termino.replace(/X+$/g, '');
-          const prefijoSerie = /^\\d{4,}$/.test(codigoSerie) ? codigoSerie.slice(0, 2) : codigoSerie;
+          const prefijoSerie = /^\d{4,}$/.test(codigoSerie) ? codigoSerie.slice(0, 2) : codigoSerie;
           return (serie && serie.includes(codigoSerie)) || (prefijoSerie && coche.startsWith(prefijoSerie));
         });
       });
