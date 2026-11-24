@@ -2933,8 +2933,8 @@ def _sesion_gps_avanza():
     return sesion
 
 
-def _consultar_poste_gps_avanza(parada_info):
-    """Consulta y analiza un poste, reintentando respuestas HTTP transitorias."""
+def _consultar_poste_gps_avanza(parada_info, cancelar=None):
+    """Consulta un poste GPS; permite cancelar tareas aún no enviadas al operador."""
     poste = parada_info["poste"]
     nombre_parada = parada_info.get("nombre") or f"Parada {poste}"
     sesion = _sesion_gps_avanza()
@@ -2946,8 +2946,20 @@ def _consultar_poste_gps_avanza(parada_info):
     # Un único reintento para fallos transitorios. Si vence la primera lectura,
     # se reintenta una sola vez con un límite menor para no eternizar el barrido.
     for intento in range(2):
+        if cancelar is not None and cancelar.is_set():
+            return {
+                "poste": poste, "nombre": nombre_parada, "buses": [],
+                "error": None, "cancelada": True,
+            }
         try:
             _esperar_turno_peticion_gps_avanza()
+            # La espera del limitador puede durar varios segundos. Comprobar de
+            # nuevo evita enviar una petición que ya no hace falta.
+            if cancelar is not None and cancelar.is_set():
+                return {
+                    "poste": poste, "nombre": nombre_parada, "buses": [],
+                    "error": None, "cancelada": True,
+                }
             respuesta = sesion.post(
                 AVANZA_URBANOS_ENDPOINT,
                 data={"poste": str(poste), "coche": "0"},
@@ -3336,6 +3348,7 @@ def consultar_flota_avanza_urbana():
             return None
 
     futuros = {}
+    cancelar_peticiones_gps = threading.Event()
     with ThreadPoolExecutor(
         max_workers=AVANZA_CONCURRENCIA_GPS,
         thread_name_prefix="avanza-gps",
@@ -3345,7 +3358,9 @@ def consultar_flota_avanza_urbana():
                 parada_info = siguiente_tarea()
                 if parada_info is None:
                     return
-                futuro = executor.submit(_consultar_poste_gps_avanza, parada_info)
+                futuro = executor.submit(
+                    _consultar_poste_gps_avanza, parada_info, cancelar_peticiones_gps
+                )
                 futuros[futuro] = parada_info
 
         rellenar_hilos()
@@ -3375,6 +3390,9 @@ def consultar_flota_avanza_urbana():
                 # No seguimos enviando cientos de peticiones y reintentos idénticos.
                 if consultas_primera_pasada >= 24 and not paradas_por_id:
                     circuito_abierto = True
+                    cancelar_peticiones_gps.set()
+                    for futura_pendiente in futuros:
+                        futura_pendiente.cancel()
                     publicar_progreso_gps(forzar=True)
                     break
             if circuito_abierto:
