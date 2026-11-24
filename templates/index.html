@@ -9899,6 +9899,15 @@
     }
 
     function abrirAvanzaUrbanos() {
+      // El acceso desde el selector inicial debe llevar directamente al panel privado.
+      // Si no se oculta, el selector queda por encima y parece que el login no ha funcionado.
+      const selectorPlataforma = document.getElementById('selector-plataforma');
+      if (selectorPlataforma) {
+        selectorPlataforma.hidden = true;
+        selectorPlataforma.classList.remove('is-leaving');
+        selectorPlataforma.setAttribute('aria-hidden', 'true');
+      }
+
       // Cada entrada invalida cualquier respuesta pendiente de una sesión anterior.
       avanzaUrbanosSolicitudVersion += 1;
       avanzaUrbanosSolicitud = false;
