@@ -1901,14 +1901,14 @@ def get_buses(linea):
 AVANZA_URBANOS_ENDPOINT = (
     "https://gps.avanzabus.com/index.php/zaragoza/fRefrescaEmpresaExternos"
 )
-AVANZA_HTTP_USER_AGENT = "MapaTPA/1.1 (+https://github.com/danigar2205/mapa-tpa)"
+AVANZA_HTTP_USER_AGENT = "Mozilla/5.0 (compatible; MapaTPA/1.0)"
 AVANZA_LINEAS_URL = "https://zaragoza.avanzagrupo.com/lineas-y-horarios/"
 AVANZA_AJAX_URL = "https://zaragoza.avanzagrupo.com/wp-admin/admin-ajax.php"
 
 AVANZA_URBANOS_TTL = 360
 # Incrementar cuando cambie el significado de los datos de un barrido.
 # La caché anterior se considera histórica y no se mezcla con el siguiente ciclo.
-AVANZA_SCAN_VERSION = 7
+AVANZA_SCAN_VERSION = 8
 AVANZA_CATALOGO_POSTES_TTL = 21600
 AVANZA_PAUSA_RECORRIDOS = 0.0
 AVANZA_PAUSA_POSTES = 0.0
@@ -2926,8 +2926,8 @@ def _sesion_gps_avanza():
         sesion = requests.Session()
         sesion.headers.update({
             "User-Agent": AVANZA_HTTP_USER_AGENT,
-            "Accept": "*/*",
-            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "X-Requested-With": "XMLHttpRequest",
         })
         AVANZA_GPS_THREAD_LOCAL.sesion = sesion
     return sesion
@@ -2938,9 +2938,10 @@ def _consultar_poste_gps_avanza(parada_info):
     poste = parada_info["poste"]
     nombre_parada = parada_info.get("nombre") or f"Parada {poste}"
     sesion = _sesion_gps_avanza()
-    # El endpoint acepta el formulario POST directamente; no necesita cabeceras
-    # de navegación ni simular una petición AJAX de navegador.
-    headers = {}
+    headers = {
+        "Referer": f"https://gps.avanzabus.com/zaragoza/fParadas/{poste}",
+        "Origin": "https://gps.avanzabus.com",
+    }
 
     # Un único reintento para fallos transitorios. Si vence la primera lectura,
     # se reintenta una sola vez con un límite menor para no eternizar el barrido.
@@ -3137,7 +3138,7 @@ def consultar_flota_avanza_urbana():
     http = requests.Session()
     http.headers.update({
         "User-Agent": AVANZA_HTTP_USER_AGENT,
-        "Accept": "*/*",
+        "Accept": "application/json, text/javascript, */*; q=0.01",
     })
 
     postes, lineas_descubiertas, sentidos_consultados, errores_catalogo = (
