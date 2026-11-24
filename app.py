@@ -1931,22 +1931,23 @@ AVANZA_AJAX_URL = "https://zaragoza.avanzagrupo.com/wp-admin/admin-ajax.php"
 AVANZA_URBANOS_TTL = 360
 # Incrementar cuando cambie el significado de los datos de un barrido.
 # La caché anterior se considera histórica y no se mezcla con el siguiente ciclo.
-AVANZA_SCAN_VERSION = 9
+AVANZA_SCAN_VERSION = 10
 AVANZA_CATALOGO_POSTES_TTL = 21600
 AVANZA_PAUSA_RECORRIDOS = 0.0
 AVANZA_PAUSA_POSTES = 0.0
 # La consulta de recorridos va separada para reservar capacidad al GPS de paradas.
 AVANZA_CONCURRENCIA_RECORRIDOS = 12
 # El GPS se consulta poste a poste. Evitamos acumular conexiones abiertas cuando la fuente tarda.
-AVANZA_CONCURRENCIA_GPS = 4
+AVANZA_CONCURRENCIA_GPS = 8
 AVANZA_GPS_TIMEOUT_CONNECT = 4.0
 AVANZA_GPS_TIMEOUT_READ = 8.0
-# Limita el ritmo para no disparar cientos de peticiones en ráfaga al GPS.
-AVANZA_GPS_PETICIONES_POR_SEGUNDO = 2.0
+# Ritmo máximo moderado: permite terminar antes el barrido completo de la red
+# sin lanzar ráfagas ilimitadas contra el GPS de Avanza.
+AVANZA_GPS_PETICIONES_POR_SEGUNDO = 4.0
 AVANZA_GPS_REINTENTOS_FINALES = 2
 AVANZA_GPS_REFRESCOS_POR_LOTE = 1
 AVANZA_GPS_SEGUIMIENTO_LOTE = 14
-AVANZA_GPS_SEGUIMIENTO_NOVEDADES = 4
+AVANZA_GPS_SEGUIMIENTO_NOVEDADES = 8
 AVANZA_GPS_SEGUIMIENTO_INTERVALO = 6.0
 AVANZA_GPS_BUS_ANTIGUEDAD_MAX = 300.0
 
@@ -1958,8 +1959,8 @@ try:
     AVANZA_PAUSA_RECORRIDOS = max(0.0, float(os.environ.get("AVANZA_PAUSA_RECORRIDOS", AVANZA_PAUSA_RECORRIDOS)))
     AVANZA_PAUSA_POSTES = max(0.0, float(os.environ.get("AVANZA_PAUSA_POSTES", AVANZA_PAUSA_POSTES)))
     AVANZA_CONCURRENCIA_RECORRIDOS = min(16, max(1, int(os.environ.get("AVANZA_CONCURRENCIA_RECORRIDOS", AVANZA_CONCURRENCIA_RECORRIDOS))))
-    AVANZA_CONCURRENCIA_GPS = min(4, max(1, int(os.environ.get("AVANZA_CONCURRENCIA_GPS", AVANZA_CONCURRENCIA_GPS))))
-    AVANZA_GPS_PETICIONES_POR_SEGUNDO = min(2.0, max(1.0, float(os.environ.get("AVANZA_GPS_PETICIONES_POR_SEGUNDO", AVANZA_GPS_PETICIONES_POR_SEGUNDO))))
+    AVANZA_CONCURRENCIA_GPS = min(8, max(1, int(os.environ.get("AVANZA_CONCURRENCIA_GPS", AVANZA_CONCURRENCIA_GPS))))
+    AVANZA_GPS_PETICIONES_POR_SEGUNDO = min(4.0, max(1.0, float(os.environ.get("AVANZA_GPS_PETICIONES_POR_SEGUNDO", AVANZA_GPS_PETICIONES_POR_SEGUNDO))))
     AVANZA_GPS_REINTENTOS_FINALES = min(3, max(1, int(os.environ.get("AVANZA_GPS_REINTENTOS_FINALES", AVANZA_GPS_REINTENTOS_FINALES))))
 except (TypeError, ValueError):
     pass
@@ -2873,6 +2874,197 @@ def limpiar_texto_html_avanza(valor):
     return re.sub(r"\s+", " ", html.unescape(texto)).strip()
 
 
+class AvanzaLlegadasHTMLParser(HTMLParser):
+    """Extrae línea, destino, coche y ETA de la tabla HTML incluida en tablatiempos."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.profundidad_li = 0
+        self.bloque = None
+        self.strong_activo = False
+        self.strong_anidado = 0
+        self.ancla = None
+        self.llegadas = []
+
+    def handle_starttag(self, tag, attrs):
+        tag = tag.lower()
+        atributos = {clave.lower(): (valor or "") for clave, valor in attrs}
+
+        if self.strong_activo:
+            self.strong_anidado += 1
+        elif tag == "strong" and self.profundidad_li == 1 and self.bloque is not None:
+            self.strong_activo = True
+            self.strong_anidado = 0
+            self.bloque["cabecera"] = []
+
+        if tag == "li":
+            self.profundidad_li += 1
+            if self.profundidad_li == 1:
+                self.bloque = {"cabecera": [], "filas": []}
+        elif tag == "a" and self.profundidad_li >= 2 and self.bloque is not None:
+            self.ancla = {"href": atributos.get("href", ""), "texto": []}
+
+    def handle_data(self, data):
+        if self.ancla is not None:
+            self.ancla["texto"].append(data)
+        if (
+            self.strong_activo
+            and self.strong_anidado == 0
+            and self.bloque is not None
+        ):
+            texto = str(data).strip()
+            if texto:
+                self.bloque["cabecera"].append(texto)
+
+    def handle_endtag(self, tag):
+        tag = tag.lower()
+        if tag == "a" and self.ancla is not None:
+            if self.bloque is not None:
+                self.bloque["filas"].append(self.ancla)
+            self.ancla = None
+
+        if self.strong_activo:
+            if tag == "strong" and self.strong_anidado == 0:
+                self.strong_activo = False
+            else:
+                self.strong_anidado = max(0, self.strong_anidado - 1)
+
+        if tag == "li":
+            if self.profundidad_li == 1 and self.bloque is not None:
+                self._cerrar_bloque()
+                self.bloque = None
+            self.profundidad_li = max(0, self.profundidad_li - 1)
+
+    def _cerrar_bloque(self):
+        cabecera = " ".join(self.bloque.get("cabecera") or [])
+        partes = re.sub(r"\\s+", " ", cabecera).strip().split()
+        if not partes:
+            return
+        linea = partes[0]
+        destino = " ".join(partes[1:]).strip()
+        if not linea:
+            return
+
+        for fila in self.bloque.get("filas") or []:
+            texto = re.sub(r"\\s+", " ", " ".join(fila.get("texto") or [])).strip()
+            coincidencia_texto = re.match(r"^(\\d+)", texto)
+            coincidencia_eta = re.search(r"\\[\\s*(-?\\d+)\\s*min", texto, flags=re.I)
+            coincidencia_href = re.search(
+                r"/fParadas/\\d+/(\\d+)(?:[/?#].*)?$",
+                str(fila.get("href") or "").strip(),
+            )
+            coche_texto = coincidencia_texto.group(1) if coincidencia_texto else None
+            coche_href = coincidencia_href.group(1) if coincidencia_href else None
+            if coche_texto and coche_href and coche_texto != coche_href:
+                continue
+            coche = coche_href or coche_texto
+            if not coche:
+                continue
+            eta = int(coincidencia_eta.group(1)) if coincidencia_eta else None
+            if eta is not None and not 0 <= eta <= 240:
+                eta = None
+            self.llegadas.append({
+                "coche": coche,
+                "linea": linea,
+                "destino": destino or "Destino no indicado",
+                "eta_minutos": eta,
+            })
+
+
+def extraer_llegadas_tablatiempos_avanza(fragmento_html):
+    """Lee las llegadas declaradas por Avanza, independientemente del marcador GPS."""
+    parser = AvanzaLlegadasHTMLParser()
+    parser.feed(str(fragmento_html or ""))
+    parser.close()
+    # Un mismo coche puede repetirse en el HTML de un poste. Conservar la ETA
+    # más cercana y la primera identidad de línea/destino coherente.
+    unicas = {}
+    for llegada in parser.llegadas:
+        coche = str(llegada.get("coche") or "").strip()
+        if not coche:
+            continue
+        anterior = unicas.get(coche)
+        eta = llegada.get("eta_minutos")
+        eta_anterior = anterior.get("eta_minutos") if anterior else None
+        if anterior is None or (
+            eta is not None and (eta_anterior is None or eta < eta_anterior)
+        ):
+            unicas[coche] = llegada
+    return list(unicas.values())
+
+
+def normalizar_linea_avanza(valor):
+    """Normaliza códigos numéricos con ceros iniciales y conserva códigos alfanuméricos."""
+    linea = str(valor or "").strip()
+    if linea.isdigit():
+        return str(int(linea))
+    return linea.upper() or "?"
+
+
+def buses_de_respuesta_gps_avanza(datos, poste, nombre_parada=None):
+    """Combina llegadas oficiales del poste con coordenadas opcionales del mapa."""
+    maquinas = datos.get("maquinas") or {}
+    entradas = (
+        list(maquinas.values()) if isinstance(maquinas, dict)
+        else (maquinas if isinstance(maquinas, list) else [])
+    )
+    nombre_feed = None
+    maquinas_por_coche = {}
+    for maquina in entradas:
+        if not isinstance(maquina, dict):
+            continue
+        icono = str(maquina.get("icon") or "").split("?")[0].rsplit("/", 1)[-1].lower()
+        if icono == "bus_rojo.png":
+            nombre_feed = limpiar_texto_html_avanza(
+                maquina.get("info") or maquina.get("title")
+            ) or nombre_feed
+            continue
+        bus = extraer_bus_avanza(maquina, poste, nombre_feed or nombre_parada)
+        if bus:
+            maquinas_por_coche[str(bus["coche"])] = bus
+
+    nombre_parada = nombre_feed or nombre_parada or f"Parada {poste}"
+    llegadas = extraer_llegadas_tablatiempos_avanza(datos.get("tablatiempos"))
+    if not llegadas:
+        # Compatibilidad defensiva si Avanza retira temporalmente tablatiempos:
+        # conservamos lo que sí venga en máquinas, sin inventar datos.
+        return [
+            {**bus, "parada": nombre_parada}
+            for bus in maquinas_por_coche.values()
+        ]
+
+    buses_por_coche = {}
+    for llegada in llegadas:
+        coche = str(llegada["coche"])
+        bus = dict(maquinas_por_coche.get(coche) or {
+            "id": coche,
+            "coche": coche,
+            "lat": None,
+            "lon": None,
+            "distancia_km": None,
+            "poste": int(poste),
+            "parada": nombre_parada,
+            "capturado_epoch": time.time(),
+        })
+        bus.update({
+            "id": coche,
+            "coche": coche,
+            "linea": normalizar_linea_avanza(llegada.get("linea")),
+            "destino": str(llegada.get("destino") or "Destino no indicado"),
+            "sentido": str(llegada.get("destino") or "Sentido no indicado"),
+            "eta_minutos": llegada.get("eta_minutos"),
+            "poste": int(poste),
+            "parada": nombre_parada,
+        })
+        buses_por_coche[coche] = bus
+
+    # Si la tabla omite una fila pero el mapa sigue publicando un bus con
+    # identificador y línea válidos, lo conservamos como observación secundaria.
+    for coche, bus in maquinas_por_coche.items():
+        buses_por_coche.setdefault(coche, bus)
+    return list(buses_por_coche.values())
+
+
 def extraer_bus_avanza(maquina, poste, nombre_parada=None):
     """Interpreta una entrada bus.png de maquinas; ignora marcadores de parada."""
     if not isinstance(maquina, dict):
@@ -2893,10 +3085,11 @@ def extraer_bus_avanza(maquina, poste, nombre_parada=None):
     if not isinstance(punto, dict):
         return None
 
+    # La lista de llegadas es válida aunque Avanza no publique posición para
+    # ese coche. En el panel de flota se debe conservar el vehículo y dejar sus
+    # coordenadas vacías, nunca descartarlo por completo.
     validas = validar_coordenadas(punto.get("LAT"), punto.get("LON"))
-    if validas is None:
-        return None
-    lat, lon = validas
+    lat, lon = validas if validas is not None else (None, None)
 
     titulo = str(maquina.get("title") or "").strip()
     titulo_match = re.match(r"^([^\s]+)\s+(\d+)\s*$", titulo)
@@ -3096,32 +3289,14 @@ def _consultar_poste_gps_avanza(parada_info, cancelar=None):
                 "error": f"poste {poste}: respuesta sin máquinas GPS",
             }
 
-        maquinas = datos.get("maquinas") or {}
-        entradas = (
-            list(maquinas.values()) if isinstance(maquinas, dict)
-            else (maquinas if isinstance(maquinas, list) else [])
+        buses = buses_de_respuesta_gps_avanza(datos, poste, nombre_parada)
+        nombre_feed = next(
+            (bus.get("parada") for bus in buses if bus.get("parada")),
+            nombre_parada,
         )
-        nombre_feed = None
-        for maquina in entradas:
-            if not isinstance(maquina, dict):
-                continue
-            icono = str(maquina.get("icon") or "").split("?")[0].rsplit("/", 1)[-1].lower()
-            if icono == "bus_rojo.png":
-                nombre_feed = limpiar_texto_html_avanza(
-                    maquina.get("info") or maquina.get("title")
-                ) or None
-                break
-        if nombre_feed:
-            nombre_parada = nombre_feed
-
-        buses = []
-        for maquina in entradas:
-            bus = extraer_bus_avanza(maquina, poste, nombre_parada)
-            if bus:
-                buses.append(bus)
         return {
             "poste": poste,
-            "nombre": nombre_parada,
+            "nombre": nombre_feed or nombre_parada,
             "buses": buses,
             "error": None,
         }
