@@ -7895,6 +7895,12 @@
     .avanza-panel-stats span { color: #9fb0c2; font-size: 9px; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
     .avanza-lines-summary { margin-top: 9px; color: #a8b8c8; font-size: 10px; line-height: 1.5; overflow-wrap: anywhere; }
     .avanza-lines-summary strong { color: #e2e8f0; font-weight: 800; }
+    .avanza-bus-search { margin-top: 12px; }
+    .avanza-bus-search label { display: block; margin: 0 0 6px 2px; color: #91a7ba; font-size: 9px; font-weight: 800; letter-spacing: .08em; }
+    .avanza-bus-search input { display: block; width: 100%; min-height: 42px; padding: 0 12px; border: 1px solid rgba(148,163,184,.28); border-radius: 9px; outline: none; background: rgba(255,255,255,.07); color: #f8fafc; font: inherit; font-size: 13px; }
+    .avanza-bus-search input::placeholder { color: #8297a9; }
+    .avanza-bus-search input:focus { border-color: #38bdf8; box-shadow: 0 0 0 3px rgba(56,189,248,.13); }
+    .avanza-bus-search-status { min-height: 15px; margin: 5px 2px 0; color: #8fa4b7; font-size: 10px; }
     .avanza-bus-list { margin-top: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,.09); border-radius: 10px; background: rgba(255,255,255,.035); }
     .avanza-bus-list-top { display: flex; align-items: center; justify-content: space-between; padding: 9px 10px 7px; }
     .avanza-bus-list-top span { color: #c5d8e6; font-size: 9px; font-weight: 800; letter-spacing: .08em; }
@@ -8591,6 +8597,12 @@
       <div><strong id="avanza-last-update">—</strong><span>última actualización</span></div>
     </div>
     <p class="avanza-lines-summary" id="avanza-lines-summary">Líneas con autobuses detectados: —</p>
+    <div class="avanza-bus-search">
+      <label for="avanza-bus-search">BUSCAR POR SERIE O NÚMERO DE COCHE</label>
+      <input id="avanza-bus-search" type="search" inputmode="search" autocomplete="off"
+        placeholder="Ej.: serie 52xx o coche 5234" aria-label="Buscar autobús por serie o número de coche">
+      <p class="avanza-bus-search-status" id="avanza-bus-search-status" aria-live="polite">Mostrando todos los vehículos.</p>
+    </div>
     <section class="avanza-bus-list" aria-label="Listado de autobuses localizados">
       <div class="avanza-bus-list-top">
         <span>VEHÍCULOS LOCALIZADOS</span>
@@ -8690,6 +8702,8 @@
     let avanzaUrbanosSolicitud = false;
     let avanzaUrbanosSolicitudVersion = 0;
     let avanzaUrbanosScanId = null;
+    let avanzaListaVehiculos = [];
+    let avanzaMensajeVacio = 'Buscando autobuses…';
     let capasParadas = null;
     let paradasVisibles = true;
     let primeraCarga = true;
@@ -9938,9 +9952,14 @@
       document.getElementById('avanza-bus-count').textContent = '0';
       document.getElementById('avanza-last-update').textContent = '—';
       document.getElementById('avanza-list-count').textContent = '0';
+      const buscadorAvanza = document.getElementById('avanza-bus-search');
+      if (buscadorAvanza) buscadorAvanza.value = '';
+      avanzaListaVehiculos = [];
+      avanzaMensajeVacio = 'Buscando autobuses de Avanza…';
       const listado = document.getElementById('avanza-bus-list');
       listado.innerHTML = '<div class="avanza-bus-list-empty">Buscando autobuses de Avanza…</div>';
       listado.dataset.rendered = '';
+      renderizarListadoAvanza();
       document.getElementById('avanza-live-pill').dataset.state = 'loading';
       document.getElementById('avanza-live-text').textContent = 'CONECTANDO';
 
@@ -9965,6 +9984,64 @@
         // El panel ya está cerrado; la sesión también caducará por tiempo.
       }
     }
+
+    function normalizarBusquedaAvanza(valor) {
+      return String(valor || '')
+        .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')
+        .toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim();
+    }
+
+    function renderizarListadoAvanza() {
+      const contenedor = document.getElementById('avanza-bus-list');
+      const campo = document.getElementById('avanza-bus-search');
+      if (!contenedor || !campo) return;
+
+      const consultaOriginal = String(campo.value || '').trim();
+      const consulta = normalizarBusquedaAvanza(consultaOriginal);
+      const buscarPorSerie = /\\bSERIE(S)?\\b/.test(consulta);
+      const terminos = consulta.split(/\\s+/).filter(Boolean).filter(palabra =>
+        !['SERIE', 'SERIES', 'BUS', 'AUTOBUS', 'AUTOBUSES', 'COCHE', 'COCHES', 'NUMERO', 'NUM', 'DE', 'DEL', 'EL', 'N'].includes(palabra)
+      );
+
+      const filtrados = !terminos.length ? avanzaListaVehiculos : avanzaListaVehiculos.filter(bus => {
+        const coche = normalizarBusquedaAvanza(bus.coche);
+        const serie = normalizarBusquedaAvanza(bus.serie);
+        const texto = normalizarBusquedaAvanza([bus.coche, bus.serie, bus.modelo].join(' '));
+        return terminos.every(termino => {
+          if (!buscarPorSerie) return texto.includes(termino);
+          const codigoSerie = termino.replace(/X+$/g, '');
+          const prefijoSerie = /^\\d{4,}$/.test(codigoSerie) ? codigoSerie.slice(0, 2) : codigoSerie;
+          return (serie && serie.includes(codigoSerie)) || (prefijoSerie && coche.startsWith(prefijoSerie));
+        });
+      });
+
+      const listadoHTML = filtrados.length
+        ? filtrados.map(bus => {
+            const color = colorLineaAvanza(bus.linea);
+            return '<div class="avanza-bus-list-row" role="listitem">' +
+              '<strong class="avanza-bus-list-car">' + escaparHTML(bus.coche) + '</strong>' +
+              '<span class="avanza-bus-list-line" style="--avanza-line-color:' + color + '">' + escaparHTML(bus.linea) + '</span>' +
+              '<span class="avanza-bus-list-direction" title="' + escaparHTML(bus.destino) + '">' + escaparHTML(bus.destino) + '</span>' +
+              '</div>';
+          }).join('')
+        : '<div class="avanza-bus-list-empty">' + (avanzaListaVehiculos.length
+            ? 'No hay autobuses que coincidan con «' + escaparHTML(consultaOriginal) + '».'
+            : escaparHTML(avanzaMensajeVacio)) + '</div>';
+
+      if (contenedor.dataset.rendered !== listadoHTML) {
+        contenedor.innerHTML = listadoHTML;
+        contenedor.dataset.rendered = listadoHTML;
+      }
+      document.getElementById('avanza-list-count').textContent = String(filtrados.length);
+      const estado = document.getElementById('avanza-bus-search-status');
+      if (estado) {
+        estado.textContent = consultaOriginal
+          ? filtrados.length + ' de ' + avanzaListaVehiculos.length + ' vehículos coinciden con la búsqueda.'
+          : 'Mostrando ' + avanzaListaVehiculos.length + ' vehículos.';
+      }
+    }
+
+    document.getElementById('avanza-bus-search')?.addEventListener('input', renderizarListadoAvanza);
 
     function colorLineaAvanza(linea) {
       const paleta = ['#176f94', '#b9232b', '#387b63', '#8a5ca7', '#bd7a32', '#4266a6'];
@@ -10019,6 +10096,8 @@
           .filter(bus => String(bus.coche || bus.id || '').trim())
           .map(bus => ({
             coche: String(bus.coche || bus.id || '').trim(),
+            serie: String(bus.serie || bus.serie_bus || bus.series || bus.bus_series || '').trim(),
+            modelo: String(bus.modelo || bus.model || '').trim(),
             linea: String(bus.linea || '?').trim(),
             destino: String(bus.destino || bus.sentido || 'Destino no indicado').trim()
           }))
@@ -10040,29 +10119,15 @@
             : 'Todavía no se han detectado autobuses por línea.';
         }
 
-        const listadoHTML = listaVehiculos.length
-          ? listaVehiculos.map(bus => {
-              const color = colorLineaAvanza(bus.linea);
-              return `<div class="avanza-bus-list-row" role="listitem">
-                <strong class="avanza-bus-list-car">${escaparHTML(bus.coche)}</strong>
-                <span class="avanza-bus-list-line" style="--avanza-line-color:${color}">${escaparHTML(bus.linea)}</span>
-                <span class="avanza-bus-list-direction" title="${escaparHTML(bus.destino)}">${escaparHTML(bus.destino)}</span>
-              </div>`;
-            }).join('')
-          : `<div class="avanza-bus-list-empty">${datos.fase === 'error'
-              ? escaparHTML(datos.ultimo_error || datos.error || 'No se ha podido consultar el GPS de Avanza.')
-              : (datos.reinicio_pendiente
-                ? 'Interrumpiendo las consultas anteriores para liberar el GPS… ' + String(Number(datos.reinicio_espera_segundos) || 0) + ' s'
-                : (enEscaneo ? 'Localizando autobuses; aparecerán aquí conforme lleguen los datos GPS…'
-                  : 'No se han localizado autobuses en este barrido.'))}</div>`;
-
-        const contenedorListado = document.getElementById('avanza-bus-list');
-        if (contenedorListado.dataset.rendered !== listadoHTML) {
-          contenedorListado.innerHTML = listadoHTML;
-          contenedorListado.dataset.rendered = listadoHTML;
-        }
+        avanzaListaVehiculos = listaVehiculos;
+        avanzaMensajeVacio = datos.fase === 'error'
+          ? (datos.ultimo_error || datos.error || 'No se ha podido consultar el GPS de Avanza.')
+          : (datos.reinicio_pendiente
+            ? 'Interrumpiendo las consultas anteriores para liberar el GPS… ' + String(Number(datos.reinicio_espera_segundos) || 0) + ' s'
+            : (enEscaneo ? 'Localizando autobuses; aparecerán aquí conforme lleguen los datos GPS…'
+              : 'No se han localizado autobuses en este barrido.'));
+        renderizarListadoAvanza();
         document.getElementById('avanza-bus-count').textContent = String(listaVehiculos.length);
-        document.getElementById('avanza-list-count').textContent = String(listaVehiculos.length);
 
         const marcaTiempo = enEscaneo
           ? (datos.actualizado || datos.inicio_escaneo || null)
