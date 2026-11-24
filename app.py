@@ -1907,7 +1907,7 @@ AVANZA_AJAX_URL = "https://zaragoza.avanzagrupo.com/wp-admin/admin-ajax.php"
 AVANZA_URBANOS_TTL = 360
 # Incrementar cuando cambie el significado de los datos de un barrido.
 # La caché anterior se considera histórica y no se mezcla con el siguiente ciclo.
-AVANZA_SCAN_VERSION = 5
+AVANZA_SCAN_VERSION = 6
 AVANZA_CATALOGO_POSTES_TTL = 21600
 AVANZA_PAUSA_RECORRIDOS = 0.0
 AVANZA_PAUSA_POSTES = 0.0
@@ -3853,11 +3853,39 @@ def iniciar_barrido_avanza_si_necesario(forzar=False):
                 "paradas_gps_consultadas": list(estado_previo.get("paradas_gps_consultadas") or []) if reanudar_escaneo else [],
                 "errores_gps_parciales": list(estado_previo.get("errores_gps_parciales") or []) if reanudar_escaneo else [],
                 "ultimo_error": None,
+                # Una entrada nueva no debe heredar ninguna hora del barrido anterior.
+                "actualizado": estado_previo.get("actualizado") if reanudar_escaneo else None,
+                "actualizado_epoch": estado_previo.get("actualizado_epoch") if reanudar_escaneo else None,
+                "fin_escaneo": estado_previo.get("fin_escaneo") if reanudar_escaneo else None,
+                "heartbeat_epoch": time.time(),
                 "scan_id": estado_previo.get("scan_id") if reanudar_escaneo else str(uuid.uuid4()),
                 "inicio_escaneo": estado_previo.get("inicio_escaneo") if reanudar_escaneo else datetime.now(ZONA_HORARIA).isoformat(),
             })
             estado_inicial = dict(AVANZA_URBANOS_STATE)
-        _guardar_avanza_estado_compartido(estado=estado_inicial)
+        if reanudar_escaneo:
+            _guardar_avanza_estado_compartido(estado=estado_inicial)
+        else:
+            # Borra también la flota compartida anterior, no solo el estado visual.
+            # Así ninguna instancia puede devolver autobuses de la sesión previa.
+            cache_vacia = {
+                "buses": [],
+                "total_paradas": 0,
+                "paradas_descubiertas": 0,
+                "lineas_descubiertas": 0,
+                "actualizado": None,
+                "actualizado_epoch": None,
+                "scan_version": 0,
+            }
+            with AVANZA_URBANOS_LOCK:
+                AVANZA_URBANOS_CACHE.update({
+                    "timestamp": 0.0,
+                    "data": cache_vacia,
+                })
+            _guardar_avanza_estado_compartido(
+                estado=estado_inicial,
+                cache={"timestamp": 0.0, "data": cache_vacia},
+                actualizar_cache=True,
+            )
 
         hilo = threading.Thread(
             target=_trabajador_barrido_avanza,
@@ -3881,7 +3909,7 @@ def get_avanza_urbanos():
     iniciar_barrido_avanza_si_necesario(
         forzar=request.args.get("forzar") == "1"
     )
-    datos, estado, _ = _sincronizar_avanza_estado_compartido()
+    datos, estado, timestamp_cache = _sincronizar_avanza_estado_compartido()
 
     if not datos:
         datos = {
@@ -3905,6 +3933,29 @@ def get_avanza_urbanos():
         # mismo scan_id. No se recupera como fallback la última flota completada.
         datos["buses"] = list(estado.get("buses_parciales") or [])
         datos["coches_unicos_detectados"] = len(datos["buses"])
+        if estado.get("escaneo_en_curso"):
+            # No mostrar como última actualización la hora heredada de ayer.
+            datos["actualizado"] = estado.get("actualizado") or estado.get("inicio_escaneo")
+            datos["actualizado_epoch"] = estado.get("actualizado_epoch") or None
+
+    # Una carga antigua nunca se presenta como flota actual, aunque el inicio
+    # de un nuevo barrido no haya podido adquirir todavía el bloqueo compartido.
+    try:
+        edad_cache = time.time() - float(timestamp_cache or 0)
+    except (TypeError, ValueError):
+        edad_cache = float("inf")
+    max_antiguedad_visible = min(90.0, float(AVANZA_URBANOS_TTL))
+    if (
+        not estado.get("escaneo_en_curso")
+        and timestamp_cache
+        and edad_cache > max_antiguedad_visible
+    ):
+        datos["buses"] = []
+        datos["coches_unicos_detectados"] = 0
+        datos["actualizado"] = None
+        datos["actualizado_epoch"] = None
+        datos["error"] = "La carga GPS anterior ha caducado. Esperando un barrido nuevo."
+
     if estado.get("ultimo_error") and not datos.get("buses"):
         datos["error"] = estado["ultimo_error"]
 
