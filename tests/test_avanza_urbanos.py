@@ -162,5 +162,47 @@ class AvanzaStopResponseTests(unittest.TestCase):
         self.assertNotIn("812", self.errores)
 
 
+class AvanzaAccessTests(unittest.TestCase):
+    def setUp(self):
+        self.client = app_module.app.test_client()
+
+    def test_urbanos_endpoint_rejects_requests_without_login(self):
+        respuesta = self.client.get("/api/avanza/urbanos")
+        self.assertEqual(respuesta.status_code, 401)
+
+    def test_login_rejects_incorrect_credentials(self):
+        respuesta = self.client.post(
+            "/api/avanza/login",
+            json={"usuario": app_module.AVANZA_LOGIN_USER, "password": "incorrecta"},
+        )
+        self.assertEqual(respuesta.status_code, 401)
+
+    def test_login_accepts_configured_credentials(self):
+        respuesta = self.client.post(
+            "/api/avanza/login",
+            json={
+                "usuario": app_module.AVANZA_LOGIN_USER,
+                "password": app_module.AVANZA_LOGIN_PASSWORD,
+            },
+        )
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTrue(respuesta.get_json()["ok"])
+        with self.client.session_transaction() as sesion:
+            self.assertTrue(sesion.get("avanza_autorizado"))
+
+    def test_logout_clears_access_session(self):
+        self.client.post(
+            "/api/avanza/login",
+            json={
+                "usuario": app_module.AVANZA_LOGIN_USER,
+                "password": app_module.AVANZA_LOGIN_PASSWORD,
+            },
+        )
+        respuesta = self.client.post("/api/avanza/logout")
+        self.assertEqual(respuesta.status_code, 200)
+        with self.client.session_transaction() as sesion:
+            self.assertFalse(sesion.get("avanza_autorizado"))
+
+
 if __name__ == "__main__":
     unittest.main()
