@@ -3963,6 +3963,14 @@
     .concession-logo-pair .concession-logo { width: 100% !important; }
     .concession-logo-pair .concession-logo:first-child { height: 14px !important; }
     .concession-logo-pair .concession-logo:last-child { height: 22px !important; }
+    .concession-logo-pair-wide {
+      width: 86px !important; min-width: 86px !important;
+      flex-direction: row !important; gap: 4px !important; padding: 5px !important;
+    }
+    .concession-logo-pair-wide .concession-logo {
+      width: calc(50% - 2px) !important; height: 100% !important;
+      max-height: 32px !important; object-fit: contain !important;
+    }
     .concession-copy {
       display: flex !important;
       flex-direction: column !important;
@@ -7673,7 +7681,7 @@
     }
     .gateway-heading h1 em { color: #2f8174; font-style: normal; }
     .gateway-heading p { margin: 0; color: #5b6c70; font-size: 15px; line-height: 1.6; }
-    .gateway-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+    .gateway-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
     .gateway-card {
       display: flex; flex-direction: column; min-width: 0; min-height: 485px;
       padding: 25px; border: 1px solid #d6ded9; border-radius: 19px;
@@ -8001,7 +8009,7 @@
 
 
   <!-- Selector inicial de red de transporte -->
-  <section id="selector-plataforma" aria-labelledby="gateway-title" hidden>
+  <section id="selector-plataforma" aria-labelledby="gateway-title">
     <div class="gateway-shell">
       <header class="gateway-heading">
         <span class="gateway-eyebrow"><span class="gateway-eyebrow-dot"></span> MOVILIDAD · ARAGÓN</span>
@@ -8088,54 +8096,7 @@
           </button>
         </article>
 
-        <article class="gateway-card gateway-card-avanza">
-          <div class="gateway-card-top">
-            <span class="gateway-card-tag">RED URBANA · ZARAGOZA</span>
-            <div class="gateway-avanza-lockup">
-              <img class="gateway-logo-avanza"
-                src="https://www.zaragoza.es/cont/paginas/medioambiente/bosque-zaragozanos/empresas/AVANZA_Logo.png"
-                alt="Avanza · by Mobility ADO" loading="lazy" decoding="async">
-              <span><strong>ZARAGOZA</strong><small>Autobuses urbanos</small></span>
-            </div>
-          </div>
 
-          <div class="gateway-illustration gateway-illustration-avanza" aria-hidden="true">
-            <svg viewBox="0 0 420 180" role="presentation">
-              <path d="M0 143h420v37H0Z" fill="#e3dfe0"/>
-              <path d="M0 153c76-14 150-14 214 0s137 13 206-1" fill="none" stroke="#bbb2b4" stroke-width="3"/>
-              <path d="M22 35h72m-36-17v34M338 35h60m-30-16v33" stroke="#d4bfc2" stroke-width="3" stroke-linecap="round"/>
-              <path d="M24 129h372" stroke="#fff" stroke-width="3" stroke-dasharray="17 13" opacity=".85"/>
-              <g transform="translate(77 43)">
-                <ellipse cx="139" cy="119" rx="132" ry="10" fill="#8e777b" opacity=".22"/>
-                <path d="M10 43c0-19 13-33 32-33h183c20 0 34 14 34 35v73H10Z" fill="#d92335" stroke="#6e1723" stroke-width="3"/>
-                <path d="M10 83h249v28H10Z" fill="#35383d"/>
-                <path d="M33 20h51v48H33zm59 0h53v48H92zm61 0h53v48h-53zm61 2h23c9 0 15 8 15 17v29h-38z" fill="#1d252b"/>
-                <path d="M89 17v53m61-53v53m61-53v53" stroke="#69747c" stroke-width="3"/>
-                <path d="M24 91h18m170 0h35" stroke="#ece7e7" stroke-width="4" stroke-linecap="round"/>
-                <path d="M15 111h238v8H15Z" fill="#aeb2b5"/>
-                <path d="M222 80h28v9h-28Z" fill="#f8e6e7"/>
-                <path d="M179 79l11 12-11 11" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-                <circle cx="57" cy="115" r="18" fill="#25282c"/><circle cx="57" cy="115" r="7" fill="#b8bec2"/>
-                <circle cx="207" cy="115" r="18" fill="#25282c"/><circle cx="207" cy="115" r="7" fill="#b8bec2"/>
-                <path d="M249 67h15l-4 13h-11Z" fill="#f6e7a5"/>
-                <path d="M10 46h-9v31h9Z" fill="#292d31"/>
-              </g>
-              <path d="M306 60l24 0-12 12" fill="none" stroke="#bf2434" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" opacity=".3"/>
-              <circle cx="354" cy="99" r="5" fill="#bf2434" opacity=".35"/>
-              <circle cx="373" cy="115" r="3" fill="#777d82" opacity=".55"/>
-            </svg>
-          </div>
-
-          <div class="gateway-card-copy">
-            <h2>Avanza · autobuses urbanos de Zaragoza</h2>
-            <p>Consulta en un mapa las posiciones GPS de los autobuses urbanos que Avanza publica en las paradas consultadas.</p>
-          </div>
-
-          <button type="button" class="gateway-action gateway-action-avanza" onclick="abrirAvanzaUrbanos()">
-            <span>Ver autobuses urbanos</span>
-            <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
-          </button>
-        </article>
       </div>
 
       <footer class="gateway-footer">
@@ -8261,16 +8222,19 @@
               </span>
               <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
             </button>
-            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T04" data-operador="Los Monegros Movilidad, S.L. · gestión actual del lote 4">
-              <span class="concession-logo-frame logo-dark-frame" role="img" aria-label="Logotipo de Los Monegros Movilidad · THP" title="Los Monegros Movilidad, S.L. · gestión actual del lote 4" data-fallback="MONEGROS"><img class="concession-logo" src="https://therpasa.es/wp-content/uploads/2025/10/Recursos-MAIL-FORM-y-NEWS-12.png" alt="" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentNode.classList.add('is-broken')"></span>
+            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T04" data-operador="Hife + Grupo Transvia">
+              <span class="concession-logo-frame concession-logo-pair concession-logo-pair-wide" role="img" aria-label="Logotipos de Hife y Transvia" title="Hife + Grupo Transvia" data-fallback="HIFE · TRANSVIA">
+                <img class="concession-logo" src="https://www.hife.es/images/frontend/logo_primary.svg" alt="Hife" loading="lazy" decoding="async" onerror="this.style.display='none'">
+                <img class="concession-logo" src="https://transviago.com/wp-content/uploads/2018/07/TransviaGoCorregido-01-200x49.png" alt="Transvia" loading="lazy" decoding="async" onerror="this.style.display='none'">
+              </span>
               <span class="concession-copy">
                 <span class="btn-title">T04</span>
                 <span class="btn-subtitle">Monegros - Huesca y Zaragoza</span>
               </span>
               <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
             </button>
-            <button class="btn-menu" data-concesion="T05" data-operador="Ágreda Bus, S.L.">
-              <span class="concession-logo-frame" role="img" aria-label="Logotipo de Ágreda Bus" title="Ágreda Bus, S.L." data-fallback="ÁGREDA BUS"><img class="concession-logo" src="{{ url_for('static', filename='agreda-bus.svg') }}" alt="" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentNode.classList.add('is-broken')"></span>
+            <button class="btn-menu" data-concesion="T05" data-operador="Ágreda Bus, S.L. · Grupo ALSA">
+              <span class="concession-logo-frame" role="img" aria-label="Logotipo de ALSA" title="Ágreda Bus, S.L. · Grupo ALSA" data-fallback="ALSA"><img class="concession-logo" src="https://upload.wikimedia.org/wikipedia/commons/5/52/ALSA_2019_logo.svg" alt="ALSA" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentNode.classList.add('is-broken')"></span>
               <span class="concession-copy">
                 <span class="btn-title">T05</span>
                 <span class="btn-subtitle">Área de Fraga-Zaragoza por el eje del Ebro</span>
@@ -8285,8 +8249,11 @@
               </span>
               <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
             </button>
-            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T07" data-operador="Autobuses Magallón">
-              <span class="concession-logo-frame" role="img" aria-label="Logotipo de Autobuses Magallón" title="Autobuses Magallón" data-fallback="MAGALLÓN"><img class="concession-logo" src="{{ url_for('static', filename='magallon.svg') }}" alt="" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentNode.classList.add('is-broken')"></span>
+            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T07" data-operador="Hife + Grupo Transvia">
+              <span class="concession-logo-frame concession-logo-pair concession-logo-pair-wide" role="img" aria-label="Logotipos de Hife y Transvia" title="Hife + Grupo Transvia" data-fallback="HIFE · TRANSVIA">
+                <img class="concession-logo" src="https://www.hife.es/images/frontend/logo_primary.svg" alt="Hife" loading="lazy" decoding="async" onerror="this.style.display='none'">
+                <img class="concession-logo" src="https://transviago.com/wp-content/uploads/2018/07/TransviaGoCorregido-01-200x49.png" alt="Transvia" loading="lazy" decoding="async" onerror="this.style.display='none'">
+              </span>
               <span class="concession-copy">
                 <span class="btn-title">T07</span>
                 <span class="btn-subtitle">Bajo Aragón y Cuencas Mineras - Teruel</span>
@@ -8309,8 +8276,11 @@
               </span>
               <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
             </button>
-            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T10" data-operador="Autobuses Furió, S.L.">
-              <span class="concession-logo-frame" role="img" aria-label="Logotipo de Autobuses Furió" title="Autobuses Furió, S.L." data-fallback="AUTOBUSES FURIÓ"><img class="concession-logo" src="{{ url_for('static', filename='autobuses-furio.svg') }}" alt="" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentNode.classList.add('is-broken')"></span>
+            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T10" data-operador="Grupo Transvia + Autocares Samar">
+              <span class="concession-logo-frame concession-logo-pair concession-logo-pair-wide" role="img" aria-label="Logotipos de Transvia y Samar" title="Grupo Transvia + Autocares Samar" data-fallback="TRANSVIA · SAMAR">
+                <img class="concession-logo" src="https://transviago.com/wp-content/uploads/2018/07/TransviaGoCorregido-01-200x49.png" alt="Transvia" loading="lazy" decoding="async" onerror="this.style.display='none'">
+                <img class="concession-logo" src="https://www.samar.es/images/logo/logo.taocr7ksdm.svg" alt="Samar" loading="lazy" decoding="async" onerror="this.style.display='none'">
+              </span>
               <span class="concession-copy">
                 <span class="btn-title">T10</span>
                 <span class="btn-subtitle">Serranía de Albarracín - Teruel</span>
@@ -8325,8 +8295,8 @@
               </span>
               <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
             </button>
-            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T12" data-operador="La Veloz, S.A.">
-              <span class="concession-logo-frame" role="img" aria-label="Logotipo de La Veloz" title="La Veloz, S.A." data-fallback="LA VELOZ"><img class="concession-logo" src="{{ url_for('static', filename='la-veloz.svg') }}" alt="" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentNode.classList.add('is-broken')"></span>
+            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T12" data-operador="La Veloz, S.A. · Grupo Samar">
+              <span class="concession-logo-frame" role="img" aria-label="Logotipo de Samar" title="La Veloz, S.A. · Grupo Samar" data-fallback="SAMAR"><img class="concession-logo" src="https://www.samar.es/images/logo/logo.taocr7ksdm.svg" alt="Samar" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentNode.classList.add('is-broken')"></span>
               <span class="concession-copy">
                 <span class="btn-title">T12</span>
                 <span class="btn-subtitle">Campo de Belchite - Zaragoza</span>
@@ -8349,8 +8319,8 @@
               </span>
               <span class="concession-arrow" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
             </button>
-            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T15" data-operador="Autobuses Cinco Villas, S.A.U. · Grupo Transvia">
-              <span class="concession-logo-frame" role="img" aria-label="Logotipo de Autobuses Cinco Villas · THP" title="Autobuses Cinco Villas, S.A.U. · Grupo Transvia" data-fallback="CINCO VILLAS"><img class="concession-logo" src="https://therpasa.es/wp-content/uploads/2025/10/Captura-de-pantalla-2025-10-22-a-las-11.44.59.png" alt="" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentNode.classList.add('is-broken')"></span>
+            <button class="btn-menu btn-deshabilitado" disabled data-concesion="T15" data-operador="Automóviles Cinco Villas, S.A. · Grupo Transvia">
+              <span class="concession-logo-frame" role="img" aria-label="Logotipo de Transvia" title="Autobuses Cinco Villas, S.A.U. · Grupo Transvia" data-fallback="TRANSVIA"><img class="concession-logo" src="https://transviago.com/wp-content/uploads/2018/07/TransviaGoCorregido-01-200x49.png" alt="Transvia" loading="lazy" decoding="async" onerror="this.style.display='none';this.parentNode.classList.add('is-broken')"></span>
               <span class="concession-copy">
                 <span class="btn-title">T15</span>
                 <span class="btn-subtitle">Cinco Villas - Zaragoza</span>
