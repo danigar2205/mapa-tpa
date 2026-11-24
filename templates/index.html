@@ -7757,10 +7757,21 @@
     .gateway-card-tag-pending { background: #edf0e8; color: #68765d; }
     .gateway-action i { flex: 0 0 auto; font-size: 13px; }
     .gateway-footer {
-      display: flex; justify-content: space-between; gap: 14px; margin-top: 28px;
-      padding-top: 15px; border-top: 1px solid #dbe2dc; color: #788781;
-      font-size: 10px; letter-spacing: .06em;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+      gap: 14px; margin-top: 28px; padding-top: 15px; border-top: 1px solid #dbe2dc;
+      color: #788781; font-size: 10px; letter-spacing: .06em;
     }
+    .gateway-avanza-access-button {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      min-height: 38px; margin-left: auto; padding: 0 15px; border: 1px solid #a51e29;
+      border-radius: 8px; background: #b9232b; color: #fff; font: inherit;
+      font-size: 11px; font-weight: 800; letter-spacing: 0; cursor: pointer;
+      box-shadow: 0 3px 9px rgba(120, 24, 34, .16);
+      transition: filter .18s ease, transform .18s ease;
+    }
+    .gateway-avanza-access-button:hover { filter: brightness(1.08); transform: translateY(-1px); }
+    .gateway-avanza-access-button:focus-visible { outline: 3px solid #79a8a0; outline-offset: 3px; }
+    .gateway-avanza-access-button i { font-size: 12px; }
     .gateway-footer span:first-child { color: #425c57; font-weight: 900; letter-spacing: .12em; }
     body.theme-dark #selector-plataforma {
       background: radial-gradient(ellipse at 10% 8%, rgba(54,78,70,.32), transparent 36%), #111d22;
@@ -7798,7 +7809,13 @@
       .gateway-card-copy h2 { font-size: 17px; }
       .gateway-card-copy p { font-size: 12px; line-height: 1.55; }
       .gateway-action { min-height: 45px; margin-top: 16px; }
-      .gateway-footer { margin-top: 20px; }
+      .gateway-footer {
+        display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center;
+        gap: 8px 12px; margin-top: 20px;
+      }
+      .gateway-footer > span:first-child { grid-column: 1; grid-row: 1; }
+      .gateway-footer > span:nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+      .gateway-avanza-access-button { grid-column: 2; grid-row: 1; min-height: 36px; margin-left: 0; }
     }
     @media (max-width: 380px) {
       .gateway-card-tag { font-size: 8px; padding: 6px 7px; }
@@ -7899,14 +7916,6 @@
       .avanza-bus-list-row { min-height: 29px; }
     }
 
-      /* Acceso discreto a la flota urbana desde el pie de la portada. */
-    .home-avanza-access-button {
-      display: inline-flex; align-items: center; gap: 7px; min-height: 30px;
-      padding: 0 11px; border: 1px solid rgba(125,211,252,.28); border-radius: 8px;
-      background: rgba(14,165,233,.08); color: #bae6fd; font: inherit;
-      font-size: 10px; font-weight: 800; cursor: pointer;
-    }
-    .home-avanza-access-button:hover { background: rgba(14,165,233,.16); }
     /* Avanza se presenta como una lista, sin mapa ni marcadores. */
     body.avanza-mode { background: #0f172a !important; }
     body.avanza-mode #map { display: none !important; }
@@ -8102,6 +8111,9 @@
       <footer class="gateway-footer">
         <span>MAPA TPA</span>
         <span>Selecciona una red para continuar</span>
+        <button type="button" class="gateway-avanza-access-button" onclick="mostrarLoginAvanza()">
+          <i class="fa-solid fa-lock" aria-hidden="true"></i><span>Acceder</span>
+        </button>
       </footer>
     </div>
   </section>
@@ -8329,9 +8341,6 @@
       <footer class="home-footer">
         <span><strong>MAPA TPA</strong> <span class="footer-separator">/</span> Aragón</span>
         <span>Mapa de concesiones del transporte público autonómico</span>
-        <button type="button" class="home-avanza-access-button" onclick="mostrarLoginAvanza()">
-          <i class="fa-solid fa-lock" aria-hidden="true"></i><span>Acceder</span>
-        </button>
       </footer>
     </div>
   </div>
