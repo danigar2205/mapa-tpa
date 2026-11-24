@@ -10127,8 +10127,11 @@
             Number(datos.paradas_descubiertas || 0) + ' paradas localizadas';
         } else if (fase === 'consultando_gps') {
           tituloBarra = 'Descargando posiciones GPS';
-          detalleBarra = progreso + ' de ' + totalProgreso + ' paradas consultadas · ' +
-            cochesDetectados + ' coches únicos localizados';
+          detalleBarra = progreso + ' de ' + totalProgreso + ' intentos finalizados · ' +
+            Number(datos.paradas_gps_completadas || 0) + ' respuestas válidas · ' +
+            Number(datos.paradas_gps_con_error || 0) + ' fallos · ' +
+            cochesDetectados + ' coches únicos localizados' +
+            (datos.ultimo_error_gps ? ' · Último error: ' + String(datos.ultimo_error_gps).slice(0, 110) : '');
         } else if (datos.fase === 'completado') {
           tituloBarra = datos.seguimiento_en_curso ? 'Seguimiento GPS activo' : 'Barrido finalizado';
           detalleBarra = paradasConRespuesta + ' de ' + totalParadas + ' paradas con respuesta' +
@@ -10156,8 +10159,12 @@
                 ' sentidos · ' + Number(datos.paradas_descubiertas || 0) + ' postes únicos localizados' +
                 resumenGlobal
               : (fase === 'consultando_gps'
-                  ? 'FASE 2/2 · Consultando posiciones GPS: ' + progreso + '/' + totalProgreso +
-                    ' paradas · ' + cochesDetectados + ' coches únicos detectados' + resumenGlobal
+                  ? 'FASE 2/2 · GPS: ' + progreso + '/' + totalProgreso + ' intentos finalizados · ' +
+                    Number(datos.paradas_gps_completadas || 0) + ' respuestas válidas · ' +
+                    Number(datos.paradas_gps_con_error || 0) + ' fallos · ' +
+                    cochesDetectados + ' coches únicos detectados' +
+                    (datos.ultimo_error_gps ? ' · Último error: ' + String(datos.ultimo_error_gps).slice(0, 110) : '') +
+                    resumenGlobal
                   : 'Preparando el barrido completo de Avanza…') + aclaracionFlota)
           : textoCobertura) +
             (datos.duracion_segundos ? ' Barrido: ' + datos.duracion_segundos + ' s.' : '') +
