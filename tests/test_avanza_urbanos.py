@@ -452,5 +452,48 @@ class AvanzaCatalogueVersionTests(unittest.TestCase):
 
 
 
+
+class AvanzaResetInterruptionTests(unittest.TestCase):
+    def test_reset_request_is_read_from_shared_worker_state(self):
+        with patch.object(
+            app_module,
+            "_leer_avanza_estado_compartido",
+            return_value={"state": {"nuevo_barrido_solicitado": True}},
+        ):
+            self.assertTrue(app_module._avanza_reinicio_pendiente())
+
+    def test_interrupted_worker_preserves_pending_reset_and_releases_state(self):
+        estado_anterior = dict(app_module.AVANZA_URBANOS_STATE)
+        try:
+            with patch.object(
+                app_module,
+                "consultar_flota_avanza_urbana",
+                side_effect=app_module.AvanzaBarridoInterrumpido("reinicio solicitado"),
+            ), patch.object(
+                app_module,
+                "_leer_avanza_estado_compartido",
+                return_value={
+                    "state": {
+                        "nuevo_barrido_solicitado": True,
+                        "nuevo_barrido_solicitado_epoch": 12345.0,
+                    }
+                },
+            ), patch.object(app_module, "_guardar_avanza_estado_compartido"):
+                app_module._trabajador_barrido_avanza(None)
+
+            self.assertFalse(app_module.AVANZA_URBANOS_STATE["escaneo_en_curso"])
+            self.assertFalse(app_module.AVANZA_URBANOS_STATE["seguimiento_en_curso"])
+            self.assertTrue(app_module.AVANZA_URBANOS_STATE["nuevo_barrido_solicitado"])
+            self.assertEqual(
+                app_module.AVANZA_URBANOS_STATE["nuevo_barrido_solicitado_epoch"],
+                12345.0,
+            )
+        finally:
+            app_module.AVANZA_URBANOS_STATE.clear()
+            app_module.AVANZA_URBANOS_STATE.update(estado_anterior)
+
+
+
+
 if __name__ == "__main__":
     unittest.main()
